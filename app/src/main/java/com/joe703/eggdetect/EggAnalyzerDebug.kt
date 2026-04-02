@@ -11,7 +11,7 @@ import org.opencv.core.Scalar
 import org.opencv.imgproc.Imgproc
 
 /**
- * DEBUG-Version: Zeigt mittlere Farbe des Bildes an
+ * DEBUG-Version mit MANUELLEM Kanal-Tausch
  */
 class EggAnalyzerDebug(context: Context, private val onResult: (DebugResult) -> Unit) : ImageAnalysis.Analyzer {
 
@@ -57,9 +57,19 @@ class EggAnalyzerDebug(context: Context, private val onResult: (DebugResult) -> 
             val yuvMat = Mat(imageProxy.height + imageProxy.height / 2, imageProxy.width, CvType.CV_8UC1)
             yuvMat.put(0, 0, nv21)
 
-            // NUR RGB (gedreht!)
+            // Konvertiere zu BGR (was das Gerät wahrscheinlich erwartet)
+            val bgrMat = Mat()
+            Imgproc.cvtColor(yuvMat, bgrMat, Imgproc.COLOR_YUV2BGR_NV21, 3)
+
+            // MANUELL: Tausche R und B Kanäle
+            // BGR -> RGB durch Kanal-Split und Merge
+            val channels = mutableListOf<Mat>()
+            Core.split(bgrMat, channels)
+            // channels[0] = B, channels[1] = G, channels[2] = R
+            // Wir wollen: channels[2] = R, channels[1] = G, channels[0] = B
+            val swappedChannels = listOf(channels[2], channels[1], channels[0])
             val rgbMat = Mat()
-            Imgproc.cvtColor(yuvMat, rgbMat, Imgproc.COLOR_YUV2RGB_NV21, 3)
+            Core.merge(swappedChannels, rgbMat)
 
             // RGB Durchschnitt
             val meanRgb = Core.mean(rgbMat)
@@ -72,10 +82,9 @@ class EggAnalyzerDebug(context: Context, private val onResult: (DebugResult) -> 
             Imgproc.cvtColor(rgbMat, hsvRgb, Imgproc.COLOR_RGB2HSV)
             val meanHsv = Core.mean(hsvRgb)
 
-            Log.d("ColorDebug", "RGB: R=$avgR, G=$avgG, B=$avgB")
-            Log.d("ColorDebug", "HSV from RGB: H=${meanHsv.`val`[0]}, S=${meanHsv.`val`[1]}, V=${meanHsv.`val`[2]}")
+            Log.d("ColorDebug", "SWAPPED RGB: R=$avgR, G=$avgG, B=$avgB")
+            Log.d("ColorDebug", "HSV from swapped RGB: H=${meanHsv.`val`[0]}, S=${meanHsv.`val`[1]}, V=${meanHsv.`val`[2]}")
 
-            // Wir verwenden jetzt RGB!
             onResult(DebugResult(
                 avgB = avgB,
                 avgG = avgG,
@@ -87,8 +96,10 @@ class EggAnalyzerDebug(context: Context, private val onResult: (DebugResult) -> 
             ))
 
             yuvMat.release()
+            bgrMat.release()
             rgbMat.release()
             hsvRgb.release()
+            channels.forEach { it.release() }
 
         } catch (e: Exception) {
             Log.e("ColorDebug", "Error: ${e.message}", e)
