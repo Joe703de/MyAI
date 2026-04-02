@@ -216,7 +216,7 @@ fun CameraScreen() {
                     modifier = Modifier.fillMaxWidth(0.8f)
                 ) {
                     // 6 gelbe Eier
-                    repeat(6) { index ->
+                    repeat(6) { _ ->
                         Box(
                             modifier = Modifier
                                 .size(40.dp)
