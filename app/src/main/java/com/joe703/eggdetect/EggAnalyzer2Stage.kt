@@ -3,6 +3,7 @@ package com.joe703.eggdetect
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.util.Log
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import org.opencv.android.Utils
@@ -22,22 +23,16 @@ import java.io.IOException
  */
 data class DetectionResult(
     val eggCount: Int,
-    val candidateCount: Int,      // Anzahl Kandidaten aus Schritt 1
-    val processingTimeMs: Long      // Dauer in Millisekunden
+    val candidateCount: Int,
+    val processingTimeMs: Long
 )
 
-/**
- * Zweistufige Eiererkennung:
- * 1. Schritt: Farbfilterung (HSV) -> Kandidaten finden
- * 2. Schritt: ORB Feature-Matching -> Validierung
- */
 class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult) -> Unit) : ImageAnalysis.Analyzer {
 
     private val referenceFeatures = mutableListOf<ReferenceFeature>()
     private var lastProcessTime = 0L
     private val processIntervalMs = 300
 
-    // ORB für Feature-Matching
     private val orb = ORB.create(500)
     private val bfMatcher = DescriptorMatcher.create(DescriptorMatcher.BRUTEFORCE_HAMMING)
 
@@ -49,11 +44,9 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
 
     init {
         loadReferenceFeatures(context)
+        Log.d("EggAnalyzer", "Loaded ${referenceFeatures.size} reference features")
     }
 
-    /**
-     * Lädt Referenzbilder und extrahiert ORB-Features
-     */
     private fun loadReferenceFeatures(context: Context) {
         val assetManager = context.assets
         val referenceFiles = listOf("ei-gelb_1.jpg", "ei-gelb_2.jpg", "ei-gelb_3.jpg", "ei-gelb_4.jpg")
@@ -66,7 +59,6 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
                         val mat = Mat()
                         Utils.bitmapToMat(bitmap, mat)
 
-                        // In Graustufen für ORB
                         val grayMat = Mat()
                         Imgproc.cvtColor(mat, grayMat, Imgproc.COLOR_BGR2GRAY)
 
@@ -76,6 +68,7 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
 
                         if (!descriptors.empty()) {
                             referenceFeatures.add(ReferenceFeature(filename, keypoints, descriptors))
+                            Log.d("EggAnalyzer", "Loaded reference: $filename")
                         }
 
                         mat.release()
@@ -83,7 +76,7 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
                     }
                 }
             } catch (e: IOException) {
-                e.printStackTrace()
+                Log.e("EggAnalyzer", "Failed to load $filename: ${e.message}")
             }
         }
     }
@@ -100,24 +93,41 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
         val startTime = System.currentTimeMillis()
 
         try {
-            val buffer = imageProxy.planes[0].buffer
-            val bytes = ByteArray(buffer.remaining())
-            buffer.get(bytes)
+            // Korrekte YUV Konvertierung für alle 3 Planes
+            val planes = imageProxy.planes
+            val yBuffer = planes[0].buffer
+            val uBuffer = planes[1].buffer
+            val vBuffer = planes[2].buffer
+
+            val ySize = yBuffer.remaining()
+            val uSize = uBuffer.remaining()
+            val vSize = vBuffer.remaining()
+
+            // NV21 Format: Y Plane + interleaved UV Planes
+            val nv21 = ByteArray(ySize + uSize + vSize)
+            yBuffer.get(nv21, 0, ySize)
+            uBuffer.get(nv21, ySize, uSize)
+            vBuffer.get(nv21, ySize + uSize, vSize)
 
             // YUV zu RGB
             val yuvMat = Mat(imageProxy.height + imageProxy.height / 2, imageProxy.width, CvType.CV_8UC1)
-            yuvMat.put(0, 0, bytes)
+            yuvMat.put(0, 0, nv21)
 
             val rgbMat = Mat()
             Imgproc.cvtColor(yuvMat, rgbMat, Imgproc.COLOR_YUV2RGB_NV21, 3)
 
+            Log.d("EggAnalyzer", "Processing image: ${rgbMat.cols()}x${rgbMat.rows()}")
+
             // Schritt 1: Kandidaten finden
             val candidates = findYellowCandidates(rgbMat)
+            Log.d("EggAnalyzer", "Step 1: Found ${candidates.size} candidates")
 
-            // Schritt 2: Validierung mit Feature-Matching
+            // Schritt 2: Validierung
             val eggCount = validateCandidates(rgbMat, candidates)
+            Log.d("EggAnalyzer", "Step 2: Validated $eggCount eggs")
 
             val processingTime = System.currentTimeMillis() - startTime
+            Log.d("EggAnalyzer", "Total time: ${processingTime}ms")
 
             onResult(DetectionResult(
                 eggCount = eggCount,
@@ -129,24 +139,23 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
             rgbMat.release()
 
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("EggAnalyzer", "Error in analyze: ${e.message}", e)
+            val processingTime = System.currentTimeMillis() - startTime
+            onResult(DetectionResult(0, 0, processingTime))
         } finally {
             imageProxy.close()
         }
     }
 
-    /**
-     * Schritt 1: Gelbe Kandidaten finden (HSV)
-     */
     private fun findYellowCandidates(mat: Mat): List<EggCandidate> {
         val candidates = mutableListOf<EggCandidate>()
 
         val hsv = Mat()
         Imgproc.cvtColor(mat, hsv, Imgproc.COLOR_RGB2HSV)
 
-        // Gelb-Orange Farbbereich
-        val lower1 = Scalar(15.0, 60.0, 80.0)
-        val upper1 = Scalar(35.0, 255.0, 255.0)
+        // Erweiterter Gelb-Orange Bereich
+        val lower1 = Scalar(10.0, 50.0, 80.0)
+        val upper1 = Scalar(40.0, 255.0, 255.0)
 
         val mask = Mat()
         Core.inRange(hsv, lower1, upper1, mask)
@@ -161,14 +170,16 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
         val hierarchy = Mat()
         Imgproc.findContours(mask, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE)
 
+        Log.d("EggAnalyzer", "Found ${contours.size} contours")
+
         for (cnt in contours) {
             val area = Imgproc.contourArea(cnt)
-            if (area < 800 || area > 25000) continue
+            if (area < 500) continue // Noch kleinere Objekte erlauben
 
             val rect = Imgproc.boundingRect(cnt)
             val aspect = rect.width.toFloat() / rect.height.toFloat()
 
-            if (aspect < 0.6 || aspect > 1.8) continue
+            if (aspect < 0.4 || aspect > 2.5) continue // Mehr Toleranz
 
             // ROI mit Padding
             val padding = 20
@@ -177,9 +188,12 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
             val x2 = (rect.x + rect.width + padding).coerceAtMost(mat.cols())
             val y2 = (rect.y + rect.height + padding).coerceAtMost(mat.rows())
 
-            val roi = Mat(mat, org.opencv.core.Rect(x1, y1, x2 - x1, y2 - y1))
+            if (x2 <= x1 || y2 <= y1) continue
 
-            candidates.add(EggCandidate(x1, y1, roi))
+            val roi = Mat(mat, org.opencv.core.Rect(x1, y1, x2 - x1, y2 - y1))
+            candidates.add(EggCandidate(x1, y1, roi, area.toInt()))
+
+            Log.d("EggAnalyzer", "Candidate: area=$area, aspect=$aspect")
         }
 
         hsv.release()
@@ -191,27 +205,26 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
         return candidates
     }
 
-    /**
-     * Schritt 2: Kandidaten mit ORB validieren
-     */
     private fun validateCandidates(mat: Mat, candidates: List<EggCandidate>): Int {
-        if (referenceFeatures.isEmpty()) return 0
+        if (referenceFeatures.isEmpty()) {
+            Log.w("EggAnalyzer", "No reference features loaded!")
+            return 0
+        }
 
         var eggCount = 0
         val usedCenters = mutableListOf<Pair<Int, Int>>()
 
         for (candidate in candidates) {
-            // Mittelpunkt berechnen
             val centerX = candidate.x + candidate.roi.cols() / 2
             val centerY = candidate.y + candidate.roi.rows() / 2
 
-            // Prüfe Abstand zu bereits akzeptierten Eiern
+            // Prüfe Abstand
             var tooClose = false
             for ((ux, uy) in usedCenters) {
                 val dx = (centerX - ux).toDouble()
                 val dy = (centerY - uy).toDouble()
                 val dist = kotlin.math.sqrt(dx * dx + dy * dy)
-                if (dist < 100) {
+                if (dist < 80) {
                     tooClose = true
                     break
                 }
@@ -232,9 +245,6 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
         return eggCount
     }
 
-    /**
-     * Matcht ROI gegen Referenzbilder mit ORB
-     */
     private fun matchFeatures(roi: Mat): Boolean {
         val grayRoi = Mat()
         Imgproc.cvtColor(roi, grayRoi, Imgproc.COLOR_RGB2GRAY)
@@ -272,12 +282,14 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
         keypoints.release()
         descriptors.release()
 
+        Log.d("EggAnalyzer", "Best matches: $bestMatches")
         return bestMatches >= 3
     }
 
     data class EggCandidate(
         val x: Int,
         val y: Int,
-        val roi: Mat
+        val roi: Mat,
+        val area: Int
     )
 }
