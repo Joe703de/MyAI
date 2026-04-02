@@ -148,8 +148,8 @@ fun CameraScreen() {
                     AndroidView(
                         factory = { ctx ->
                             val previewView = PreviewView(ctx)
-                            // FIT_CENTER für komplettes Bild
-                            previewView.scaleType = PreviewView.ScaleType.FIT_CENTER
+                            // FILL_CENTER: Füllt den Rahmen vollständig
+                            previewView.scaleType = PreviewView.ScaleType.FILL_CENTER
                             previewView.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
                             
                             val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
