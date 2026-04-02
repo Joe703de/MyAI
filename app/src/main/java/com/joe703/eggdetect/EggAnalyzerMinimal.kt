@@ -83,15 +83,25 @@ class EggAnalyzerMinimal(context: Context, private val onResult: (String) -> Uni
             Imgproc.cvtColor(yuvMat, rgbDirectMat, Imgproc.COLOR_YUV2RGB_NV21, 3)
             val meanRgbDirect = Core.mean(rgbDirectMat)
 
-            Log.e("MINIMAL", "BGR Mean: B=${meanBgr.`val`[0]}, G=${meanBgr.`val`[1]}, R=${meanBgr.`val`[2]}")
-            Log.e("MINIMAL", "RGB (via BGR) Mean: R=${meanRgb.`val`[0]}, G=${meanRgb.`val`[1]}, B=${meanRgb.`val`[2]}")
-            Log.e("MINIMAL", "RGB (direkt) Mean: R=${meanRgbDirect.`val`[0]}, G=${meanRgbDirect.`val`[1]}, B=${meanRgbDirect.`val`[2]}")
+            // HEX-Werte für erste Pixel (unverändert)
+            val firstPixelBgr = bgrMat.get(0, 0)
+            val hexBgr = String.format("0x%02X%02X%02X", firstPixelBgr[0].toInt(), firstPixelBgr[1].toInt(), firstPixelBgr[2].toInt())
+
+            val firstPixelRgb = rgbMat.get(0, 0)
+            val hexRgb = String.format("0x%02X%02X%02X", firstPixelRgb[0].toInt(), firstPixelRgb[1].toInt(), firstPixelRgb[2].toInt())
+
+            val firstPixelRgbDirect = rgbDirectMat.get(0, 0)
+            val hexRgbDirect = String.format("0x%02X%02X%02X", firstPixelRgbDirect[0].toInt(), firstPixelRgbDirect[1].toInt(), firstPixelRgbDirect[2].toInt())
+
+            Log.e("MINIMAL", "BGR Mean: B=${meanBgr.`val`[0]}, G=${meanBgr.`val`[1]}, R=${meanBgr.`val`[2]}, HEX=$hexBgr")
+            Log.e("MINIMAL", "RGB (via BGR) Mean: R=${meanRgb.`val`[0]}, G=${meanRgb.`val`[1]}, B=${meanRgb.`val`[2]}, HEX=$hexRgb")
+            Log.e("MINIMAL", "RGB (direkt) Mean: R=${meanRgbDirect.`val`[0]}, G=${meanRgbDirect.`val`[1]}, B=${meanRgbDirect.`val`[2]}, HEX=$hexRgbDirect")
 
             val result = """
                 Format: ${width}x${height}
-                BGR: B=${meanBgr.`val`[0].toInt()} G=${meanBgr.`val`[1].toInt()} R=${meanBgr.`val`[2].toInt()}
-                RGB(via): R=${meanRgb.`val`[0].toInt()} G=${meanRgb.`val`[1].toInt()} B=${meanRgb.`val`[2].toInt()}
-                RGB(direkt): R=${meanRgbDirect.`val`[0].toInt()} G=${meanRgbDirect.`val`[1].toInt()} B=${meanRgbDirect.`val`[2].toInt()}
+                BGR: B=${meanBgr.`val`[0].toInt()} G=${meanBgr.`val`[1].toInt()} R=${meanBgr.`val`[2].toInt()} HEX=$hexBgr
+                RGB(via): R=${meanRgb.`val`[0].toInt()} G=${meanRgb.`val`[1].toInt()} B=${meanRgb.`val`[2].toInt()} HEX=$hexRgb
+                RGB(dir): R=${meanRgbDirect.`val`[0].toInt()} G=${meanRgbDirect.`val`[1].toInt()} B=${meanRgbDirect.`val`[2].toInt()} HEX=$hexRgbDirect
             """.trimIndent()
 
             onResult(result)
