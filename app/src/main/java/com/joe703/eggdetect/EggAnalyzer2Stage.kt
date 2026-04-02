@@ -201,12 +201,13 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
         val hsv = Mat()
         Imgproc.cvtColor(mat, hsv, Imgproc.COLOR_RGB2HSV)
 
-        // Erweiterter Gelb-Orange Bereich
-        val lower1 = Scalar(10.0, 50.0, 80.0)
-        val upper1 = Scalar(40.0, 255.0, 255.0)
+        // SPEZIFISCHES EI-GELB (nicht zu breit)
+        // Hue: 20-35 = Gelb, Saturation: 100-255 = kein Grau/Weiß
+        val lowerYellow = Scalar(20.0, 100.0, 100.0)
+        val upperYellow = Scalar(35.0, 255.0, 255.0)
 
         val mask = Mat()
-        Core.inRange(hsv, lower1, upper1, mask)
+        Core.inRange(hsv, lowerYellow, upperYellow, mask)
 
         // Rauschen entfernen - aber große Flächen erhalten
         val kernel = Mat.ones(5, 5, CvType.CV_8U)
