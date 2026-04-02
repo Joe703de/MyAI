@@ -39,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -201,7 +202,13 @@ fun CameraScreen() {
                     )
 
                     // Overlay: Erkannte Objekte markieren
-                    DetectionOverlay(detectionResult.objects)
+                    // WICHTIG: Annahme - Kamera liefert 1920x1080 (Landscape)
+                    // Wir müssen die Koordinaten an das angezeigte Bild anpassen
+                    DetectionOverlay(
+                        objects = detectionResult.objects,
+                        cameraWidth = 1920f,
+                        cameraHeight = 1080f
+                    )
                 }
             }
 
@@ -306,18 +313,46 @@ fun EggIndicatorRow(count: Int, modifier: Modifier = Modifier) {
 /**
  * Zeichnet Rechtecke um erkannte Objekte
  * Grün = validiert (Ei), Rot = nur Kandidat
+ * Koordinaten werden vom Kamera-Format auf den Bildschirm skaliert
  */
 @Composable
-fun DetectionOverlay(objects: List<DetectedObject>) {
+fun DetectionOverlay(
+    objects: List<DetectedObject>,
+    cameraWidth: Float = 1920f,
+    cameraHeight: Float = 1080f
+) {
+    val density = LocalDensity.current
+    
     Canvas(modifier = Modifier.fillMaxSize()) {
+        // Box-Größe ermitteln (die tatsächliche Anzeigegröße)
+        val boxWidth = size.width
+        val boxHeight = size.height
+        
+        // Skalierungsfaktoren berechnen
+        // FILL_CENTER: Bild füllt Box, wird aber beschnitten
+        // Wir skalieren auf die kleinere Dimension
+        val scaleX = boxWidth / cameraWidth
+        val scaleY = boxHeight / cameraHeight
+        val scale = kotlin.math.max(scaleX, scaleY)  // FILL_CENTER verwendet max
+        
+        // Berechne Verschiebung durch Beschneidung
+        val offsetX = (boxWidth - cameraWidth * scale) / 2
+        val offsetY = (boxHeight - cameraHeight * scale) / 2
+        
         objects.forEach { obj ->
             val color = if (obj.isValidated) Color.Green else Color.Red
             val strokeWidth = if (obj.isValidated) 4f else 2f
             
+            // Skalierte Koordinaten
+            val x = obj.x * scale + offsetX
+            val y = obj.y * scale + offsetY
+            val w = obj.width * scale
+            val h = obj.height * scale
+            
             drawRect(
                 color = color,
-                topLeft = Offset(obj.x.toFloat(), obj.y.toFloat()),
-                size = Size(obj.width.toFloat(), obj.height.toFloat()),
+                topLeft = Offset(x, y),
+                size = Size(w, h),
                 style = Stroke(width = strokeWidth)
             )
         }
