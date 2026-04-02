@@ -57,54 +57,37 @@ class EggAnalyzerDebug(context: Context, private val onResult: (DebugResult) -> 
             val yuvMat = Mat(imageProxy.height + imageProxy.height / 2, imageProxy.width, CvType.CV_8UC1)
             yuvMat.put(0, 0, nv21)
 
-            // Teste BEIDE Konvertierungen
-            val bgrMat = Mat()
+            // NUR RGB (gedreht!)
             val rgbMat = Mat()
-            Imgproc.cvtColor(yuvMat, bgrMat, Imgproc.COLOR_YUV2BGR_NV21, 3)
             Imgproc.cvtColor(yuvMat, rgbMat, Imgproc.COLOR_YUV2RGB_NV21, 3)
-
-            // BGR Durchschnitt
-            val meanBgr = Core.mean(bgrMat)
-            val avgB_bgr = meanBgr.`val`[0]
-            val avgG_bgr = meanBgr.`val`[1]
-            val avgR_bgr = meanBgr.`val`[2]
 
             // RGB Durchschnitt
             val meanRgb = Core.mean(rgbMat)
-            val avgR_rgb = meanRgb.`val`[0]
-            val avgG_rgb = meanRgb.`val`[1]
-            val avgB_rgb = meanRgb.`val`[2]
-
-            // HSV aus BGR
-            val hsvBgr = Mat()
-            Imgproc.cvtColor(bgrMat, hsvBgr, Imgproc.COLOR_BGR2HSV)
-            val meanHsvBgr = Core.mean(hsvBgr)
+            val avgR = meanRgb.`val`[0]
+            val avgG = meanRgb.`val`[1]
+            val avgB = meanRgb.`val`[2]
 
             // HSV aus RGB
             val hsvRgb = Mat()
             Imgproc.cvtColor(rgbMat, hsvRgb, Imgproc.COLOR_RGB2HSV)
-            val meanHsvRgb = Core.mean(hsvRgb)
+            val meanHsv = Core.mean(hsvRgb)
 
-            Log.d("ColorDebug", "BGR format: B=$avgB_bgr, G=$avgG_bgr, R=$avgR_bgr")
-            Log.d("ColorDebug", "RGB format: R=$avgR_rgb, G=$avgG_rgb, B=$avgB_rgb")
-            Log.d("ColorDebug", "HSV from BGR: H=${meanHsvBgr.`val`[0]}, S=${meanHsvBgr.`val`[1]}, V=${meanHsvBgr.`val`[2]}")
-            Log.d("ColorDebug", "HSV from RGB: H=${meanHsvRgb.`val`[0]}, S=${meanHsvRgb.`val`[1]}, V=${meanHsvRgb.`val`[2]}")
+            Log.d("ColorDebug", "RGB: R=$avgR, G=$avgG, B=$avgB")
+            Log.d("ColorDebug", "HSV from RGB: H=${meanHsv.`val`[0]}, S=${meanHsv.`val`[1]}, V=${meanHsv.`val`[2]}")
 
-            // Wir verwenden BGR als Standard
+            // Wir verwenden jetzt RGB!
             onResult(DebugResult(
-                avgB = avgB_bgr,
-                avgG = avgG_bgr,
-                avgR = avgR_bgr,
-                avgH = meanHsvBgr.`val`[0],
-                avgS = meanHsvBgr.`val`[1],
-                avgV = meanHsvBgr.`val`[2],
+                avgB = avgB,
+                avgG = avgG,
+                avgR = avgR,
+                avgH = meanHsv.`val`[0],
+                avgS = meanHsv.`val`[1],
+                avgV = meanHsv.`val`[2],
                 processingTimeMs = System.currentTimeMillis() - startTime
             ))
 
             yuvMat.release()
-            bgrMat.release()
             rgbMat.release()
-            hsvBgr.release()
             hsvRgb.release()
 
         } catch (e: Exception) {
