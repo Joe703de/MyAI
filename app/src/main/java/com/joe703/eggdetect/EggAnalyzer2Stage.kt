@@ -160,10 +160,10 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
         val mask = Mat()
         Core.inRange(hsv, lower1, upper1, mask)
 
-        // Rauschen entfernen
-        val kernel = Mat.ones(7, 7, CvType.CV_8U)
-        Imgproc.morphologyEx(mask, mask, Imgproc.MORPH_OPEN, kernel)
-        Imgproc.morphologyEx(mask, mask, Imgproc.MORPH_CLOSE, kernel)
+        // Rauschen entfernen - aber große Flächen erhalten
+        val kernel = Mat.ones(5, 5, CvType.CV_8U)  // Von 7x7 auf 5x5 reduziert
+        Imgproc.morphologyEx(mask, mask, Imgproc.MORPH_CLOSE, kernel)  // Nur CLOSE, kein OPEN
+        // OPEN entfernt - würde kleine Brücken zwischen großen Flächen zerstören
 
         // Konturen finden
         val contours = mutableListOf<org.opencv.core.MatOfPoint>()
@@ -175,8 +175,9 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
         for (cnt in contours) {
             val area = Imgproc.contourArea(cnt)
             
-            // SEHR KLEINE und SEHR GROSSE Objekte ausschließen
-            if (area < 100 || area > 50000) continue  // Von 500 auf 100 gesenkt!
+            // SEHR KLEINE Objekte ausschließen, aber GROSSE erlauben
+            if (area < 100) continue  // Nur Mindestgröße
+            // KEINE Maximalgröße mehr!
 
             val rect = Imgproc.boundingRect(cnt)
             val aspect = rect.width.toFloat() / rect.height.toFloat()
