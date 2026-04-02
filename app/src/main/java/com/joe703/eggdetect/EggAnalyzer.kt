@@ -95,10 +95,9 @@ class EggAnalyzer(private val onEggsDetected: (Int) -> Unit) : ImageAnalysis.Ana
             // Überlappung mit bereits gefundenen Eiern prüfen
             var tooClose = false
             for (used in usedAreas) {
-                val centerDist = sqrt(
-                    ((rect.x + rect.width/2) - (used.centerX())).toDouble().pow(2) +
-                    ((rect.y + rect.height/2) - (used.centerY())).toDouble().pow(2)
-                )
+                val dx = (rect.x + rect.width/2) - used.centerX()
+                val dy = (rect.y + rect.height/2) - used.centerY()
+                val centerDist = kotlin.math.sqrt((dx * dx + dy * dy).toDouble())
                 if (centerDist < 80) {
                     tooClose = true
                     break
@@ -127,4 +126,3 @@ class EggAnalyzer(private val onEggsDetected: (Int) -> Unit) : ImageAnalysis.Ana
 // Hilfsfunktion für Rect
 private fun android.graphics.Rect.centerX() = (left + right) / 2
 private fun android.graphics.Rect.centerY() = (top + bottom) / 2
-private fun Double.pow(exp: Int) = kotlin.math.pow(this, exp.toDouble())
