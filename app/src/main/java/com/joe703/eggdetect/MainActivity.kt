@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
@@ -57,9 +58,11 @@ fun EggDetectApp() {
 
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
+    ) { isGranted: Boolean ->
         hasCameraPermission = isGranted
     }
+
+    val currentContext = LocalContext.current
 
     Scaffold(
         modifier = Modifier.fillMaxSize()
@@ -76,7 +79,7 @@ fun EggDetectApp() {
                     text = "Kamera-Berechtigung wird benötigt",
                     modifier = Modifier.align(Alignment.Center)
                 )
-                LaunchedEffect(Unit) {
+                LaunchedEffect(currentContext) {
                     launcher.launch(Manifest.permission.CAMERA)
                 }
             }
