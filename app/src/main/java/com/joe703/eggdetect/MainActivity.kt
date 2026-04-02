@@ -3,12 +3,15 @@ package com.joe703.eggdetect
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.view.Surface
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview as CameraPreview
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
@@ -17,7 +20,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -36,8 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import android.view.Surface
-import android.util.Size
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -139,15 +140,15 @@ fun CameraScreen() {
                     .border(1.dp, Color.White),
                 contentAlignment = Alignment.Center
             ) {
-                // WICHTIG: Box mit clipToBounds, damit Kamera nicht überragt
+                // Kamera-Container
                 Box(
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    // Echte Kamera - skaliert mit FIT_CENTER (komplett sichtbar)
+                    // Echte Kamera - mit Portrait-Konfiguration
                     AndroidView(
                         factory = { ctx ->
                             val previewView = PreviewView(ctx)
-                            // FIT_CENTER: Zeigt komplettes Bild, mit schwarzen Balken
+                            // FIT_CENTER für komplettes Bild
                             previewView.scaleType = PreviewView.ScaleType.FIT_CENTER
                             previewView.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
                             
@@ -157,7 +158,19 @@ fun CameraScreen() {
                                 try {
                                     val cameraProvider = cameraProviderFuture.get()
                                     
+                                    // Portrait-Auflösung konfigurieren
+                                    val resolutionSelector = ResolutionSelector.Builder()
+                                        .setResolutionStrategy(
+                                            ResolutionStrategy(
+                                                android.util.Size(1080, 1920),
+                                                ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
+                                            )
+                                        )
+                                        .build()
+                                    
                                     val preview = CameraPreview.Builder()
+                                        .setResolutionSelector(resolutionSelector)
+                                        .setTargetRotation(Surface.ROTATION_0)  // Portrait
                                         .build()
                                         .also { previewInstance ->
                                             previewInstance.setSurfaceProvider(previewView.surfaceProvider)
@@ -246,7 +259,7 @@ fun CameraScreenPreview() {
                         )
                     }
                     
-                    // Kamera-Bereich: 70% Höhe - nur blaues Rechteck, KEINE echte Kamera
+                    // Kamera-Bereich: 70% Höhe
                     Box(
                         modifier = Modifier
                             .weight(0.7f)
