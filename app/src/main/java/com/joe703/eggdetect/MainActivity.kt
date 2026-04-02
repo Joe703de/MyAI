@@ -43,7 +43,6 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -192,7 +191,7 @@ fun CameraScreen() {
                     )
 
                     if (previewViewSize.width > 0 && detectionResult.imageWidth > 0) {
-                        RotatedDetectionOverlay(
+                        DetectionOverlayFixed(
                             objects = detectionResult.objects,
                             previewWidth = previewViewSize.width.toFloat(),
                             previewHeight = previewViewSize.height.toFloat(),
@@ -251,8 +250,13 @@ fun StatusBar(result: DetectionResult) {
     }
 }
 
+/**
+ * KORRIGIERTES OVERLAY
+ * 1. Rotation: (x,y) -> (y,x)
+ * 2. Beide Achsen spiegeln
+ */
 @Composable
-fun RotatedDetectionOverlay(
+fun DetectionOverlayFixed(
     objects: List<DetectedObject>,
     previewWidth: Float,
     previewHeight: Float,
@@ -260,6 +264,7 @@ fun RotatedDetectionOverlay(
     imageHeight: Float
 ) {
     Canvas(modifier = Modifier.fillMaxSize()) {
+        // Nach Rotation: width/height getauscht
         val rotatedImageWidth = imageHeight
         val rotatedImageHeight = imageWidth
 
@@ -275,20 +280,29 @@ fun RotatedDetectionOverlay(
         objects.forEach { obj ->
             val color = if (obj.isValidated) Color.Green else Color.Red
 
-            val rotatedX = obj.y
-            val rotatedY = imageWidth - obj.x - obj.width
-            val rotatedW = obj.height
-            val rotatedH = obj.width
+            // 1. ROTATION (Portrait -> Landscape)
+            // Original: x=horizontal, y=vertical (Hochformat)
+            // Rotiert: x=vertical, y=horizontal (Querformat)
+            val rotatedX = obj.y           // Original Y wird neue X
+            val rotatedY = obj.x           // Original X wird neue Y
+            val rotatedW = obj.height      // Höhe wird Breite
+            val rotatedH = obj.width       // Breite wird Höhe
 
+            // 2. BEIDE ACHSEN SPIEGELN
+            // Kamera ist gespiegelt in beide Richtungen
             val mirroredX = rotatedImageWidth - rotatedX - rotatedW
+            val mirroredY = rotatedImageHeight - rotatedY - rotatedH
+
+            // Finale Position
             val finalX = mirroredX
-            val finalY = rotatedY
+            val finalY = mirroredY
             val finalW = rotatedW
             val finalH = rotatedH
 
             val centerX = finalX + finalW / 2
             val centerY = finalY + finalH / 2
 
+            // Nur anzeigen wenn im sichtbaren Bereich
             if (centerX >= offsetX && centerX <= offsetX + visibleWidth &&
                 centerY >= offsetY && centerY <= offsetY + visibleHeight
             ) {
