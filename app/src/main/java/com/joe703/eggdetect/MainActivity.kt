@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -129,7 +130,7 @@ fun CameraScreen() {
                 )
             }
             
-            // Kamera-Preview Bereich: 70% Höhe, Hochformat, mit weißem Rahmen
+            // Kamera-Preview Bereich: 70% Höhe, mit weißem Rahmen
             Box(
                 modifier = Modifier
                     .weight(0.7f)
@@ -137,40 +138,46 @@ fun CameraScreen() {
                     .border(1.dp, Color.White),
                 contentAlignment = Alignment.Center
             ) {
-                // Echte Kamera
-                AndroidView(
-                    factory = { ctx ->
-                        val previewView = PreviewView(ctx)
-                        previewView.scaleType = PreviewView.ScaleType.FILL_CENTER
-                        previewView.implementationMode = PreviewView.ImplementationMode.PERFORMANCE
-                        
-                        val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
-                        
-                        cameraProviderFuture.addListener({
-                            try {
-                                val cameraProvider = cameraProviderFuture.get()
-                                
-                                val preview = CameraPreview.Builder()
-                                    .build()
-                                    .also { previewInstance ->
-                                        previewInstance.setSurfaceProvider(previewView.surfaceProvider)
-                                    }
-                                
-                                cameraProvider.unbindAll()
-                                cameraProvider.bindToLifecycle(
-                                    lifecycleOwner,
-                                    CameraSelector.DEFAULT_BACK_CAMERA,
-                                    preview
-                                )
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            }
-                        }, ContextCompat.getMainExecutor(ctx))
-                        
-                        previewView
-                    },
+                // WICHTIG: Box mit clipToBounds, damit Kamera nicht überragt
+                Box(
                     modifier = Modifier.fillMaxSize()
-                )
+                ) {
+                    // Echte Kamera - skaliert mit FIT_CENTER (komplett sichtbar)
+                    AndroidView(
+                        factory = { ctx ->
+                            val previewView = PreviewView(ctx)
+                            // FIT_CENTER: Zeigt komplettes Bild, mit schwarzen Balken
+                            previewView.scaleType = PreviewView.ScaleType.FIT_CENTER
+                            previewView.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+                            
+                            val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
+                            
+                            cameraProviderFuture.addListener({
+                                try {
+                                    val cameraProvider = cameraProviderFuture.get()
+                                    
+                                    val preview = CameraPreview.Builder()
+                                        .build()
+                                        .also { previewInstance ->
+                                            previewInstance.setSurfaceProvider(previewView.surfaceProvider)
+                                        }
+                                    
+                                    cameraProvider.unbindAll()
+                                    cameraProvider.bindToLifecycle(
+                                        lifecycleOwner,
+                                        CameraSelector.DEFAULT_BACK_CAMERA,
+                                        preview
+                                    )
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                }
+                            }, ContextCompat.getMainExecutor(ctx))
+                            
+                            previewView
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
             
             // Eier-Bereich: 15%
@@ -202,7 +209,7 @@ fun CameraScreen() {
     }
 }
 
-// PREVIEW für Android Studio
+// VEREINFACHTE PREVIEW - nur UI, keine Kamera
 @androidx.compose.ui.tooling.preview.Preview(device = "id:pixel_5", showBackground = true, showSystemUi = true)
 @Composable
 fun CameraScreenPreview() {
@@ -238,7 +245,7 @@ fun CameraScreenPreview() {
                         )
                     }
                     
-                    // Kamera-Preview Bereich: 70% Höhe, Hochformat
+                    // Kamera-Bereich: 70% Höhe - nur blaues Rechteck, KEINE echte Kamera
                     Box(
                         modifier = Modifier
                             .weight(0.7f)
@@ -247,7 +254,10 @@ fun CameraScreenPreview() {
                             .background(Color.Blue),
                         contentAlignment = Alignment.Center
                     ) {
-                        // Leer
+                        Text(
+                            text = "Kamera-Preview",
+                            color = Color.White
+                        )
                     }
                     
                     // Eier-Bereich: 15%
