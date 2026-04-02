@@ -43,6 +43,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.joe703.eggdetect.ui.theme.EggdetectTheme
+import androidx.compose.ui.tooling.preview.Preview
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -200,6 +201,81 @@ fun CameraScreen() {
                                 .size(40.dp)
                                 .background(Color.Yellow, CircleShape)
                         )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// PREVIEW für Android Studio - ohne echte Kamera
+@Preview(device = "id:pixel_5", showBackground = true, showSystemUi = true)
+@Composable
+fun CameraScreenPreview() {
+    EggdetectTheme {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = Color.Black
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Abstand von oben: 10%
+                    Box(modifier = Modifier.weight(0.1f))
+                    
+                    // Kamera-Preview Bereich: 70% Höhe
+                    Box(
+                        modifier = Modifier
+                            .weight(0.7f)
+                            .fillMaxWidth(0.9f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        // Blaues Rechteck als Platzhalter
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Blue)
+                        )
+                        
+                        // Text oben rechts
+                        Text(
+                            text = "Kamera läuft (Preview)",
+                            color = Color.White,
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(8.dp)
+                                .background(Color.Black.copy(alpha = 0.5f))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                    
+                    // Unterer Bereich: 6 gelbe Eier
+                    Box(
+                        modifier = Modifier
+                            .weight(0.2f)
+                            .fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth(0.8f)
+                        ) {
+                            repeat(6) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .background(Color.Yellow, CircleShape)
+                                )
+                            }
+                        }
                     }
                 }
             }
