@@ -129,10 +129,10 @@ fun CameraScreen() {
                 )
             }
             
-            // Kamera-Preview Bereich: 80% Höhe, mit weißem Rahmen
+            // Kamera-Preview Bereich: 70% Höhe, mit weißem Rahmen
             Box(
                 modifier = Modifier
-                    .weight(0.8f)
+                    .weight(0.7f)
                     .fillMaxWidth(0.9f)
                     .border(1.dp, Color.White),
                 contentAlignment = Alignment.Center
@@ -173,10 +173,10 @@ fun CameraScreen() {
                 )
             }
             
-            // Unterer Bereich: 10% für Eier, vertikal mittig
+            // Eier-Bereich: 15%
             Box(
                 modifier = Modifier
-                    .weight(0.1f)
+                    .weight(0.15f)
                     .fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
@@ -195,11 +195,14 @@ fun CameraScreen() {
                     }
                 }
             }
+            
+            // Abstand unten: 5%
+            Box(modifier = Modifier.weight(0.05f))
         }
     }
 }
 
-// PREVIEW für Android Studio - ohne echte Kamera
+// PREVIEW für Android Studio
 @androidx.compose.ui.tooling.preview.Preview(device = "id:pixel_5", showBackground = true, showSystemUi = true)
 @Composable
 fun CameraScreenPreview() {
@@ -220,7 +223,7 @@ fun CameraScreenPreview() {
                     // Abstand von oben: 10%
                     Box(modifier = Modifier.weight(0.1f))
                     
-                    // Text oben rechts (außerhalb)
+                    // Text oben rechts
                     Box(
                         modifier = Modifier.fillMaxWidth(0.9f),
                         contentAlignment = Alignment.TopEnd
@@ -235,22 +238,22 @@ fun CameraScreenPreview() {
                         )
                     }
                     
-                    // Kamera-Preview Bereich: 80% Höhe, mit Rahmen
+                    // Kamera-Preview Bereich: 70% Höhe
                     Box(
                         modifier = Modifier
-                            .weight(0.8f)
+                            .weight(0.7f)
                             .fillMaxWidth(0.9f)
                             .border(1.dp, Color.White)
                             .background(Color.Blue),
                         contentAlignment = Alignment.Center
                     ) {
-                        // Leer - nur blaues Rechteck mit Rahmen
+                        // Leer
                     }
                     
-                    // Unterer Bereich: 10% für Eier
+                    // Eier-Bereich: 15%
                     Box(
                         modifier = Modifier
-                            .weight(0.1f)
+                            .weight(0.15f)
                             .fillMaxWidth(),
                         contentAlignment = Alignment.Center
                     ) {
@@ -268,6 +271,9 @@ fun CameraScreenPreview() {
                             }
                         }
                     }
+                    
+                    // Abstand unten: 5%
+                    Box(modifier = Modifier.weight(0.05f))
                 }
             }
         }
