@@ -4,6 +4,8 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
+import android.view.View
+import android.view.ViewTreeObserver
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -13,6 +15,7 @@ import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview as CameraPreview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -37,7 +40,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
@@ -47,10 +53,6 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.joe703.eggdetect.ui.theme.EggdetectTheme
 import org.opencv.android.OpenCVLoader
 import java.util.concurrent.Executors
-import androidx.compose.foundation.Canvas
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.drawscope.Stroke
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -119,7 +121,11 @@ fun CameraScreen() {
     val lifecycleOwner = LocalLifecycleOwner.current
 
     // Erkennungsergebnis
-    var detectionResult by remember { mutableStateOf(DetectionResult(0, 0, 0L, emptyList())) }
+    var detectionResult by remember { mutableStateOf(DetectionResult(0, 0, 0L, emptyList(), 0, 0)) }
+
+    // PreviewView Referenz für Overlay-Skalierung
+    var previewViewRef by remember { mutableStateOf<PreviewView?>(null) }
+    var previewViewSize by remember { mutableStateOf(android.util.Size(0, 0)) }
 
     // ImageAnalyzer erstellen (zweistufige Erkennung)
     val imageAnalyzer = remember(context) {
@@ -170,6 +176,11 @@ fun CameraScreen() {
                             previewView.scaleType = PreviewView.ScaleType.FILL_CENTER
                             previewView.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
 
+                            // Größe überwachen
+                            previewView.viewTreeObserver.addOnGlobalLayoutListener {
+                                previewViewSize = android.util.Size(previewView.width, previewView.height)
+                            }
+
                             val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
 
                             cameraProviderFuture.addListener({
@@ -194,6 +205,7 @@ fun CameraScreen() {
                                 }
                             }, ContextCompat.getMainExecutor(ctx))
 
+                            previewViewRef = previewView
                             previewView
                         },
                         modifier = Modifier
@@ -202,13 +214,17 @@ fun CameraScreen() {
                     )
 
                     // Overlay: Erkannte Objekte markieren
-                    // WICHTIG: Annahme - Kamera liefert 1920x1080 (Landscape)
-                    // Wir müssen die Koordinaten an das angezeigte Bild anpassen
-                    DetectionOverlay(
-                        objects = detectionResult.objects,
-                        cameraWidth = detectionResult.imageWidth.toFloat().coerceAtLeast(1f),
-                        cameraHeight = detectionResult.imageHeight.toFloat().coerceAtLeast(1f)
-                    )
+                    // WICHTIG: Verwendet tatsächliche Preview-Größe
+                    if (previewViewSize.width > 0 && previewViewSize.height > 0 &&
+                        detectionResult.imageWidth > 0 && detectionResult.imageHeight > 0) {
+                        DetectionOverlay(
+                            objects = detectionResult.objects,
+                            previewWidth = previewViewSize.width.toFloat(),
+                            previewHeight = previewViewSize.height.toFloat(),
+                            imageWidth = detectionResult.imageWidth.toFloat(),
+                            imageHeight = detectionResult.imageHeight.toFloat()
+                        )
+                    }
                 }
             }
 
@@ -273,6 +289,62 @@ fun StatusBar(result: DetectionResult) {
 }
 
 /**
+ * Zeichnet Rechtecke um erkannte Objekte
+ * Koordinaten werden vom Kamera-Format auf den Bildschirm skaliert
+ */
+@Composable
+fun DetectionOverlay(
+    objects: List<DetectedObject>,
+    previewWidth: Float,
+    previewHeight: Float,
+    imageWidth: Float,
+    imageHeight: Float
+) {
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        // FILL_CENTER Skalierung: Bild füllt Preview aus
+        // Berechne Skalierungsfaktor (wie CameraX es macht)
+        val scaleX = previewWidth / imageWidth
+        val scaleY = previewHeight / imageHeight
+        val scale = kotlin.math.max(scaleX, scaleY)
+
+        // Berechne sichtbaren Bereich (was wird beschnitten?)
+        val visibleWidth = previewWidth / scale
+        val visibleHeight = previewHeight / scale
+
+        // Offset - was vom Bild ist links/oben außerhalb?
+        val offsetX = (imageWidth - visibleWidth) / 2
+        val offsetY = (imageHeight - visibleHeight) / 2
+
+        objects.forEach { obj ->
+            val color = if (obj.isValidated) Color.Green else Color.Red
+            val strokeWidth = if (obj.isValidated) 4f else 2f
+
+            // Transformiere Bild-Koordinaten zu Preview-Koordinaten
+            // Nur Objekte im sichtbaren Bereich anzeigen
+            val objCenterX = obj.x + obj.width / 2
+            val objCenterY = obj.y + obj.height / 2
+
+            // Prüfe ob Objekt im sichtbaren Bereich
+            if (objCenterX >= offsetX && objCenterX <= offsetX + visibleWidth &&
+                objCenterY >= offsetY && objCenterY <= offsetY + visibleHeight) {
+
+                val x = (obj.x - offsetX) * scale
+                val y = (obj.y - offsetY) * scale
+                val w = obj.width * scale
+                val h = obj.height * scale
+
+                drawRect(
+                    color = color,
+                    topLeft = Offset(x, y),
+                    size = Size(w, h),
+                    style = Stroke(width = strokeWidth)
+                )
+            }
+        }
+    }
+}
+
+/**
  * Zeigt die erkannten Eier als Reihe von Kreisen
  */
 @Composable
@@ -309,56 +381,3 @@ fun EggIndicatorRow(count: Int, modifier: Modifier = Modifier) {
         }
     }
 }
-
-/**
- * Zeichnet Rechtecke um erkannte Objekte
- * Grün = validiert (Ei), Rot = nur Kandidat
- * Koordinaten werden vom Kamera-Format auf den Bildschirm skaliert
- */
-@Composable
-fun DetectionOverlay(
-    objects: List<DetectedObject>,
-    cameraWidth: Float = 1920f,
-    cameraHeight: Float = 1080f
-) {
-    val density = LocalDensity.current
-    
-    Canvas(modifier = Modifier.fillMaxSize()) {
-        // Box-Größe ermitteln (die tatsächliche Anzeigegröße)
-        val boxWidth = size.width
-        val boxHeight = size.height
-        
-        // Skalierungsfaktoren berechnen
-        // FILL_CENTER: Bild füllt Box, wird aber beschnitten
-        // Wir skalieren auf die kleinere Dimension
-        val scaleX = boxWidth / cameraWidth
-        val scaleY = boxHeight / cameraHeight
-        val scale = kotlin.math.max(scaleX, scaleY)  // FILL_CENTER verwendet max
-        
-        // Berechne Verschiebung durch Beschneidung
-        val offsetX = (boxWidth - cameraWidth * scale) / 2
-        val offsetY = (boxHeight - cameraHeight * scale) / 2
-        
-        objects.forEach { obj ->
-            val color = if (obj.isValidated) Color.Green else Color.Red
-            val strokeWidth = if (obj.isValidated) 4f else 2f
-            
-            // Skalierte Koordinaten
-            val x = obj.x * scale + offsetX
-            val y = obj.y * scale + offsetY
-            val w = obj.width * scale
-            val h = obj.height * scale
-            
-            drawRect(
-                color = color,
-                topLeft = Offset(x, y),
-                size = Size(w, h),
-                style = Stroke(width = strokeWidth)
-            )
-        }
-    }
-}
-
-// Import für Log
-private val Any.android: Any
-    get() = this
