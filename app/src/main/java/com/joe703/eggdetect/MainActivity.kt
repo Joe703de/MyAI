@@ -4,8 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
-import android.view.View
-import android.view.ViewTreeObserver
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -45,7 +44,6 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -58,7 +56,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Display anlassen wenn App im Vordergrund
+        // Display anlassen
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         // OpenCV initialisieren
@@ -126,11 +124,10 @@ fun CameraScreen() {
     // Erkennungsergebnis
     var detectionResult by remember { mutableStateOf(DetectionResult(0, 0, 0L, emptyList(), 0, 0)) }
 
-    // PreviewView Referenz für Overlay-Skalierung
-    var previewViewRef by remember { mutableStateOf<PreviewView?>(null) }
+    // PreviewView Größe
     var previewViewSize by remember { mutableStateOf(android.util.Size(0, 0)) }
 
-    // ImageAnalyzer erstellen (zweistufige Erkennung)
+    // ImageAnalyzer
     val imageAnalyzer = remember(context) {
         ImageAnalysis.Builder()
             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
@@ -154,13 +151,10 @@ fun CameraScreen() {
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Abstand von oben: 10%
             Box(modifier = Modifier.weight(0.1f))
-
-            // Info-Texte oben
             StatusBar(detectionResult)
 
-            // Kamera-Preview Bereich: 70% Höhe, mit weißem Rahmen
+            // Kamera-Preview mit Rahmen
             Box(
                 modifier = Modifier
                     .weight(0.7f)
@@ -168,33 +162,25 @@ fun CameraScreen() {
                     .border(1.dp, Color.White),
                 contentAlignment = Alignment.Center
             ) {
-                // Kamera-Container mit Overlay
-                Box(
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    // Echte Kamera
+                Box(modifier = Modifier.fillMaxSize()) {
+                    // Kamera
                     AndroidView(
                         factory = { ctx ->
                             val previewView = PreviewView(ctx)
                             previewView.scaleType = PreviewView.ScaleType.FILL_CENTER
                             previewView.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
 
-                            // Größe überwachen
-                            previewView.viewTreeObserver.addOnGlobalLayoutListener {
+                            previewView.post {
                                 previewViewSize = android.util.Size(previewView.width, previewView.height)
                             }
 
                             val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
-
                             cameraProviderFuture.addListener({
                                 try {
                                     val cameraProvider = cameraProviderFuture.get()
-
                                     val preview = CameraPreview.Builder()
                                         .build()
-                                        .also { previewInstance ->
-                                            previewInstance.setSurfaceProvider(previewView.surfaceProvider)
-                                        }
+                                        .also { it.setSurfaceProvider(previewView.surfaceProvider) }
 
                                     cameraProvider.unbindAll()
                                     cameraProvider.bindToLifecycle(
@@ -208,19 +194,14 @@ fun CameraScreen() {
                                 }
                             }, ContextCompat.getMainExecutor(ctx))
 
-                            previewViewRef = previewView
                             previewView
                         },
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clipToBounds()
+                        modifier = Modifier.fillMaxSize().clipToBounds()
                     )
 
-                    // Overlay: Erkannte Objekte markieren
-                    // WICHTIG: Verwendet tatsächliche Preview-Größe
-                    if (previewViewSize.width > 0 && previewViewSize.height > 0 &&
-                        detectionResult.imageWidth > 0 && detectionResult.imageHeight > 0) {
-                        DetectionOverlay(
+                    // Overlay mit ROTATION
+                    if (previewViewSize.width > 0 && detectionResult.imageWidth > 0) {
+                        RotatedDetectionOverlay(
                             objects = detectionResult.objects,
                             previewWidth = previewViewSize.width.toFloat(),
                             previewHeight = previewViewSize.height.toFloat(),
@@ -231,21 +212,12 @@ fun CameraScreen() {
                 }
             }
 
-            // Eier-Bereich: 15% - dynamische Anzeige
-            EggIndicatorRow(
-                count = detectionResult.eggCount,
-                modifier = Modifier.weight(0.15f)
-            )
-
-            // Abstand unten: 5%
+            EggIndicatorRow(count = detectionResult.eggCount, modifier = Modifier.weight(0.15f))
             Box(modifier = Modifier.weight(0.05f))
         }
     }
 }
 
-/**
- * Status-Anzeige oben
- */
 @Composable
 fun StatusBar(result: DetectionResult) {
     Box(
@@ -257,7 +229,6 @@ fun StatusBar(result: DetectionResult) {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Links: Zeit
             Text(
                 text = "${result.processingTimeMs}ms",
                 color = Color.Yellow,
@@ -267,7 +238,6 @@ fun StatusBar(result: DetectionResult) {
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             )
 
-            // Mitte: Schritt 1 Status
             val step1Color = if (result.candidateCount > 0) Color.Green else Color.Gray
             Text(
                 text = "S1: ${result.candidateCount}",
@@ -278,7 +248,6 @@ fun StatusBar(result: DetectionResult) {
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             )
 
-            // Rechts: Eier
             Text(
                 text = "Eier: ${result.eggCount}",
                 color = Color.White,
@@ -292,11 +261,11 @@ fun StatusBar(result: DetectionResult) {
 }
 
 /**
- * Zeichnet Rechtecke um erkannte Objekte
- * Koordinaten werden vom Kamera-Format auf den Bildschirm skaliert
+ * OVERLAY MIT 90° ROTATION
+ * Kamera liefert Hochformat, Preview zeigt Querformat
  */
 @Composable
-fun DetectionOverlay(
+fun RotatedDetectionOverlay(
     objects: List<DetectedObject>,
     previewWidth: Float,
     previewHeight: Float,
@@ -304,57 +273,57 @@ fun DetectionOverlay(
     imageHeight: Float
 ) {
     Canvas(modifier = Modifier.fillMaxSize()) {
-        // FILL_CENTER Skalierung: Bild füllt Preview aus
-        // Berechne Skalierungsfaktor (wie CameraX es macht)
-        val scaleX = previewWidth / imageWidth
-        val scaleY = previewHeight / imageHeight
+        // Bild ist 90° gedreht: Tausche width/height
+        val rotatedImageWidth = imageHeight   // z.B. 1920
+        val rotatedImageHeight = imageWidth  // z.B. 1080
+
+        // Skalierung
+        val scaleX = previewWidth / rotatedImageWidth
+        val scaleY = previewHeight / rotatedImageHeight
         val scale = kotlin.math.max(scaleX, scaleY)
 
-        // Berechne sichtbaren Bereich (was wird beschnitten?)
+        // Sichtbarer Bereich
         val visibleWidth = previewWidth / scale
         val visibleHeight = previewHeight / scale
-
-        // Offset - was vom Bild ist links/oben außerhalb?
-        val offsetX = (imageWidth - visibleWidth) / 2
-        val offsetY = (imageHeight - visibleHeight) / 2
+        val offsetX = (rotatedImageWidth - visibleWidth) / 2
+        val offsetY = (rotatedImageHeight - visibleHeight) / 2
 
         objects.forEach { obj ->
             val color = if (obj.isValidated) Color.Green else Color.Red
-            val strokeWidth = if (obj.isValidated) 4f else 2f
 
-            // Transformiere Bild-Koordinaten zu Preview-Koordinaten
-            // Nur Objekte im sichtbaren Bereich anzeigen
-            val objCenterX = obj.x + obj.width / 2
-            val objCenterY = obj.y + obj.height / 2
+            // KOORDINATEN ROTIEREN: (x,y) -> (y, x) und (w,h) -> (h, w)
+            val rotatedX = obj.y
+            val rotatedY = obj.x
+            val rotatedW = obj.height
+            val rotatedH = obj.width
 
-            // Prüfe ob Objekt im sichtbaren Bereich
-            if (objCenterX >= offsetX && objCenterX <= offsetX + visibleWidth &&
-                objCenterY >= offsetY && objCenterY <= offsetY + visibleHeight) {
+            val centerX = rotatedX + rotatedW / 2
+            val centerY = rotatedY + rotatedH / 2
 
-                val x = (obj.x - offsetX) * scale
-                val y = (obj.y - offsetY) * scale
-                val w = obj.width * scale
-                val h = obj.height * scale
+            // Nur anzeigen wenn im sichtbaren Bereich
+            if (centerX >= offsetX && centerX <= offsetX + visibleWidth &&
+                centerY >= offsetY && centerY <= offsetY + visibleHeight
+            ) {
+                val x = (rotatedX - offsetX) * scale
+                val y = (rotatedY - offsetY) * scale
+                val w = rotatedW * scale
+                val h = rotatedH * scale
 
                 drawRect(
                     color = color,
                     topLeft = Offset(x, y),
                     size = Size(w, h),
-                    style = Stroke(width = strokeWidth)
+                    style = Stroke(width = 3f)
                 )
             }
         }
     }
 }
 
-/**
- * Zeigt die erkannten Eier als Reihe von Kreisen
- */
 @Composable
 fun EggIndicatorRow(count: Int, modifier: Modifier = Modifier) {
     Box(
-        modifier = modifier
-            .fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         contentAlignment = Alignment.Center
     ) {
         Row(
@@ -362,7 +331,6 @@ fun EggIndicatorRow(count: Int, modifier: Modifier = Modifier) {
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(0.8f)
         ) {
-            // 6 Eier - leuchten auf je nach Anzahl
             repeat(6) { index ->
                 val isActive = index < count
                 Box(
@@ -373,11 +341,8 @@ fun EggIndicatorRow(count: Int, modifier: Modifier = Modifier) {
                             shape = CircleShape
                         )
                         .then(
-                            if (isActive) {
-                                Modifier.border(2.dp, Color.Yellow.copy(alpha = 0.5f), CircleShape)
-                            } else {
-                                Modifier
-                            }
+                            if (isActive) Modifier.border(2.dp, Color.Yellow.copy(alpha = 0.5f), CircleShape)
+                            else Modifier
                         )
                 )
             }
