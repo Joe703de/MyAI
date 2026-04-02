@@ -34,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.border
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -113,11 +114,12 @@ fun CameraScreen() {
             // Abstand von oben: 10%
             Box(modifier = Modifier.weight(0.1f))
             
-            // Kamera-Preview Bereich: 70% Höhe, zentriert
+            // Kamera-Preview Bereich: 80% Höhe, zentriert
             Box(
                 modifier = Modifier
-                    .weight(0.7f)
-                    .fillMaxWidth(0.9f),
+                    .weight(0.8f)
+                    .fillMaxWidth(0.9f)
+                    .border(2.dp, Color.White),
                 contentAlignment = Alignment.Center
             ) {
                 // Kamera-Preview oder blauer Platzhalter
@@ -222,11 +224,12 @@ fun CameraScreenPreview() {
                     // Abstand von oben: 10%
                     Box(modifier = Modifier.weight(0.1f))
                     
-                    // Kamera-Preview Bereich: 70% Höhe
+                    // Kamera-Preview Bereich: 80% Höhe
                     Box(
                         modifier = Modifier
-                            .weight(0.7f)
-                            .fillMaxWidth(0.9f),
+                            .weight(0.8f)
+                            .fillMaxWidth(0.9f)
+                            .border(2.dp, Color.White),
                         contentAlignment = Alignment.Center
                     ) {
                         // Blaues Rechteck als Platzhalter
