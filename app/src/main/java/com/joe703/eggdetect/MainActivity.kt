@@ -8,7 +8,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
-import androidx.camera.core.Preview
+import androidx.camera.core.Preview as CameraPreview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
@@ -16,11 +16,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -37,13 +34,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.joe703.eggdetect.ui.theme.EggdetectTheme
-import androidx.compose.ui.tooling.preview.Preview
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -105,9 +100,7 @@ fun EggDetectApp() {
 fun CameraScreen() {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val density = LocalDensity.current
     
-    // 70% der Displayhöhe für Kamera
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -133,7 +126,7 @@ fun CameraScreen() {
                         .fillMaxSize()
                         .background(Color.Blue)
                 ) {
-                    // Wenn Kamera aktiv: Preview anzeigen, sonst blaues Rechteck
+                    // Echte Kamera
                     AndroidView(
                         factory = { ctx ->
                             val previewView = PreviewView(ctx)
@@ -146,7 +139,7 @@ fun CameraScreen() {
                                 try {
                                     val cameraProvider = cameraProviderFuture.get()
                                     
-                                    val preview = Preview.Builder()
+                                    val preview = CameraPreview.Builder()
                                         .build()
                                         .also { previewInstance ->
                                             previewInstance.setSurfaceProvider(previewView.surfaceProvider)
@@ -209,7 +202,7 @@ fun CameraScreen() {
 }
 
 // PREVIEW für Android Studio - ohne echte Kamera
-@Preview(device = "id:pixel_5", showBackground = true, showSystemUi = true)
+@androidx.compose.ui.tooling.preview.Preview(device = "id:pixel_5", showBackground = true, showSystemUi = true)
 @Composable
 fun CameraScreenPreview() {
     EggdetectTheme {
