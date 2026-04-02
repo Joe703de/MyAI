@@ -58,6 +58,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Display anlassen wenn App im Vordergrund
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
         // OpenCV initialisieren
         val isOpenCVInitialized = OpenCVLoader.initDebug()
         Log.d("OpenCV", "OpenCV initialized: $isOpenCVInitialized")
