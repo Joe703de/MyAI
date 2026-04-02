@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -129,11 +130,12 @@ fun CameraScreen() {
                 )
             }
             
-            // Kamera-Preview Bereich: 70% Höhe, mit weißem Rahmen
+            // Kamera-Preview Bereich: 70% Höhe, 16:9 Format, mit weißem Rahmen
             Box(
                 modifier = Modifier
                     .weight(0.7f)
                     .fillMaxWidth(0.9f)
+                    .aspectRatio(16f / 9f)
                     .border(1.dp, Color.White),
                 contentAlignment = Alignment.Center
             ) {
@@ -238,11 +240,12 @@ fun CameraScreenPreview() {
                         )
                     }
                     
-                    // Kamera-Preview Bereich: 70% Höhe
+                    // Kamera-Preview Bereich: 70% Höhe, 16:9 Format
                     Box(
                         modifier = Modifier
                             .weight(0.7f)
                             .fillMaxWidth(0.9f)
+                            .aspectRatio(16f / 9f)
                             .border(1.dp, Color.White)
                             .background(Color.Blue),
                         contentAlignment = Alignment.Center
