@@ -46,6 +46,10 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.joe703.eggdetect.ui.theme.EggdetectTheme
 import org.opencv.android.OpenCVLoader
 import java.util.concurrent.Executors
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -114,7 +118,7 @@ fun CameraScreen() {
     val lifecycleOwner = LocalLifecycleOwner.current
 
     // Erkennungsergebnis
-    var detectionResult by remember { mutableStateOf(DetectionResult(0, 0, 0L)) }
+    var detectionResult by remember { mutableStateOf(DetectionResult(0, 0, 0L, emptyList())) }
 
     // ImageAnalyzer erstellen (zweistufige Erkennung)
     val imageAnalyzer = remember(context) {
@@ -154,7 +158,7 @@ fun CameraScreen() {
                     .border(1.dp, Color.White),
                 contentAlignment = Alignment.Center
             ) {
-                // Kamera-Container
+                // Kamera-Container mit Overlay
                 Box(
                     modifier = Modifier.fillMaxSize()
                 ) {
@@ -195,6 +199,9 @@ fun CameraScreen() {
                             .fillMaxSize()
                             .clipToBounds()
                     )
+
+                    // Overlay: Erkannte Objekte markieren
+                    DetectionOverlay(detectionResult.objects)
                 }
             }
 
@@ -292,6 +299,27 @@ fun EggIndicatorRow(count: Int, modifier: Modifier = Modifier) {
                         )
                 )
             }
+        }
+    }
+}
+
+/**
+ * Zeichnet Rechtecke um erkannte Objekte
+ * Grün = validiert (Ei), Rot = nur Kandidat
+ */
+@Composable
+fun DetectionOverlay(objects: List<DetectedObject>) {
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        objects.forEach { obj ->
+            val color = if (obj.isValidated) Color.Green else Color.Red
+            val strokeWidth = if (obj.isValidated) 4f else 2f
+            
+            drawRect(
+                color = color,
+                topLeft = Offset(obj.x.toFloat(), obj.y.toFloat()),
+                size = Size(obj.width.toFloat(), obj.height.toFloat()),
+                style = Stroke(width = strokeWidth)
+            )
         }
     }
 }
