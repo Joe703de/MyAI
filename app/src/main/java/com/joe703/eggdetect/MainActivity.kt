@@ -3,15 +3,13 @@ package com.joe703.eggdetect
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.view.Surface
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview as CameraPreview
-import androidx.camera.core.resolutionselector.ResolutionSelector
-import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
@@ -31,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -45,12 +44,13 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.joe703.eggdetect.ui.theme.EggdetectTheme
 import org.opencv.android.OpenCVLoader
+import java.util.concurrent.Executors
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // OpenCV Test-Initialisierung
+        // OpenCV initialisieren
         val isOpenCVInitialized = OpenCVLoader.initDebug()
         android.util.Log.d("OpenCV", "OpenCV initialized: $isOpenCVInitialized")
         
@@ -112,6 +112,24 @@ fun CameraScreen() {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     
+    // Anzahl erkannter Eier (0-6)
+    var detectedEggs by remember { mutableIntStateOf(0) }
+    
+    // ImageAnalyzer erstellen
+    val imageAnalyzer = remember {
+        ImageAnalysis.Builder()
+            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+            .build()
+            .also {
+                it.setAnalyzer(
+                    Executors.newSingleThreadExecutor(),
+                    EggAnalyzer { count ->
+                        detectedEggs = count
+                    }
+                )
+            }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -130,7 +148,7 @@ fun CameraScreen() {
                 contentAlignment = Alignment.TopEnd
             ) {
                 Text(
-                    text = "Kamera läuft",
+                    text = "Gefundene Eier: $detectedEggs",
                     color = Color.White,
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier
@@ -151,11 +169,10 @@ fun CameraScreen() {
                 Box(
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    // Echte Kamera - mit Portrait-Konfiguration
+                    // Echte Kamera
                     AndroidView(
                         factory = { ctx ->
                             val previewView = PreviewView(ctx)
-                            // FILL_CENTER: Füllt den Rahmen vollständig
                             previewView.scaleType = PreviewView.ScaleType.FILL_CENTER
                             previewView.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
                             
@@ -165,19 +182,7 @@ fun CameraScreen() {
                                 try {
                                     val cameraProvider = cameraProviderFuture.get()
                                     
-                                    // Portrait-Auflösung konfigurieren
-                                    val resolutionSelector = ResolutionSelector.Builder()
-                                        .setResolutionStrategy(
-                                            ResolutionStrategy(
-                                                android.util.Size(1080, 1920),
-                                                ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
-                                            )
-                                        )
-                                        .build()
-                                    
                                     val preview = CameraPreview.Builder()
-                                        .setResolutionSelector(resolutionSelector)
-                                        .setTargetRotation(Surface.ROTATION_0)  // Portrait
                                         .build()
                                         .also { previewInstance ->
                                             previewInstance.setSurfaceProvider(previewView.surfaceProvider)
@@ -187,7 +192,8 @@ fun CameraScreen() {
                                     cameraProvider.bindToLifecycle(
                                         lifecycleOwner,
                                         CameraSelector.DEFAULT_BACK_CAMERA,
-                                        preview
+                                        preview,
+                                        imageAnalyzer
                                     )
                                 } catch (e: Exception) {
                                     e.printStackTrace()
@@ -203,28 +209,8 @@ fun CameraScreen() {
                 }
             }
             
-            // Eier-Bereich: 15%
-            Box(
-                modifier = Modifier
-                    .weight(0.15f)
-                    .fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ) {
-                Row(
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth(0.8f)
-                ) {
-                    // 6 gelbe Eier
-                    repeat(6) { _ ->
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .background(Color.Yellow, CircleShape)
-                        )
-                    }
-                }
-            }
+            // Eier-Bereich: 15% - dynamische Anzeige
+            EggIndicatorRow(detectedEggs)
             
             // Abstand unten: 5%
             Box(modifier = Modifier.weight(0.05f))
@@ -232,82 +218,42 @@ fun CameraScreen() {
     }
 }
 
-// VEREINFACHTE PREVIEW - nur UI, keine Kamera
-@androidx.compose.ui.tooling.preview.Preview(device = "id:pixel_5", showBackground = true, showSystemUi = true)
+/**
+ * Zeigt die erkannten Eier als Reihe von Kreisen
+ * @param count Anzahl der aktuell erkannten Eier (0-6)
+ */
 @Composable
-fun CameraScreenPreview() {
-    EggdetectTheme {
-        Surface(
-            modifier = Modifier.fillMaxSize(),
-            color = Color.Black
+fun EggIndicatorRow(count: Int) {
+    Box(
+        modifier = Modifier
+            .weight(0.15f)
+            .fillMaxWidth(),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(0.8f)
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black)
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    // Abstand von oben: 10%
-                    Box(modifier = Modifier.weight(0.1f))
-                    
-                    // Text oben rechts
-                    Box(
-                        modifier = Modifier.fillMaxWidth(0.9f),
-                        contentAlignment = Alignment.TopEnd
-                    ) {
-                        Text(
-                            text = "Kamera läuft (Preview)",
-                            color = Color.White,
-                            style = MaterialTheme.typography.titleMedium,
-                            modifier = Modifier
-                                .background(Color.Black.copy(alpha = 0.5f))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
+            // 6 Eier - leuchten auf je nach Anzahl
+            repeat(6) { index ->
+                val isActive = index < count
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(
+                            color = if (isActive) Color.Yellow else Color.DarkGray,
+                            shape = CircleShape
                         )
-                    }
-                    
-                    // Kamera-Bereich: 70% Höhe
-                    Box(
-                        modifier = Modifier
-                            .weight(0.7f)
-                            .fillMaxWidth(0.9f)
-                            .border(1.dp, Color.White)
-                            .background(Color.Blue),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Kamera-Preview",
-                            color = Color.White
-                        )
-                    }
-                    
-                    // Eier-Bereich: 15%
-                    Box(
-                        modifier = Modifier
-                            .weight(0.15f)
-                            .fillMaxWidth(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth(0.8f)
-                        ) {
-                            repeat(6) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .background(Color.Yellow, CircleShape)
-                                )
+                        // Optional: Glow-Effekt für aktive Eier
+                        .then(
+                            if (isActive) {
+                                Modifier.border(2.dp, Color.Yellow.copy(alpha = 0.5f), CircleShape)
+                            } else {
+                                Modifier
                             }
-                        }
-                    }
-                    
-                    // Abstand unten: 5%
-                    Box(modifier = Modifier.weight(0.05f))
-                }
+                        )
+                )
             }
         }
     }
