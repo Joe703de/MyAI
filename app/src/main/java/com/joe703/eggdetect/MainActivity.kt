@@ -45,6 +45,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.joe703.eggdetect.ui.theme.EggdetectTheme
 import org.opencv.android.OpenCVLoader
 import java.util.concurrent.Executors
+import android.util.Log
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -115,15 +116,15 @@ fun CameraScreen() {
     // Anzahl erkannter Eier (0-6)
     var detectedEggs by remember { mutableIntStateOf(0) }
     
-    // ImageAnalyzer erstellen
-    val imageAnalyzer = remember {
+    // ImageAnalyzer erstellen (zweistufige Erkennung)
+    val imageAnalyzer = remember(context) {
         ImageAnalysis.Builder()
             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
             .build()
             .also {
                 it.setAnalyzer(
                     Executors.newSingleThreadExecutor(),
-                    EggAnalyzer { count ->
+                    EggAnalyzer2Stage(context) { count ->
                         detectedEggs = count
                     }
                 )
