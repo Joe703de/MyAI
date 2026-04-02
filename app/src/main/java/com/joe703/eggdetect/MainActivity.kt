@@ -106,7 +106,7 @@ fun EggDetectApp() {
         } else {
             Text(
                 text = "Kamera-Berechtigung wird benötigt",
-                color = Color.White,
+                color = Color.Cyan,
                 modifier = Modifier.align(Alignment.Center)
             )
             LaunchedEffect(currentContext) {
@@ -249,8 +249,8 @@ fun StatusBar(result: DetectionResult) {
             )
 
             Text(
-                text = "Eier: ${result.eggCount}",
-                color = Color.White,
+                text = "${result.imageWidth.toInt()}x${result.imageHeight.toInt()}",
+                color = Color.Cyan,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier
                     .background(Color.Black.copy(alpha = 0.7f))
