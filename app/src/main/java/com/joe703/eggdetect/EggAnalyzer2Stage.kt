@@ -174,15 +174,18 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
 
         for (cnt in contours) {
             val area = Imgproc.contourArea(cnt)
-            if (area < 500) continue // Noch kleinere Objekte erlauben
+            
+            // SEHR KLEINE und SEHR GROSSE Objekte ausschließen
+            if (area < 100 || area > 50000) continue  // Von 500 auf 100 gesenkt!
 
             val rect = Imgproc.boundingRect(cnt)
             val aspect = rect.width.toFloat() / rect.height.toFloat()
 
-            if (aspect < 0.4 || aspect > 2.5) continue // Mehr Toleranz
+            // Sehr tolerante Eiform
+            if (aspect < 0.3 || aspect > 3.0) continue  // Noch toleranter
 
             // ROI mit Padding
-            val padding = 20
+            val padding = 10  // Von 20 auf 10 reduziert
             val x1 = (rect.x - padding).coerceAtLeast(0)
             val y1 = (rect.y - padding).coerceAtLeast(0)
             val x2 = (rect.x + rect.width + padding).coerceAtMost(mat.cols())
@@ -193,7 +196,7 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
             val roi = Mat(mat, org.opencv.core.Rect(x1, y1, x2 - x1, y2 - y1))
             candidates.add(EggCandidate(x1, y1, roi, area.toInt()))
 
-            Log.d("EggAnalyzer", "Candidate: area=$area, aspect=$aspect")
+            Log.d("EggAnalyzer", "Candidate: area=$area (${rect.width}x${rect.height}), aspect=$aspect")
         }
 
         hsv.release()
@@ -282,8 +285,9 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
         keypoints.release()
         descriptors.release()
 
-        Log.d("EggAnalyzer", "Best matches: $bestMatches")
-        return bestMatches >= 3
+        Log.d("EggAnalyzer", "Best matches: $bestMatches (threshold lowered for small eggs)")
+        // Niedrigerer Schwellenwert für kleine Eier
+        return bestMatches >= 2  // Von 3 auf 2 gesenkt
     }
 
     data class EggCandidate(
