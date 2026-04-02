@@ -211,7 +211,10 @@ fun CameraScreen() {
             }
             
             // Eier-Bereich: 15% - dynamische Anzeige
-            EggIndicatorRow(detectedEggs)
+            EggIndicatorRow(
+                count = detectedEggs,
+                modifier = Modifier.weight(0.15f)
+            )
             
             // Abstand unten: 5%
             Box(modifier = Modifier.weight(0.05f))
@@ -224,10 +227,9 @@ fun CameraScreen() {
  * @param count Anzahl der aktuell erkannten Eier (0-6)
  */
 @Composable
-fun EggIndicatorRow(count: Int) {
+fun EggIndicatorRow(count: Int, modifier: Modifier = Modifier) {
     Box(
-        modifier = Modifier
-            .weight(0.15f)
+        modifier = modifier
             .fillMaxWidth(),
         contentAlignment = Alignment.Center
     ) {
