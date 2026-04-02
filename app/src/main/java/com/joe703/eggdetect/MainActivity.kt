@@ -53,7 +53,7 @@ class MainActivity : ComponentActivity() {
 
         // OpenCV initialisieren
         val isOpenCVInitialized = OpenCVLoader.initDebug()
-        android.util.Log.d("OpenCV", "OpenCV initialized: $isOpenCVInitialized")
+        Log.d("OpenCV", "OpenCV initialized: $isOpenCVInitialized")
 
         setContent {
             EggdetectTheme {
