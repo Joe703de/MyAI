@@ -49,8 +49,8 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     
-    // OpenCV via quickbirdstudios (community mirror, latest available)
-    implementation("com.quickbirdstudios:opencv:4.5.3.0")
+    // OpenCV - manuell einbinden oder später hinzufügen
+    // implementation("org.opencv:opencv-android:4.5.3")
     
     // CameraX
     val cameraxVersion = "1.3.4"
