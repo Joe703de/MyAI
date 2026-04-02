@@ -44,10 +44,16 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.joe703.eggdetect.ui.theme.EggdetectTheme
+import org.opencv.android.OpenCVLoader
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // OpenCV Test-Initialisierung
+        val isOpenCVInitialized = OpenCVLoader.initDebug()
+        android.util.Log.d("OpenCV", "OpenCV initialized: $isOpenCVInitialized")
+        
         setContent {
             EggdetectTheme {
                 Surface(
