@@ -36,7 +36,9 @@ data class DetectionResult(
     val eggCount: Int,
     val candidateCount: Int,
     val processingTimeMs: Long,
-    val objects: List<DetectedObject> = emptyList()
+    val objects: List<DetectedObject> = emptyList(),
+    val imageWidth: Int = 0,
+    val imageHeight: Int = 0
 )
 
 class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult) -> Unit) : ImageAnalysis.Analyzer {
@@ -105,6 +107,8 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
         val startTime = System.currentTimeMillis()
 
         try {
+            Log.d("EggAnalyzer", "Image size: ${imageProxy.width}x${imageProxy.height}")
+
             val planes = imageProxy.planes
             val yBuffer = planes[0].buffer
             val uBuffer = planes[1].buffer
@@ -174,7 +178,9 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
                 eggCount = eggCount,
                 candidateCount = candidates.size,
                 processingTimeMs = processingTime,
-                objects = validatedObjects
+                objects = validatedObjects,
+                imageWidth = imageProxy.width,
+                imageHeight = imageProxy.height
             ))
 
             yuvMat.release()

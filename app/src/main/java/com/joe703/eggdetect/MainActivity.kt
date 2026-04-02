@@ -206,8 +206,8 @@ fun CameraScreen() {
                     // Wir müssen die Koordinaten an das angezeigte Bild anpassen
                     DetectionOverlay(
                         objects = detectionResult.objects,
-                        cameraWidth = 1920f,
-                        cameraHeight = 1080f
+                        cameraWidth = detectionResult.imageWidth.toFloat().coerceAtLeast(1f),
+                        cameraHeight = detectionResult.imageHeight.toFloat().coerceAtLeast(1f)
                     )
                 }
             }
