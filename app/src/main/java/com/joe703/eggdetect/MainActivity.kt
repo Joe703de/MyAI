@@ -291,24 +291,30 @@ fun RotatedDetectionOverlay(
         objects.forEach { obj ->
             val color = if (obj.isValidated) Color.Green else Color.Red
 
-            // KOORDINATEN KORREKT ROTIEREN mit Spiegelung
-            // Portrait (x,y) -> Landscape (y, width-x) für korrekte Ausrichtung
+            // KOORDINATEN ROTIEREN: (x,y) -> (y, x) und (w,h) -> (h, w)
             val rotatedX = obj.y
-            val rotatedY = imageWidth - obj.x - obj.width  // Spiegelung korrigiert
+            val rotatedY = obj.x
             val rotatedW = obj.height
             val rotatedH = obj.width
+            
+            // X-ACHSE SPIEGELN (nicht Y)
+            val mirroredX = rotatedImageWidth - rotatedX - rotatedW
+            val finalX = mirroredX
+            val finalY = rotatedY
+            val finalW = rotatedW
+            val finalH = rotatedH
 
-            val centerX = rotatedX + rotatedW / 2
-            val centerY = rotatedY + rotatedH / 2
+            val centerX = finalX + finalW / 2
+            val centerY = finalY + finalH / 2
 
             // Nur anzeigen wenn im sichtbaren Bereich
             if (centerX >= offsetX && centerX <= offsetX + visibleWidth &&
                 centerY >= offsetY && centerY <= offsetY + visibleHeight
             ) {
-                val x = (rotatedX - offsetX) * scale
-                val y = (rotatedY - offsetY) * scale
-                val w = rotatedW * scale
-                val h = rotatedH * scale
+                val x = (finalX - offsetX) * scale
+                val y = (finalY - offsetY) * scale
+                val w = finalW * scale
+                val h = finalH * scale
 
                 drawRect(
                     color = color,
