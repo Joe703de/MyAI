@@ -12,6 +12,7 @@ import androidx.camera.core.Preview as CameraPreview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,7 +35,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.foundation.border
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -114,73 +114,69 @@ fun CameraScreen() {
             // Abstand von oben: 10%
             Box(modifier = Modifier.weight(0.1f))
             
-            // Kamera-Preview Bereich: 80% Höhe, zentriert
+            // Text oben rechts (außerhalb des Kamera-Rahmens)
             Box(
-                modifier = Modifier
-                    .weight(0.8f)
-                    .fillMaxWidth(0.9f)
-                    .border(2.dp, Color.White),
-                contentAlignment = Alignment.Center
+                modifier = Modifier.fillMaxWidth(0.9f),
+                contentAlignment = Alignment.TopEnd
             ) {
-                // Kamera-Preview oder blauer Platzhalter
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Blue)
-                ) {
-                    // Echte Kamera
-                    AndroidView(
-                        factory = { ctx ->
-                            val previewView = PreviewView(ctx)
-                            previewView.scaleType = PreviewView.ScaleType.FIT_CENTER
-                            previewView.implementationMode = PreviewView.ImplementationMode.PERFORMANCE
-                            
-                            val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
-                            
-                            cameraProviderFuture.addListener({
-                                try {
-                                    val cameraProvider = cameraProviderFuture.get()
-                                    
-                                    val preview = CameraPreview.Builder()
-                                        .build()
-                                        .also { previewInstance ->
-                                            previewInstance.setSurfaceProvider(previewView.surfaceProvider)
-                                        }
-                                    
-                                    cameraProvider.unbindAll()
-                                    cameraProvider.bindToLifecycle(
-                                        lifecycleOwner,
-                                        CameraSelector.DEFAULT_BACK_CAMERA,
-                                        preview
-                                    )
-                                } catch (e: Exception) {
-                                    e.printStackTrace()
-                                }
-                            }, ContextCompat.getMainExecutor(ctx))
-                            
-                            previewView
-                        },
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-                
-                // Text oben rechts über dem Kamera-Bild
                 Text(
                     text = "Kamera läuft",
                     color = Color.White,
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(8.dp)
                         .background(Color.Black.copy(alpha = 0.5f))
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 )
             }
             
-            // Unterer Bereich: 6 gelbe Eier
+            // Kamera-Preview Bereich: 80% Höhe, mit weißem Rahmen
             Box(
                 modifier = Modifier
-                    .weight(0.2f)
+                    .weight(0.8f)
+                    .fillMaxWidth(0.9f)
+                    .border(1.dp, Color.White),
+                contentAlignment = Alignment.Center
+            ) {
+                // Echte Kamera
+                AndroidView(
+                    factory = { ctx ->
+                        val previewView = PreviewView(ctx)
+                        previewView.scaleType = PreviewView.ScaleType.FIT_CENTER
+                        previewView.implementationMode = PreviewView.ImplementationMode.PERFORMANCE
+                        
+                        val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
+                        
+                        cameraProviderFuture.addListener({
+                            try {
+                                val cameraProvider = cameraProviderFuture.get()
+                                
+                                val preview = CameraPreview.Builder()
+                                    .build()
+                                    .also { previewInstance ->
+                                        previewInstance.setSurfaceProvider(previewView.surfaceProvider)
+                                    }
+                                
+                                cameraProvider.unbindAll()
+                                cameraProvider.bindToLifecycle(
+                                    lifecycleOwner,
+                                    CameraSelector.DEFAULT_BACK_CAMERA,
+                                    preview
+                                )
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        }, ContextCompat.getMainExecutor(ctx))
+                        
+                        previewView
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+            
+            // Unterer Bereich: 10% für Eier, vertikal mittig
+            Box(
+                modifier = Modifier
+                    .weight(0.1f)
                     .fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
@@ -224,38 +220,37 @@ fun CameraScreenPreview() {
                     // Abstand von oben: 10%
                     Box(modifier = Modifier.weight(0.1f))
                     
-                    // Kamera-Preview Bereich: 80% Höhe
+                    // Text oben rechts (außerhalb)
                     Box(
-                        modifier = Modifier
-                            .weight(0.8f)
-                            .fillMaxWidth(0.9f)
-                            .border(2.dp, Color.White),
-                        contentAlignment = Alignment.Center
+                        modifier = Modifier.fillMaxWidth(0.9f),
+                        contentAlignment = Alignment.TopEnd
                     ) {
-                        // Blaues Rechteck als Platzhalter
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color.Blue)
-                        )
-                        
-                        // Text oben rechts
                         Text(
                             text = "Kamera läuft (Preview)",
                             color = Color.White,
                             style = MaterialTheme.typography.titleMedium,
                             modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(8.dp)
                                 .background(Color.Black.copy(alpha = 0.5f))
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         )
                     }
                     
-                    // Unterer Bereich: 6 gelbe Eier
+                    // Kamera-Preview Bereich: 80% Höhe, mit Rahmen
                     Box(
                         modifier = Modifier
-                            .weight(0.2f)
+                            .weight(0.8f)
+                            .fillMaxWidth(0.9f)
+                            .border(1.dp, Color.White)
+                            .background(Color.Blue),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        // Leer - nur blaues Rechteck mit Rahmen
+                    }
+                    
+                    // Unterer Bereich: 10% für Eier
+                    Box(
+                        modifier = Modifier
+                            .weight(0.1f)
                             .fillMaxWidth(),
                         contentAlignment = Alignment.Center
                     ) {
