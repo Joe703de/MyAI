@@ -3,6 +3,7 @@ package com.joe703.eggdetect
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -45,16 +46,15 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.joe703.eggdetect.ui.theme.EggdetectTheme
 import org.opencv.android.OpenCVLoader
 import java.util.concurrent.Executors
-import android.util.Log
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         // OpenCV initialisieren
         val isOpenCVInitialized = OpenCVLoader.initDebug()
         android.util.Log.d("OpenCV", "OpenCV initialized: $isOpenCVInitialized")
-        
+
         setContent {
             EggdetectTheme {
                 Surface(
@@ -112,10 +112,10 @@ fun EggDetectApp() {
 fun CameraScreen() {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    
-    // Anzahl erkannter Eier (0-6)
-    var detectedEggs by remember { mutableIntStateOf(0) }
-    
+
+    // Erkennungsergebnis
+    var detectionResult by remember { mutableStateOf(DetectionResult(0, 0, 0L)) }
+
     // ImageAnalyzer erstellen (zweistufige Erkennung)
     val imageAnalyzer = remember(context) {
         ImageAnalysis.Builder()
@@ -124,8 +124,8 @@ fun CameraScreen() {
             .also {
                 it.setAnalyzer(
                     Executors.newSingleThreadExecutor(),
-                    EggAnalyzer2Stage(context) { count ->
-                        detectedEggs = count
+                    EggAnalyzer2Stage(context) { result ->
+                        detectionResult = result
                     }
                 )
             }
@@ -142,22 +142,10 @@ fun CameraScreen() {
         ) {
             // Abstand von oben: 10%
             Box(modifier = Modifier.weight(0.1f))
-            
-            // Text oben rechts (außerhalb des Kamera-Rahmens)
-            Box(
-                modifier = Modifier.fillMaxWidth(0.9f),
-                contentAlignment = Alignment.TopEnd
-            ) {
-                Text(
-                    text = "Gefundene Eier: $detectedEggs",
-                    color = Color.White,
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier
-                        .background(Color.Black.copy(alpha = 0.5f))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                )
-            }
-            
+
+            // Info-Texte oben
+            StatusBar(detectionResult)
+
             // Kamera-Preview Bereich: 70% Höhe, mit weißem Rahmen
             Box(
                 modifier = Modifier
@@ -176,19 +164,19 @@ fun CameraScreen() {
                             val previewView = PreviewView(ctx)
                             previewView.scaleType = PreviewView.ScaleType.FILL_CENTER
                             previewView.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-                            
+
                             val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
-                            
+
                             cameraProviderFuture.addListener({
                                 try {
                                     val cameraProvider = cameraProviderFuture.get()
-                                    
+
                                     val preview = CameraPreview.Builder()
                                         .build()
                                         .also { previewInstance ->
                                             previewInstance.setSurfaceProvider(previewView.surfaceProvider)
                                         }
-                                    
+
                                     cameraProvider.unbindAll()
                                     cameraProvider.bindToLifecycle(
                                         lifecycleOwner,
@@ -200,7 +188,7 @@ fun CameraScreen() {
                                     e.printStackTrace()
                                 }
                             }, ContextCompat.getMainExecutor(ctx))
-                            
+
                             previewView
                         },
                         modifier = Modifier
@@ -209,13 +197,13 @@ fun CameraScreen() {
                     )
                 }
             }
-            
+
             // Eier-Bereich: 15% - dynamische Anzeige
             EggIndicatorRow(
-                count = detectedEggs,
+                count = detectionResult.eggCount,
                 modifier = Modifier.weight(0.15f)
             )
-            
+
             // Abstand unten: 5%
             Box(modifier = Modifier.weight(0.05f))
         }
@@ -223,8 +211,55 @@ fun CameraScreen() {
 }
 
 /**
+ * Status-Anzeige oben
+ */
+@Composable
+fun StatusBar(result: DetectionResult) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth(0.9f)
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Links: Zeit
+            Text(
+                text = "${result.processingTimeMs}ms",
+                color = Color.Yellow,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier
+                    .background(Color.Black.copy(alpha = 0.7f))
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            )
+
+            // Mitte: Schritt 1 Status
+            val step1Color = if (result.candidateCount > 0) Color.Green else Color.Gray
+            Text(
+                text = "S1: ${result.candidateCount}",
+                color = step1Color,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier
+                    .background(Color.Black.copy(alpha = 0.7f))
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            )
+
+            // Rechts: Eier
+            Text(
+                text = "Eier: ${result.eggCount}",
+                color = Color.White,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier
+                    .background(Color.Black.copy(alpha = 0.7f))
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            )
+        }
+    }
+}
+
+/**
  * Zeigt die erkannten Eier als Reihe von Kreisen
- * @param count Anzahl der aktuell erkannten Eier (0-6)
  */
 @Composable
 fun EggIndicatorRow(count: Int, modifier: Modifier = Modifier) {
@@ -248,7 +283,6 @@ fun EggIndicatorRow(count: Int, modifier: Modifier = Modifier) {
                             color = if (isActive) Color.Yellow else Color.DarkGray,
                             shape = CircleShape
                         )
-                        // Optional: Glow-Effekt für aktive Eier
                         .then(
                             if (isActive) {
                                 Modifier.border(2.dp, Color.Yellow.copy(alpha = 0.5f), CircleShape)
@@ -261,3 +295,7 @@ fun EggIndicatorRow(count: Int, modifier: Modifier = Modifier) {
         }
     }
 }
+
+// Import für Log
+private val Any.android: Any
+    get() = this
