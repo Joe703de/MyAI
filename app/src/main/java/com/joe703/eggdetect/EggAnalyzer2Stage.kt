@@ -118,14 +118,12 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
             val yuvMat = Mat(imageProxy.height + imageProxy.height / 2, imageProxy.width, CvType.CV_8UC1)
             yuvMat.put(0, 0, nv21)
 
-            // WICHTIG: Konvertiere zu BGR (OpenCV Standard), nicht RGB!
-            val bgrMat = Mat()
-            Imgproc.cvtColor(yuvMat, bgrMat, Imgproc.COLOR_YUV2BGR_NV21, 3)
-
-            Log.d("EggAnalyzer", "Image size: ${bgrMat.cols()}x${bgrMat.rows()}")
+            // Verwende RGB (was auf diesem Gerät funktioniert)
+            val rgbMat = Mat()
+            Imgproc.cvtColor(yuvMat, rgbMat, Imgproc.COLOR_YUV2RGB_NV21, 3)
 
             // Schritt 1: Kandidaten finden
-            val candidates = findYellowCandidates(bgrMat)
+            val candidates = findYellowCandidates(rgbMat)
             Log.d("EggAnalyzer", "Step 1: Found ${candidates.size} candidates")
 
             // Schritt 2: Validierung
@@ -177,7 +175,7 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
             ))
 
             yuvMat.release()
-            bgrMat.release()
+            rgbMat.release()
 
         } catch (e: Exception) {
             Log.e("EggAnalyzer", "Error: ${e.message}", e)
@@ -191,11 +189,12 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
         val candidates = mutableListOf<EggCandidate>()
 
         val hsv = Mat()
-        Imgproc.cvtColor(mat, hsv, Imgproc.COLOR_BGR2HSV)  // BGR zu HSV!
+        Imgproc.cvtColor(mat, hsv, Imgproc.COLOR_RGB2HSV)
 
-        // ECHTES GELB (Hue 20-35, hohe Sättigung)
-        val lowerYellow = Scalar(20.0, 100.0, 100.0)
-        val upperYellow = Scalar(35.0, 255.0, 255.0)
+        // ANGEPASST FÜR DIESSES GERÄT:
+        // Das "Gelb" auf diesem Gerät hat H=90-100° (Cyan/Grün)
+        val lowerYellow = Scalar(80.0, 50.0, 50.0)   // H=80 statt 20
+        val upperYellow = Scalar(110.0, 255.0, 255.0) // H=110 statt 35
 
         val mask = Mat()
         Core.inRange(hsv, lowerYellow, upperYellow, mask)
@@ -248,7 +247,7 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
         }
 
         val grayRoi = Mat()
-        Imgproc.cvtColor(roi, grayRoi, Imgproc.COLOR_BGR2GRAY)
+        Imgproc.cvtColor(roi, grayRoi, Imgproc.COLOR_RGB2GRAY)
 
         val keypoints = MatOfKeyPoint()
         val descriptors = Mat()
