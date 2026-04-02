@@ -17,6 +17,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -25,17 +26,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.joe703.eggdetect.ui.theme.EggdetectTheme
 
 class MainActivity : ComponentActivity() {
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         setContent {
             EggdetectTheme {
                 EggDetectApp()
@@ -56,7 +55,7 @@ fun EggDetectApp() {
         )
     }
 
-    val launcher = androidx.activity.compose.rememberLauncherForActivityResult(
+    val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         hasCameraPermission = isGranted
@@ -77,7 +76,7 @@ fun EggDetectApp() {
                     text = "Kamera-Berechtigung wird benötigt",
                     modifier = Modifier.align(Alignment.Center)
                 )
-                androidx.compose.runtime.LaunchedEffect(Unit) {
+                LaunchedEffect(Unit) {
                     launcher.launch(Manifest.permission.CAMERA)
                 }
             }
@@ -122,9 +121,8 @@ fun CameraPreview() {
             modifier = Modifier.fillMaxSize()
         )
 
-        // Status-Anzeige
         Text(
-            text = "Kamera läuft - OpenCV folgt...",
+            text = "Kamera läuft",
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .padding(16.dp),
