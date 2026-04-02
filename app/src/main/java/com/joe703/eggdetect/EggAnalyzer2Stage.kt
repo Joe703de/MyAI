@@ -18,9 +18,6 @@ import org.opencv.features2d.ORB
 import org.opencv.imgproc.Imgproc
 import java.io.IOException
 
-/**
- * Position eines erkannten Objekts
- */
 data class DetectedObject(
     val x: Int,
     val y: Int,
@@ -29,9 +26,6 @@ data class DetectedObject(
     val isValidated: Boolean
 )
 
-/**
- * Ergebnis der Eiererkennung
- */
 data class DetectionResult(
     val eggCount: Int,
     val candidateCount: Int,
@@ -107,8 +101,6 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
         val startTime = System.currentTimeMillis()
 
         try {
-            Log.d("EggAnalyzer", "Image size: ${imageProxy.width}x${imageProxy.height}")
-
             val planes = imageProxy.planes
             val yBuffer = planes[0].buffer
             val uBuffer = planes[1].buffer
@@ -126,14 +118,17 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
             val yuvMat = Mat(imageProxy.height + imageProxy.height / 2, imageProxy.width, CvType.CV_8UC1)
             yuvMat.put(0, 0, nv21)
 
-            val rgbMat = Mat()
-            Imgproc.cvtColor(yuvMat, rgbMat, Imgproc.COLOR_YUV2RGB_NV21, 3)
+            // WICHTIG: Konvertiere zu BGR (OpenCV Standard), nicht RGB!
+            val bgrMat = Mat()
+            Imgproc.cvtColor(yuvMat, bgrMat, Imgproc.COLOR_YUV2BGR_NV21, 3)
+
+            Log.d("EggAnalyzer", "Image size: ${bgrMat.cols()}x${bgrMat.rows()}")
 
             // Schritt 1: Kandidaten finden
-            val candidates = findYellowCandidates(rgbMat)
+            val candidates = findYellowCandidates(bgrMat)
             Log.d("EggAnalyzer", "Step 1: Found ${candidates.size} candidates")
 
-            // Schritt 2: Validierung und Positionsermittlung
+            // Schritt 2: Validierung
             val validatedObjects = mutableListOf<DetectedObject>()
             var eggCount = 0
 
@@ -141,7 +136,6 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
                 val centerX = candidate.x + candidate.width / 2
                 val centerY = candidate.y + candidate.height / 2
 
-                // Überprüfe ob zu nah an bereits validiertem Objekt
                 var tooClose = false
                 for (obj in validatedObjects) {
                     val dx = (centerX - (obj.x + obj.width/2)).toDouble()
@@ -154,7 +148,6 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
                 }
                 if (tooClose) continue
 
-                // ORB Feature-Matching
                 val isEgg = matchFeatures(candidate.roi)
 
                 validatedObjects.add(DetectedObject(
@@ -184,12 +177,11 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
             ))
 
             yuvMat.release()
-            rgbMat.release()
+            bgrMat.release()
 
         } catch (e: Exception) {
-            Log.e("EggAnalyzer", "Error in analyze: ${e.message}", e)
-            val processingTime = System.currentTimeMillis() - startTime
-            onResult(DetectionResult(0, 0, processingTime))
+            Log.e("EggAnalyzer", "Error: ${e.message}", e)
+            onResult(DetectionResult(0, 0, System.currentTimeMillis() - startTime))
         } finally {
             imageProxy.close()
         }
@@ -199,21 +191,18 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
         val candidates = mutableListOf<EggCandidate>()
 
         val hsv = Mat()
-        Imgproc.cvtColor(mat, hsv, Imgproc.COLOR_RGB2HSV)
+        Imgproc.cvtColor(mat, hsv, Imgproc.COLOR_BGR2HSV)  // BGR zu HSV!
 
-        // SPEZIFISCHES EI-GELB (nicht zu breit)
-        // Hue: 20-35 = Gelb, Saturation: 100-255 = kein Grau/Weiß
+        // ECHTES GELB (Hue 20-35, hohe Sättigung)
         val lowerYellow = Scalar(20.0, 100.0, 100.0)
         val upperYellow = Scalar(35.0, 255.0, 255.0)
 
         val mask = Mat()
         Core.inRange(hsv, lowerYellow, upperYellow, mask)
 
-        // Rauschen entfernen - aber große Flächen erhalten
         val kernel = Mat.ones(5, 5, CvType.CV_8U)
         Imgproc.morphologyEx(mask, mask, Imgproc.MORPH_CLOSE, kernel)
 
-        // Konturen finden
         val contours = mutableListOf<org.opencv.core.MatOfPoint>()
         val hierarchy = Mat()
         Imgproc.findContours(mask, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE)
@@ -222,18 +211,13 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
 
         for (cnt in contours) {
             val area = Imgproc.contourArea(cnt)
-
-            // SEHR KLEINE Objekte ausschließen, aber GROSSE erlauben
-            if (area < 100) continue  // Nur Mindestgröße
-            // KEINE Maximalgröße mehr!
+            if (area < 100) continue
 
             val rect = Imgproc.boundingRect(cnt)
             val aspect = rect.width.toFloat() / rect.height.toFloat()
 
-            // Sehr tolerante Eiform
-            if (aspect < 0.3 || aspect > 3.0) continue  // Noch toleranter
+            if (aspect < 0.3 || aspect > 3.0) continue
 
-            // ROI mit Padding
             val padding = 10
             val x1 = (rect.x - padding).coerceAtLeast(0)
             val y1 = (rect.y - padding).coerceAtLeast(0)
@@ -242,11 +226,10 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
 
             if (x2 <= x1 || y2 <= y1) continue
 
-            // ROI extrahieren
             val roi = Mat(mat, org.opencv.core.Rect(x1, y1, x2 - x1, y2 - y1))
             candidates.add(EggCandidate(x1, y1, x2 - x1, y2 - y1, roi))
 
-            Log.d("EggAnalyzer", "Candidate: area=$area, size=${rect.width}x${rect.height}, aspect=$aspect")
+            Log.d("EggAnalyzer", "Candidate: area=$area, size=${rect.width}x${rect.height}")
         }
 
         hsv.release()
@@ -260,12 +243,12 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
 
     private fun matchFeatures(roi: Mat): Boolean {
         if (referenceFeatures.isEmpty()) {
-            Log.w("EggAnalyzer", "No reference features loaded!")
+            Log.w("EggAnalyzer", "No reference features!")
             return false
         }
 
         val grayRoi = Mat()
-        Imgproc.cvtColor(roi, grayRoi, Imgproc.COLOR_RGB2GRAY)
+        Imgproc.cvtColor(roi, grayRoi, Imgproc.COLOR_BGR2GRAY)
 
         val keypoints = MatOfKeyPoint()
         val descriptors = Mat()
@@ -300,7 +283,7 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
         keypoints.release()
         descriptors.release()
 
-        Log.d("EggAnalyzer", "Best matches: $bestMatches (threshold: 2)")
+        Log.d("EggAnalyzer", "Best matches: $bestMatches")
         return bestMatches >= 2
     }
 
