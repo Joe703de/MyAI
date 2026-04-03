@@ -23,9 +23,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -51,6 +52,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.joe703.eggdetect.ui.theme.EggdetectTheme
 import org.opencv.android.OpenCVLoader
 import java.util.concurrent.Executors
+
+import kotlin.math.max
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -232,8 +235,8 @@ fun StatusBar(result: DetectionResult) {
                 )
             }
 
-            // Mitte: Eier (rechtsbündig, feste Breite für 2 Stellen)
-            Box(modifier = Modifier.width(100.dp), contentAlignment = Alignment.CenterEnd) {
+            // Mitte: Eier (rechtsbündig, um 2 Stellen nach links verschoben)
+            Box(modifier = Modifier.width(70.dp), contentAlignment = Alignment.CenterEnd) {
                 Text(
                     text = "Eier: ${result.eggCount}",
                     color = Color.White,
@@ -272,56 +275,46 @@ fun DetectionOverlayFixed(
     imageWidth: Float,
     imageHeight: Float
 ) {
-    Canvas(modifier = Modifier.fillMaxSize()) {
-        // Nach Rotation: width/height getauscht
-        val rotatedImageWidth = imageHeight
-        val rotatedImageHeight = imageWidth
-
-        val scaleX = previewWidth / rotatedImageWidth
-        val scaleY = previewHeight / rotatedImageHeight
-        val scale = kotlin.math.max(scaleX, scaleY)
-
-        val visibleWidth = previewWidth / scale
-        val visibleHeight = previewHeight / scale
-        val offsetX = (rotatedImageWidth - visibleWidth) / 2
-        val offsetY = (rotatedImageHeight - visibleHeight) / 2
-
-        objects.forEach { obj ->
-            val color = if (obj.isValidated) Color.Green else Color.Red
-
-            // 1. ROTATION (Portrait -> Landscape)
-            // Original: x=horizontal, y=vertical (Hochformat)
-            // Rotiert: x=vertical, y=horizontal (Querformat)
-            val rotatedX = obj.y           // Original Y wird neue X
-            val rotatedY = obj.x           // Original X wird neue Y
-            val rotatedW = obj.height      // Höhe wird Breite
-            val rotatedH = obj.width       // Breite wird Höhe
-
-            // 2. NUR X-ACHSE SPIEGELN (horizontal spiegeln)
-            val mirroredX = rotatedImageWidth - rotatedX - rotatedW
-
-            // Finale Position
-            val finalX = mirroredX
-            val finalY = rotatedY
-            val finalW = rotatedW
-            val finalH = rotatedH
-
-            val centerX = finalX + finalW / 2
-            val centerY = finalY + finalH / 2
-
-            // Nur anzeigen wenn im sichtbaren Bereich
-            if (centerX >= offsetX && centerX <= offsetX + visibleWidth &&
-                centerY >= offsetY && centerY <= offsetY + visibleHeight
-            ) {
-                val x = (finalX - offsetX) * scale
-                val y = (finalY - offsetY) * scale
-                val w = finalW * scale
-                val h = finalH * scale
-
+    // Nach Rotation: width/height getauscht (Landscape -> Portrait)
+    val rotatedImageWidth = imageHeight
+    val rotatedImageHeight = imageWidth
+    
+    // Berechne FILL_CENTER Transformation (wie PreviewView)
+    val scaleX = previewWidth / rotatedImageWidth
+    val scaleY = previewHeight / rotatedImageHeight
+    val scale = kotlin.math.max(scaleX, scaleY)
+    
+    val scaledWidth = rotatedImageWidth * scale
+    val scaledHeight = rotatedImageHeight * scale
+    val offsetX = (previewWidth - scaledWidth) / 2
+    val offsetY = (previewHeight - scaledHeight) / 2
+    
+    // Canvas hat exakt die Bildgröße (nach Rotation)
+    // und wird dann wie die Kamera transformiert
+    Box(modifier = Modifier.fillMaxSize()) {
+        Canvas(
+            modifier = Modifier
+                .size((rotatedImageWidth * scale).dp, (rotatedImageHeight * scale).dp)
+                .offset(offsetX.dp, offsetY.dp)
+        ) {
+            // Zeichne in "nativer" Bildauflösung (keine weitere Skalierung nötig)
+            objects.forEach { obj ->
+                val color = if (obj.isValidated) Color.Green else Color.Red
+                
+                // 1. ROTATION
+                val rotatedX = obj.y.toFloat()
+                val rotatedY = obj.x.toFloat()
+                val rotatedW = obj.height.toFloat()
+                val rotatedH = obj.width.toFloat()
+                
+                // 2. X-ACHSE SPIEGELN
+                val mirroredX = rotatedImageWidth - rotatedX - rotatedW
+                
+                // Zeichnen (keine zusätzliche Skalierung, Canvas hat schon Bildgröße)
                 drawRect(
                     color = color,
-                    topLeft = Offset(x, y),
-                    size = Size(w, h),
+                    topLeft = Offset(mirroredX, rotatedY),
+                    size = Size(rotatedW, rotatedH),
                     style = Stroke(width = 3f)
                 )
             }
