@@ -247,7 +247,19 @@ fun StatusBar(result: DetectionResult) {
                 )
             }
 
-            // Mitte: Eier (rechtsbündig, um 2 Stellen nach links verschoben)
+            // Mitte: S2 (zwischen S1 und Eier)
+            Box(modifier = Modifier.width(70.dp), contentAlignment = Alignment.CenterEnd) {
+                Text(
+                    text = "S2: ${result.s2Count}",
+                    color = Color.Yellow,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier
+                        .background(Color.Black.copy(alpha = 0.7f))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
+
+            // Eier
             Box(modifier = Modifier.width(70.dp), contentAlignment = Alignment.CenterEnd) {
                 Text(
                     text = "Eier: ${result.eggCount}",
@@ -259,26 +271,16 @@ fun StatusBar(result: DetectionResult) {
                 )
             }
 
-            // Rechts: Framerate@Auflösung mit RAW vorher
-            Box(modifier = Modifier.width(220.dp), contentAlignment = Alignment.CenterEnd) {
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = "RAW: ${result.rawImageWidth}x${result.rawImageHeight}",
-                        color = Color.Cyan,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier
-                            .background(Color.Black.copy(alpha = 0.7f))
-                            .padding(horizontal = 4.dp, vertical = 2.dp)
-                    )
-                    Text(
-                        text = "${result.processingTimeMs}ms@${result.imageWidth}x${result.imageHeight}",
-                        color = Color.Yellow,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier
-                            .background(Color.Black.copy(alpha = 0.7f))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
-                }
+            // Rechts: Framerate@Auflösung (grau wie S1)
+            Box(modifier = Modifier.width(180.dp), contentAlignment = Alignment.CenterEnd) {
+                Text(
+                    text = "${result.processingTimeMs}ms@${result.imageWidth}x${result.imageHeight}",
+                    color = Color.Gray,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier
+                        .background(Color.Black.copy(alpha = 0.7f))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                )
             }
         }
     }
@@ -313,7 +315,11 @@ fun DetectionOverlayFixed(
     Canvas(modifier = Modifier.fillMaxSize()) {
         // Zeichne Boxen - skaliere und verschiebe wie das Kamera-Bild
         objects.forEach { obj ->
-            val color = if (obj.isValidated) Color.Green else Color.Red
+            val color = when {
+                obj.isValidated -> Color.Green  // Eier
+                obj.isS2Filtered -> Color.Yellow // S2 gefiltert
+                else -> Color.Red
+            }
             
             // 1. ROTATION (obj.x/y sind im Bild-Koordinatensystem)
             val rotatedX = obj.y.toFloat()

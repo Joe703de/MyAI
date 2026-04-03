@@ -23,18 +23,18 @@ data class DetectedObject(
     val y: Int,
     val width: Int,
     val height: Int,
-    val isValidated: Boolean
+    val isValidated: Boolean,
+    val isS2Filtered: Boolean = false  // true = durch S2-Filter gelaufen (gelb)
 )
 
 data class DetectionResult(
     val eggCount: Int,
-    val candidateCount: Int,
+    val candidateCount: Int,     // S1 count
+    val s2Count: Int,            // NEU: S2 count
     val processingTimeMs: Long,
     val objects: List<DetectedObject> = emptyList(),
     val imageWidth: Int = 0,
-    val imageHeight: Int = 0,
-    val rawImageWidth: Int = 0,  // Original von ImageProxy
-    val rawImageHeight: Int = 0
+    val imageHeight: Int = 0
 )
 
 class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult) -> Unit) : ImageAnalysis.Analyzer {
@@ -102,9 +102,6 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
 
         val startTime = System.currentTimeMillis()
 
-        // LOG: Original Kamera-Auflösung (vor OpenCV, vor Rotation)
-        Log.d("EggAnalyzer", "RAW Camera: ${imageProxy.width}x${imageProxy.height}, rotation: ${imageProxy.imageInfo.rotationDegrees}")
-
         try {
             val planes = imageProxy.planes
             val yBuffer = planes[0].buffer
@@ -127,15 +124,23 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
             val rgbMat = Mat()
             Imgproc.cvtColor(yuvMat, rgbMat, Imgproc.COLOR_YUV2RGB_NV21, 3)
 
-            // Schritt 1: Kandidaten finden
-            val candidates = findYellowCandidates(rgbMat)
-            Log.d("EggAnalyzer", "Step 1: Found ${candidates.size} candidates")
+            // Schritt 1: Kandidaten finden (S1)
+            val s1Candidates = findYellowCandidates(rgbMat, wideRange = true)
+            Log.d("EggAnalyzer", "S1: Found ${s1Candidates.size} candidates")
 
-            // Schritt 2: Validierung
+            // Schritt 2: S2 Filter (verschärft wenn S1 > 25)
+            val s2Candidates = if (s1Candidates.size > 25) {
+                findYellowCandidates(rgbMat, wideRange = false) // Verschärfter Filter
+            } else {
+                s1Candidates // Sonst gleich wie S1
+            }
+            Log.d("EggAnalyzer", "S2: ${s2Candidates.size} candidates")
+
+            // Schritt 3: Validierung (ORB Feature Matching)
             val validatedObjects = mutableListOf<DetectedObject>()
             var eggCount = 0
 
-            for (candidate in candidates) {
+            for (candidate in s2Candidates) {
                 val centerX = candidate.x + candidate.width / 2
                 val centerY = candidate.y + candidate.height / 2
 
@@ -158,7 +163,8 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
                     y = candidate.y,
                     width = candidate.width,
                     height = candidate.height,
-                    isValidated = isEgg
+                    isValidated = isEgg,
+                    isS2Filtered = true // Alle durch S2 gekommen sind gelb
                 ))
 
                 if (isEgg) {
@@ -172,13 +178,12 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
 
             onResult(DetectionResult(
                 eggCount = eggCount,
-                candidateCount = candidates.size,
+                candidateCount = s1Candidates.size,
+                s2Count = s2Candidates.size,
                 processingTimeMs = processingTime,
                 objects = validatedObjects,
                 imageWidth = imageProxy.width,
-                imageHeight = imageProxy.height,
-                rawImageWidth = imageProxy.width,
-                rawImageHeight = imageProxy.height
+                imageHeight = imageProxy.height
             ))
 
             yuvMat.release()
@@ -186,13 +191,13 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
 
         } catch (e: Exception) {
             Log.e("EggAnalyzer", "Error: ${e.message}", e)
-            onResult(DetectionResult(0, 0, System.currentTimeMillis() - startTime))
+            onResult(DetectionResult(0, 0, 0, System.currentTimeMillis() - startTime))
         } finally {
             imageProxy.close()
         }
     }
 
-    private fun findYellowCandidates(mat: Mat): List<EggCandidate> {
+    private fun findYellowCandidates(mat: Mat, wideRange: Boolean = true): List<EggCandidate> {
         val candidates = mutableListOf<EggCandidate>()
 
         val hsv = Mat()
@@ -200,8 +205,13 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
 
         // ANGEPASST FÜR DIESSES GERÄT:
         // Das "Gelb" auf diesem Gerät hat H=90-100° (Cyan/Grün)
-        val lowerYellow = Scalar(80.0, 100.0, 100.0)   // S=100, V=100-220
-        val upperYellow = Scalar(110.0, 255.0, 220.0)
+        val (lowerYellow, upperYellow) = if (wideRange) {
+            // S1: Weiter Bereich (mehr Treffer)
+            Pair(Scalar(80.0, 50.0, 50.0), Scalar(110.0, 255.0, 255.0))
+        } else {
+            // S2: Enger Bereich (verschärfter Filter)
+            Pair(Scalar(85.0, 120.0, 120.0), Scalar(105.0, 255.0, 220.0))
+        }
 
         val mask = Mat()
         Core.inRange(hsv, lowerYellow, upperYellow, mask)
