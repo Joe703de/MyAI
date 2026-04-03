@@ -51,7 +51,7 @@
           "vMax": 200
         },
         "s2": {
-          "hMin": 230,
+          "hMin": 240,
           "hMax": 30,
           "sMin": 150,
           "sMax": 255,
@@ -100,9 +100,8 @@
         "aspectRatioMax": 2.0,
         "circularityMin": 0.2,
         "minArea": 500
-      }
-    }
-    ,{
+      },
+      ,{
       "name": "Rot",
       "rgb": {
         "r": 255,
@@ -126,7 +125,8 @@
           "vMin": 120,
           "vMax": 210
         }
-      },
+      }
+    },
       "s2Threshold": 25,
       "roiExpansion": 0.3,
       "shapeMatching": {
