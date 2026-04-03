@@ -247,8 +247,8 @@ fun StatusBar(result: DetectionResult) {
                 )
             }
 
-            // Mitte: S2 (um 2 Stellen nach links verschoben)
-            Box(modifier = Modifier.width(50.dp), contentAlignment = Alignment.CenterEnd) {
+            // Mitte: S2 (breiter: 2 Stellen links, 1 Stelle rechts)
+            Box(modifier = Modifier.width(90.dp), contentAlignment = Alignment.CenterEnd) {
                 Text(
                     text = "S2: ${result.s2Count}",
                     color = Color.Yellow,
