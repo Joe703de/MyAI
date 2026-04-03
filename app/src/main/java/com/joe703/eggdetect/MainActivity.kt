@@ -235,8 +235,8 @@ fun StatusBar(result: DetectionResult) {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Links: S1 (immer grau, feste Breite)
-            Box(modifier = Modifier.width(70.dp)) {
+            // Links: S1 (immer grau, feste Breite ~1 Stelle breiter)
+            Box(modifier = Modifier.width(90.dp)) {
                 Text(
                     text = "S1: ${result.candidateCount}",
                     color = Color.Gray,
@@ -247,7 +247,7 @@ fun StatusBar(result: DetectionResult) {
                 )
             }
 
-            // Mitte: S2 (zwischen S1 und Eier)
+            // Mitte: S2
             Box(modifier = Modifier.width(70.dp), contentAlignment = Alignment.CenterEnd) {
                 Text(
                     text = "S2: ${result.s2Count}",
@@ -259,20 +259,8 @@ fun StatusBar(result: DetectionResult) {
                 )
             }
 
-            // Eier
-            Box(modifier = Modifier.width(70.dp), contentAlignment = Alignment.CenterEnd) {
-                Text(
-                    text = "Eier: ${result.eggCount}",
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier
-                        .background(Color.Black.copy(alpha = 0.7f))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                )
-            }
-
-            // Rechts: Framerate@Auflösung (grau wie S1)
-            Box(modifier = Modifier.width(180.dp), contentAlignment = Alignment.CenterEnd) {
+            // Rechts: Framerate@Auflösung (grau wie S1, breiter)
+            Box(modifier = Modifier.width(220.dp), contentAlignment = Alignment.CenterEnd) {
                 Text(
                     text = "${result.processingTimeMs}ms@${result.imageWidth}x${result.imageHeight}",
                     color = Color.Gray,
