@@ -11,6 +11,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ResolutionSelector
+import androidx.camera.core.ResolutionStrategy
 import androidx.camera.core.Preview as CameraPreview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
@@ -128,6 +130,16 @@ fun CameraScreen() {
     val imageAnalyzer = remember(context) {
         ImageAnalysis.Builder()
             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+            .setResolutionSelector(
+                ResolutionSelector.Builder()
+                    .setResolutionStrategy(
+                        ResolutionStrategy(
+                            android.util.Size(3840, 2160),
+                            ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
+                        )
+                    )
+                    .build()
+            )
             .build()
             .also {
                 it.setAnalyzer(
