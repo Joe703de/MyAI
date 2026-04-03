@@ -306,18 +306,6 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
         contours.forEach { it.release() }
 
         return isEgg
-    }        val isEgg = aspectRatio in 0.4f..2.0f && circularity > 0.2
-
-        Log.d("EggAnalyzer", "Egg check: aspect=$aspectRatio, circularity=$circularity, area=$largestArea, isEgg=$isEgg")
-
-        extendedRoi.release()
-        gray.release()
-        blurred.release()
-        thresh.release()
-        hierarchy.release()
-        contours.forEach { it.release() }
-
-        return isEgg
     }
 
     data class EggCandidate(
