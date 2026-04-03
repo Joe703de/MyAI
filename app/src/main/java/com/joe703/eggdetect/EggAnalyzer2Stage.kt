@@ -18,7 +18,11 @@ data class DetectedObject(
     val width: Int,
     val height: Int,
     val isValidated: Boolean,
-    val isS2Filtered: Boolean = false  // true = durch S2-Filter gelaufen (gelb)
+    val isS2Filtered: Boolean = false,
+    val isLastColor: Boolean = false, // true = von letzter Farbe (für graue Anzeige)
+    val colorR: Int = 255,
+    val colorG: Int = 255,
+    val colorB: Int = 0
 )
 
 data class DetectionResult(
@@ -146,22 +150,40 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
                     if (tooClose) continue
 
                     val isEgg = detectEggShape(candidate.roi, colorConfig)
+                    val isLastColor = (index == colorConfigs.size - 1)
 
-                    // Füge ALLE S2-Kandidaten hinzu (für Overlay)
-                    allValidatedObjects.add(DetectedObject(
-                        x = candidate.x,
-                        y = candidate.y,
-                        width = candidate.width,
-                        height = candidate.height,
-                        isValidated = isEgg,
-                        isS2Filtered = true
-                    ))
-                    
                     if (isEgg) {
+                        // Ei gefunden - in JSON-Farbe
+                        allValidatedObjects.add(DetectedObject(
+                            x = candidate.x,
+                            y = candidate.y,
+                            width = candidate.width,
+                            height = candidate.height,
+                            isValidated = true,
+                            isS2Filtered = true,
+                            isLastColor = isLastColor,
+                            colorR = colorConfig.rgb.r,
+                            colorG = colorConfig.rgb.g,
+                            colorB = colorConfig.rgb.b
+                        ))
                         totalEggCount++
+                    } else if (isLastColor) {
+                        // Nur für letzte Farbe: nicht-validiertes S2-Objekt (grau)
+                        allValidatedObjects.add(DetectedObject(
+                            x = candidate.x,
+                            y = candidate.y,
+                            width = candidate.width,
+                            height = candidate.height,
+                            isValidated = false,
+                            isS2Filtered = true,
+                            isLastColor = true,
+                            colorR = colorConfig.rgb.r,
+                            colorG = colorConfig.rgb.g,
+                            colorB = colorConfig.rgb.b
+                        ))
                     }
 
-                    if (totalEggCount >= 12) break // Max 6 pro Farbe
+                    if (totalEggCount >= 12) break
                 }
                 
                 if (totalEggCount >= 12) break

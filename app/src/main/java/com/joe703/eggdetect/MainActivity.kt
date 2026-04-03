@@ -301,8 +301,8 @@ fun DetectionOverlayFixed(
     val offsetY = (previewHeight - scaledHeight) / 2
     
     Canvas(modifier = Modifier.fillMaxSize()) {
-        // 1. Graue Vierecke für S2-Objekte der letzten Farbe (nicht validiert)
-        objects.filter { !it.isValidated && it.isS2Filtered }.forEach { obj ->
+        // 1. Graue Vierecke für S2-Objekte der LETZTEN Farbe (nicht validiert)
+        objects.filter { !it.isValidated && it.isLastColor }.forEach { obj ->
             val color = Color.Gray
             
             val rotatedX = obj.y.toFloat()
@@ -321,13 +321,13 @@ fun DetectionOverlayFixed(
                 color = color,
                 topLeft = Offset(finalX, finalY),
                 size = Size(finalW, finalH),
-                style = Stroke(width = 2f) // Dünnere Linie für S2
+                style = Stroke(width = 2f)
             )
         }
         
-        // 2. Gelbe Vierecke für Eier (validiert)
+        // 2. Farbige Vierecke für Eier (validiert) - JSON-Farbe
         objects.filter { it.isValidated }.forEach { obj ->
-            val color = Color.Yellow
+            val color = Color(obj.colorR, obj.colorG, obj.colorB)
             
             val rotatedX = obj.y.toFloat()
             val rotatedY = obj.x.toFloat()
