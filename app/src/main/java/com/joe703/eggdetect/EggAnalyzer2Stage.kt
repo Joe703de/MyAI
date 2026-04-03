@@ -30,7 +30,7 @@ data class DetectedObject(
 data class DetectionResult(
     val eggCount: Int,
     val candidateCount: Int,     // S1 count
-    val s2Count: Int,            // NEU: S2 count
+    val s2Count: Int,            // NEW: S2 count (yellow filter stage)
     val processingTimeMs: Long,
     val objects: List<DetectedObject> = emptyList(),
     val imageWidth: Int = 0,

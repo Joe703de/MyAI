@@ -124,7 +124,7 @@ fun CameraScreen() {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    var detectionResult by remember { mutableStateOf(DetectionResult(0, 0, 0L, emptyList(), 0, 0)) }
+    var detectionResult by remember { mutableStateOf(DetectionResult(0, 0, 0, 0L, emptyList(), 0, 0)) }
     var previewViewSize by remember { mutableStateOf(android.util.Size(0, 0)) }
 
     val imageAnalyzer = remember(context) {
