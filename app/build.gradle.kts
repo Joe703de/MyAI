@@ -49,6 +49,9 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     
+    // OpenCV via quickbirdstudios (bekannte funktionierende Version)
+    implementation("com.quickbirdstudios:opencv:4.5.3.0")
+    
     // CameraX - neueste Version mit 16 KB Support
     val cameraxVersion = "1.4.0-alpha05"
     implementation("androidx.camera:camera-core:$cameraxVersion")
