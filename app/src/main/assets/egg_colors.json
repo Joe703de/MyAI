@@ -101,7 +101,8 @@
         "circularityMin": 0.2,
         "minArea": 500
       }
-      ,{
+    }
+    ,{
       "name": "Rot",
       "rgb": {
         "r": 255,
@@ -125,8 +126,7 @@
           "vMin": 120,
           "vMax": 210
         }
-      }
-    },
+      },
       "s2Threshold": 25,
       "roiExpansion": 0.3,
       "shapeMatching": {
