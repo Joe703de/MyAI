@@ -147,15 +147,17 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
 
                     val isEgg = detectEggShape(candidate.roi, colorConfig)
 
+                    // Füge ALLE S2-Kandidaten hinzu (für Overlay)
+                    allValidatedObjects.add(DetectedObject(
+                        x = candidate.x,
+                        y = candidate.y,
+                        width = candidate.width,
+                        height = candidate.height,
+                        isValidated = isEgg,
+                        isS2Filtered = true
+                    ))
+                    
                     if (isEgg) {
-                        allValidatedObjects.add(DetectedObject(
-                            x = candidate.x,
-                            y = candidate.y,
-                            width = candidate.width,
-                            height = candidate.height,
-                            isValidated = true,
-                            isS2Filtered = true
-                        ))
                         totalEggCount++
                     }
 
