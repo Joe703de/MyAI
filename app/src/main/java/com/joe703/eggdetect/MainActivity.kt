@@ -232,8 +232,8 @@ fun StatusBar(result: DetectionResult) {
                 )
             }
 
-            // Mitte: Eier (rechtsbündig in der Mitte)
-            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+            // Mitte: Eier (rechtsbündig, feste Breite für 2 Stellen)
+            Box(modifier = Modifier.width(100.dp), contentAlignment = Alignment.CenterEnd) {
                 Text(
                     text = "Eier: ${result.eggCount}",
                     color = Color.White,
