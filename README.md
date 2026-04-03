@@ -11,7 +11,7 @@ Android-App zur Eierkennung mit OpenCV und CameraX.
 - Gelb wird auf dem Gerät als Cyan/Grün (H=80-110) erkannt, nicht als Standard-Gelb (H=20-35)
 - S1/S2 HSV-Ranges in `egg_colors.json` angepasst an das konkrete Gerät
 
-### 16 KB Page Size Warnung
+### ⚠️ 16 KB Page Size Warnung
 Die App zeigt beim Build eine Warnung bezüglich 16 KB Page Sizes:
 ```
 APK app-debug.apk is not compatible with 16 KB devices
