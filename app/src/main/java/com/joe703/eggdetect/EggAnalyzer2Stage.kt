@@ -216,7 +216,7 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
         
         // Erstelle erweiterte ROI
         val extendedRoi = Mat()
-        Imgproc.copyMakeBorder(roi, extendedRoi, extendY, extendY, extendX, extendX, Imgproc.BORDER_REPLICATE)
+        Core.copyMakeBorder(roi, extendedRoi, extendY, extendY, extendX, extendX, Core.BORDER_REPLICATE)
         
         // Konvertiere zu Grayscale
         val gray = Mat()
