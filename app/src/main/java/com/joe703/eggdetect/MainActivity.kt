@@ -253,7 +253,7 @@ fun StatusBar(result: DetectionResult) {
 /**
  * KORRIGIERTES OVERLAY
  * 1. Rotation: (x,y) -> (y,x)
- * 2. Beide Achsen spiegeln
+ * 2. Nur X-Achse spiegeln (horizontal)
  */
 @Composable
 fun DetectionOverlayFixed(
@@ -288,14 +288,12 @@ fun DetectionOverlayFixed(
             val rotatedW = obj.height      // Höhe wird Breite
             val rotatedH = obj.width       // Breite wird Höhe
 
-            // 2. BEIDE ACHSEN SPIEGELN
-            // Kamera ist gespiegelt in beide Richtungen
+            // 2. NUR X-ACHSE SPIEGELN (horizontal spiegeln)
             val mirroredX = rotatedImageWidth - rotatedX - rotatedW
-            val mirroredY = rotatedImageHeight - rotatedY - rotatedH
 
             // Finale Position
             val finalX = mirroredX
-            val finalY = mirroredY
+            val finalY = rotatedY
             val finalW = rotatedW
             val finalH = rotatedH
 
