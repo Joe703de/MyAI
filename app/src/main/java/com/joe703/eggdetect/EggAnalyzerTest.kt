@@ -92,7 +92,8 @@ class EggAnalyzerTest(context: Context, private val onResult: (DetectionResult) 
                     y = rect.y,
                     width = rect.width,
                     height = rect.height,
-                    isValidated = true  // Im Test-Modus alles als validiert markieren
+                    isValidated = true,
+                    isS2Filtered = false
                 ))
             }
 
@@ -101,6 +102,7 @@ class EggAnalyzerTest(context: Context, private val onResult: (DetectionResult) 
             onResult(DetectionResult(
                 eggCount = contours.size,
                 candidateCount = contours.size,
+                s2Count = contours.size,
                 processingTimeMs = processingTime,
                 objects = objects,
                 imageWidth = imageProxy.width,
@@ -119,7 +121,7 @@ class EggAnalyzerTest(context: Context, private val onResult: (DetectionResult) 
 
         } catch (e: Exception) {
             Log.e("EggAnalyzerTest", "Error: ${e.message}", e)
-            onResult(DetectionResult(0, 0, System.currentTimeMillis() - startTime))
+            onResult(DetectionResult(0, 0, 0, System.currentTimeMillis() - startTime))
         } finally {
             imageProxy.close()
         }
