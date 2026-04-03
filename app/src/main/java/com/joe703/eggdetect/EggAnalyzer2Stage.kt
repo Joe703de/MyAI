@@ -210,38 +210,31 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
     }
 
     private fun detectEggShape(roi: Mat): Boolean {
-        // ROI um 10% in alle Richtungen erweitern
-        val extendX = (roi.cols() * 0.1).toInt()
-        val extendY = (roi.rows() * 0.1).toInt()
-        
-        // HSV-Filter auf ROI anwenden (S2-Bereich: enger für präzise Erkennung)
-        val hsv = Mat()
-        Imgproc.cvtColor(roi, hsv, Imgproc.COLOR_RGB2HSV)
-        
-        // S2 HSV-Bereich (eng für präzise Ei-Erkennung)
-        val lower = Scalar(80.0, 150.0, 120.0)
-        val upper = Scalar(110.0, 255.0, 210.0)
-        
-        val mask = Mat()
-        Core.inRange(hsv, lower, upper, mask)
-        
-        // Morphologie zum Glätten
-        val kernel = Mat.ones(3, 3, CvType.CV_8U)
-        Imgproc.morphologyEx(mask, mask, Imgproc.MORPH_CLOSE, kernel)
-        
-        // Finde Konturen in der Maske (weiß = passt zur Farbe)
+        // Konvertiere zu Grayscale
+        val gray = Mat()
+        Imgproc.cvtColor(roi, gray, Imgproc.COLOR_RGB2GRAY)
+
+        // Weichzeichnen
+        val blurred = Mat()
+        Imgproc.GaussianBlur(gray, blurred, org.opencv.core.Size(5.0, 5.0), 0.0)
+
+        // Adaptive Threshold für bessere Konturen
+        val thresh = Mat()
+        Imgproc.adaptiveThreshold(blurred, thresh, 255.0, Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C, Imgproc.THRESH_BINARY_INV, 11, 2.0)
+
+        // Finde Konturen
         val contours = mutableListOf<org.opencv.core.MatOfPoint>()
         val hierarchy = Mat()
-        Imgproc.findContours(mask, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE)
-        
+        Imgproc.findContours(thresh, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE)
+
         if (contours.isEmpty()) {
-            hsv.release()
-            mask.release()
-            kernel.release()
+            gray.release()
+            blurred.release()
+            thresh.release()
             hierarchy.release()
             return false
         }
-        
+
         // Größte Kontur finden
         var largestContour: org.opencv.core.MatOfPoint? = null
         var largestArea = 0.0
@@ -252,35 +245,35 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
                 largestContour = cnt
             }
         }
-        
-        if (largestContour == null || largestArea < 100) {
-            hsv.release()
-            mask.release()
-            kernel.release()
+
+        if (largestContour == null || largestArea < 200) {
+            gray.release()
+            blurred.release()
+            thresh.release()
             hierarchy.release()
             contours.forEach { it.release() }
             return false
         }
-        
+
         // Prüfe Ovalidität
         val rect = Imgproc.boundingRect(largestContour)
         val aspectRatio = rect.width.toFloat() / rect.height.toFloat()
-        
+
         // Kreisförmigkeit
         val perimeter = Imgproc.arcLength(org.opencv.core.MatOfPoint2f(*largestContour.toArray()), true)
         val circularity = if (perimeter > 0) 4 * Math.PI * largestArea / (perimeter * perimeter) else 0.0
-        
-        // Lockerere Kriterien für Ei: Aspect Ratio 0.5-2.0, Circularität > 0.3
-        val isEgg = aspectRatio in 0.5f..2.0f && circularity > 0.3
-        
-        Log.d("EggAnalyzer", "Egg check: area=$largestArea, aspect=$aspectRatio, circularity=$circularity, isEgg=$isEgg")
-        
-        hsv.release()
-        mask.release()
-        kernel.release()
+
+        // Kriterien: Aspect Ratio 0.5-1.8 (etwas lockerer), Circularität > 0.25
+        val isEgg = aspectRatio in 0.5f..1.8f && circularity > 0.25
+
+        Log.d("EggAnalyzer", "Egg check: aspect=$aspectRatio, circularity=$circularity, area=$largestArea, isEgg=$isEgg")
+
+        gray.release()
+        blurred.release()
+        thresh.release()
         hierarchy.release()
         contours.forEach { it.release() }
-        
+
         return isEgg
     }
 
