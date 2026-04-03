@@ -229,7 +229,7 @@ fun StatusBar(result: DetectionResult) {
     Box(
         modifier = Modifier
             .fillMaxWidth(0.9f)
-            .padding(horizontal = 8.dp, vertical = 4.dp)
+            .padding(horizontal = 4.dp, vertical = 4.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -243,7 +243,7 @@ fun StatusBar(result: DetectionResult) {
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier
                         .background(Color.Black.copy(alpha = 0.7f))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .padding(horizontal = 4.dp, vertical = 4.dp)
                 )
             }
 
@@ -255,7 +255,7 @@ fun StatusBar(result: DetectionResult) {
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier
                         .background(Color.Black.copy(alpha = 0.7f))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .padding(horizontal = 4.dp, vertical = 4.dp)
                 )
             }
 
@@ -267,7 +267,7 @@ fun StatusBar(result: DetectionResult) {
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier
                         .background(Color.Black.copy(alpha = 0.7f))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .padding(horizontal = 4.dp, vertical = 4.dp)
                 )
             }
         }
