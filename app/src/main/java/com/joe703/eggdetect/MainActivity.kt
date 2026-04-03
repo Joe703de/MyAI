@@ -218,7 +218,10 @@ fun CameraScreen() {
                 }
             }
 
-            EggIndicatorRow(count = detectionResult.eggCount, modifier = Modifier.weight(0.15f))
+            EggIndicatorRow(
+                objects = detectionResult.objects.filter { it.isValidated },
+                modifier = Modifier.weight(0.15f)
+            )
             Box(modifier = Modifier.weight(0.05f))
         }
     }
@@ -301,26 +304,46 @@ fun DetectionOverlayFixed(
     val offsetY = (previewHeight - scaledHeight) / 2
     
     Canvas(modifier = Modifier.fillMaxSize()) {
-        // Zeichne nur Eier (nur validierte Objekte, alle in Gelb)
-        objects.filter { it.isValidated }.forEach { obj ->
-            val color = Color.Yellow  // Alle Eier in Gelb
+        // 1. Graue Vierecke für S2-Objekte der LETZTEN Farbe (nicht validiert)
+        objects.filter { !it.isValidated && it.isLastColor }.forEach { obj ->
+            val color = Color.Gray
             
-            // 1. ROTATION (obj.x/y sind im Bild-Koordinatensystem)
             val rotatedX = obj.y.toFloat()
             val rotatedY = obj.x.toFloat()
             val rotatedW = obj.height.toFloat()
             val rotatedH = obj.width.toFloat()
             
-            // 2. X-ACHSE SPIEGELN
             val mirroredX = rotatedImageWidth - rotatedX - rotatedW
             
-            // 3. SKALIERUNG und VERSCHIEBUNG (wie PreviewView)
             val finalX = (mirroredX * scale) + offsetX
             val finalY = (rotatedY * scale) + offsetY
             val finalW = rotatedW * scale
             val finalH = rotatedH * scale
             
-            // Zeichnen
+            drawRect(
+                color = color,
+                topLeft = Offset(finalX, finalY),
+                size = Size(finalW, finalH),
+                style = Stroke(width = 2f)
+            )
+        }
+        
+        // 2. Farbige Vierecke für Eier (validiert) - JSON-Farbe
+        objects.filter { it.isValidated }.forEach { obj ->
+            val color = Color(obj.colorR, obj.colorG, obj.colorB)
+            
+            val rotatedX = obj.y.toFloat()
+            val rotatedY = obj.x.toFloat()
+            val rotatedW = obj.height.toFloat()
+            val rotatedH = obj.width.toFloat()
+            
+            val mirroredX = rotatedImageWidth - rotatedX - rotatedW
+            
+            val finalX = (mirroredX * scale) + offsetX
+            val finalY = (rotatedY * scale) + offsetY
+            val finalW = rotatedW * scale
+            val finalH = rotatedH * scale
+            
             drawRect(
                 color = color,
                 topLeft = Offset(finalX, finalY),
@@ -332,7 +355,7 @@ fun DetectionOverlayFixed(
 }
 
 @Composable
-fun EggIndicatorRow(count: Int, modifier: Modifier = Modifier) {
+fun EggIndicatorRow(objects: List<DetectedObject>, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier.fillMaxWidth(),
         contentAlignment = Alignment.Center
@@ -343,16 +366,22 @@ fun EggIndicatorRow(count: Int, modifier: Modifier = Modifier) {
             modifier = Modifier.fillMaxWidth(0.8f)
         ) {
             repeat(6) { index ->
-                val isActive = index < count
+                val isActive = index < objects.size
+                val eggColor = if (isActive) {
+                    Color(objects[index].colorR, objects[index].colorG, objects[index].colorB)
+                } else {
+                    Color.DarkGray
+                }
+                
                 Box(
                     modifier = Modifier
                         .size(40.dp)
                         .background(
-                            color = if (isActive) Color.Yellow else Color.DarkGray,
+                            color = eggColor,
                             shape = CircleShape
                         )
                         .then(
-                            if (isActive) Modifier.border(2.dp, Color.Yellow.copy(alpha = 0.5f), CircleShape)
+                            if (isActive) Modifier.border(2.dp, eggColor.copy(alpha = 0.5f), CircleShape)
                             else Modifier
                         )
                 )

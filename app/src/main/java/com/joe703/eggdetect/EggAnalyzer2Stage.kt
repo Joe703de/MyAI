@@ -4,6 +4,8 @@ import android.content.Context
 import android.util.Log
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.decodeFromString
 import org.opencv.core.Core
 import org.opencv.core.CvType
 import org.opencv.core.Mat
@@ -16,7 +18,11 @@ data class DetectedObject(
     val width: Int,
     val height: Int,
     val isValidated: Boolean,
-    val isS2Filtered: Boolean = false  // true = durch S2-Filter gelaufen (gelb)
+    val isS2Filtered: Boolean = false,
+    val isLastColor: Boolean = false, // true = von letzter Farbe (für graue Anzeige)
+    val colorR: Int = 255,
+    val colorG: Int = 255,
+    val colorB: Int = 0
 )
 
 data class DetectionResult(
@@ -33,6 +39,35 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
 
     private var lastProcessTime = 0L
     private val processIntervalMs = 300
+    private val colorConfigs: List<EggColor> = loadConfig(context)
+    private var currentColorIndex: Int = 0
+
+    init {
+        Log.d("EggAnalyzer", "Loaded ${colorConfigs.size} color configs")
+    }
+
+    private fun loadConfig(context: Context): List<EggColor> {
+        return try {
+            val json = context.assets.open("egg_colors.json").bufferedReader().use { it.readText() }
+            val config = Json.decodeFromString<EggColorsConfig>(json)
+            config.colors
+        } catch (e: Exception) {
+            Log.e("EggAnalyzer", "Failed to load config: ${e.message}")
+            // Fallback-Werte
+            listOf(
+                EggColor("Gelb", RGB(255, 255, 0),
+                    HSVConfig(
+                        HSVRange(80, 110, 100, 255, 80, 200),
+                        HSVRange(80, 110, 150, 255, 120, 210)
+                    ), 25, 0.3, ShapeMatching(0.4, 2.0, 0.2, 500)),
+                EggColor("Rot", RGB(255, 0, 0),
+                    HSVConfig(
+                        HSVRange(140, 180, 100, 255, 80, 200),
+                        HSVRange(150, 170, 150, 255, 120, 210)
+                    ), 25, 0.3, ShapeMatching(0.4, 2.0, 0.2, 500))
+            )
+        }
+    }
 
     override fun analyze(imageProxy: ImageProxy) {
         val currentTime = System.currentTimeMillis()
@@ -67,65 +102,101 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
             val rgbMat = Mat()
             Imgproc.cvtColor(yuvMat, rgbMat, Imgproc.COLOR_YUV2RGB_NV21, 3)
 
-            // Schritt 1: Kandidaten finden (S1)
-            val s1Candidates = findYellowCandidates(rgbMat, wideRange = true)
-            Log.d("EggAnalyzer", "S1: Found ${s1Candidates.size} candidates")
+            // Prüfe beide Farben nacheinander
+            val allValidatedObjects = mutableListOf<DetectedObject>()
+            var totalEggCount = 0
+            
+            // Sammle Ergebnisse für alle Farben
+            var lastS1Count = 0
+            var lastS2Count = 0
+            
+            for ((index, colorConfig) in colorConfigs.withIndex()) {
+                // Setze aktuellen Index für findYellowCandidates
+                currentColorIndex = index
+                
+                // Schritt 1: Kandidaten finden (S1)
+                val s1Candidates = findYellowCandidates(rgbMat, wideRange = true)
+                Log.d("EggAnalyzer", "${colorConfig.name} S1: ${s1Candidates.size} candidates")
 
-            // Schritt 2: S2 Filter (verschärft wenn S1 > 25)
-            val s2Candidates = if (s1Candidates.size > 25) {
-                findYellowCandidates(rgbMat, wideRange = false) // Verschärfter Filter
-            } else {
-                s1Candidates // Sonst gleich wie S1
-            }
-            Log.d("EggAnalyzer", "S2: ${s2Candidates.size} candidates")
+                // Schritt 2: S2 Filter
+                val s2Candidates = if (s1Candidates.size > colorConfig.s2Threshold) {
+                    findYellowCandidates(rgbMat, wideRange = false)
+                } else {
+                    s1Candidates
+                }
+                Log.d("EggAnalyzer", "${colorConfig.name} S2: ${s2Candidates.size} candidates")
 
-            // Schritt 3: Eier = alle S2-Kandidaten (automatisch validiert)
-            val validatedObjects = mutableListOf<DetectedObject>()
-            var eggCount = 0
+                // Speichere letzte Werte für Status (letzte Farbe = Rot)
+                if (index == colorConfigs.size - 1) {
+                    lastS1Count = s1Candidates.size
+                    lastS2Count = s2Candidates.size
+                }
 
-            for (candidate in s2Candidates) {
-                val centerX = candidate.x + candidate.width / 2
-                val centerY = candidate.y + candidate.height / 2
+                // Schritt 3: Eier erkennen
+                for (candidate in s2Candidates) {
+                    val centerX = candidate.x + candidate.width / 2
+                    val centerY = candidate.y + candidate.height / 2
 
-                var tooClose = false
-                for (obj in validatedObjects) {
-                    val dx = (centerX - (obj.x + obj.width/2)).toDouble()
-                    val dy = (centerY - (obj.y + obj.height/2)).toDouble()
-                    val dist = kotlin.math.sqrt(dx * dx + dy * dy)
-                    if (dist < 80) {
-                        tooClose = true
-                        break
+                    var tooClose = false
+                    for (obj in allValidatedObjects) {
+                        val dx = (centerX - (obj.x + obj.width/2)).toDouble()
+                        val dy = (centerY - (obj.y + obj.height/2)).toDouble()
+                        val dist = kotlin.math.sqrt(dx * dx + dy * dy)
+                        if (dist < 80) {
+                            tooClose = true
+                            break
+                        }
                     }
+                    if (tooClose) continue
+
+                    val isEgg = detectEggShape(candidate.roi, colorConfig)
+                    val isLastColor = (index == colorConfigs.size - 1)
+
+                    if (isEgg) {
+                        // Ei gefunden - in JSON-Farbe
+                        allValidatedObjects.add(DetectedObject(
+                            x = candidate.x,
+                            y = candidate.y,
+                            width = candidate.width,
+                            height = candidate.height,
+                            isValidated = true,
+                            isS2Filtered = true,
+                            isLastColor = isLastColor,
+                            colorR = colorConfig.rgb.r,
+                            colorG = colorConfig.rgb.g,
+                            colorB = colorConfig.rgb.b
+                        ))
+                        totalEggCount++
+                    } else if (isLastColor) {
+                        // Nur für letzte Farbe: nicht-validiertes S2-Objekt (grau)
+                        allValidatedObjects.add(DetectedObject(
+                            x = candidate.x,
+                            y = candidate.y,
+                            width = candidate.width,
+                            height = candidate.height,
+                            isValidated = false,
+                            isS2Filtered = true,
+                            isLastColor = true,
+                            colorR = colorConfig.rgb.r,
+                            colorG = colorConfig.rgb.g,
+                            colorB = colorConfig.rgb.b
+                        ))
+                    }
+
+                    if (totalEggCount >= 12) break
                 }
-                if (tooClose) continue
-
-                // NEU: Prüfe auf ovales Objekt im ROI
-                val isEgg = detectEggShape(candidate.roi)
-
-                validatedObjects.add(DetectedObject(
-                    x = candidate.x,
-                    y = candidate.y,
-                    width = candidate.width,
-                    height = candidate.height,
-                    isValidated = isEgg,
-                    isS2Filtered = true
-                ))
-
-                if (isEgg) {
-                    eggCount++
-                }
-
-                if (eggCount >= 6) break
+                
+                if (totalEggCount >= 12) break
             }
 
             val processingTime = System.currentTimeMillis() - startTime
 
             onResult(DetectionResult(
-                eggCount = eggCount,
-                candidateCount = s1Candidates.size,
-                s2Count = s2Candidates.size,
+                eggCount = totalEggCount,
+                candidateCount = lastS1Count,
+                s2Count = lastS2Count,
                 processingTimeMs = processingTime,
-                objects = validatedObjects,
+                objects = allValidatedObjects,
                 imageWidth = imageProxy.width,
                 imageHeight = imageProxy.height
             ))
@@ -155,18 +226,42 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
         val hsv = Mat()
         Imgproc.cvtColor(mat, hsv, Imgproc.COLOR_RGB2HSV)
 
-        // ANGEPASST FÜR DIESSES GERÄT:
-        // Das "Gelb" auf diesem Gerät hat H=90-100° (Cyan/Grün)
-        val (lowerYellow, upperYellow) = if (wideRange) {
-            // S1: Weiter Bereich
-            Pair(Scalar(80.0, 100.0, 80.0), Scalar(110.0, 255.0, 200.0))
+        // Werte aus aktueller JSON-Konfiguration
+        val colorConfig = colorConfigs[currentColorIndex]
+        val hsvRange = if (wideRange) colorConfig.hsv.s1 else colorConfig.hsv.s2
+        
+        // Prüfe auf Wrap-around (hMin > hMax)
+        val masks = mutableListOf<Mat>()
+        
+        if (hsvRange.hMin > hsvRange.hMax) {
+            // Wrap-around: zwei Bereiche (hMin-255 und 0-hMax)
+            val lower1 = Scalar(hsvRange.hMin.toDouble(), hsvRange.sMin.toDouble(), hsvRange.vMin.toDouble())
+            val upper1 = Scalar(255.0, hsvRange.sMax.toDouble(), hsvRange.vMax.toDouble())
+            val lower2 = Scalar(0.0, hsvRange.sMin.toDouble(), hsvRange.vMin.toDouble())
+            val upper2 = Scalar(hsvRange.hMax.toDouble(), hsvRange.sMax.toDouble(), hsvRange.vMax.toDouble())
+            
+            val mask1 = Mat()
+            val mask2 = Mat()
+            Core.inRange(hsv, lower1, upper1, mask1)
+            Core.inRange(hsv, lower2, upper2, mask2)
+            
+            // Kombiniere beide Masken
+            val combinedMask = Mat()
+            Core.bitwise_or(mask1, mask2, combinedMask)
+            masks.add(combinedMask)
+            mask1.release()
+            mask2.release()
         } else {
-            // S2: Enger Bereich (verschärfter Filter)
-            Pair(Scalar(80.0, 150.0, 120.0), Scalar(110.0, 255.0, 210.0))
+            // Normaler Bereich
+            val lowerYellow = Scalar(hsvRange.hMin.toDouble(), hsvRange.sMin.toDouble(), hsvRange.vMin.toDouble())
+            val upperYellow = Scalar(hsvRange.hMax.toDouble(), hsvRange.sMax.toDouble(), hsvRange.vMax.toDouble())
+            val mask = Mat()
+            Core.inRange(hsv, lowerYellow, upperYellow, mask)
+            masks.add(mask)
         }
 
-        val mask = Mat()
-        Core.inRange(hsv, lowerYellow, upperYellow, mask)
+        // Verwende die (kombinierte) Maske
+        val mask = masks.first()
 
         val kernel = Mat.ones(5, 5, CvType.CV_8U)
         Imgproc.morphologyEx(mask, mask, Imgproc.MORPH_CLOSE, kernel)
@@ -209,10 +304,10 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
         return candidates
     }
 
-    private fun detectEggShape(roi: Mat): Boolean {
-        // ROI vergrößern (30% in alle Richtungen für große Eier)
-        val extendX = (roi.cols() * 0.3).toInt()
-        val extendY = (roi.rows() * 0.3).toInt()
+    private fun detectEggShape(roi: Mat, colorConfig: EggColor): Boolean {
+        // ROI vergrößern (aus Config für große Eier)
+        val extendX = (roi.cols() * colorConfig.roiExpansion).toInt()
+        val extendY = (roi.rows() * colorConfig.roiExpansion).toInt()
         
         // Erstelle erweiterte ROI
         val extendedRoi = Mat()
@@ -255,7 +350,7 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
             }
         }
 
-        if (largestContour == null || largestArea < 500) { // Mindestfläche erhöht für große Eier
+        if (largestContour == null || largestArea < colorConfig.shapeMatching.minArea) {
             extendedRoi.release()
             gray.release()
             blurred.release()
@@ -273,8 +368,10 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
         val perimeter = Imgproc.arcLength(org.opencv.core.MatOfPoint2f(*largestContour.toArray()), true)
         val circularity = if (perimeter > 0) 4 * Math.PI * largestArea / (perimeter * perimeter) else 0.0
 
-        // Kriterien: Aspect Ratio 0.4-2.0 (noch lockerer für verschiedene Ei-Größen), Circularität > 0.2
-        val isEgg = aspectRatio in 0.4f..2.0f && circularity > 0.2
+        // Kriterien aus Config
+        val isEgg = aspectRatio >= colorConfig.shapeMatching.aspectRatioMin &&
+                    aspectRatio <= colorConfig.shapeMatching.aspectRatioMax &&
+                    circularity > colorConfig.shapeMatching.circularityMin
 
         Log.d("EggAnalyzer", "Egg check: aspect=$aspectRatio, circularity=$circularity, area=$largestArea, isEgg=$isEgg")
 

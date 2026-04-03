@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    kotlin("plugin.serialization") version "1.9.22"
 }
 
 android {
@@ -51,6 +52,9 @@ dependencies {
     
     // OpenCV via quickbirdstudios (bekannte funktionierende Version)
     implementation("com.quickbirdstudios:opencv:4.5.3.0")
+    
+    // Kotlinx Serialization für JSON
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
     
     // CameraX - neueste Version mit 16 KB Support
     val cameraxVersion = "1.4.0-alpha05"
