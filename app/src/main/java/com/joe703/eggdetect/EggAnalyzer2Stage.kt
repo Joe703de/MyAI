@@ -216,7 +216,7 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
 
         // Weichzeichnen
         val blurred = Mat()
-        Imgproc.GaussianBlur(gray, blurred, org.opencv.core.Size(5, 5), 0.0)
+        Imgproc.GaussianBlur(gray, blurred, org.opencv.core.Size(5.0, 5.0), 0.0)
 
         // Kantendetektion
         val edges = Mat()
