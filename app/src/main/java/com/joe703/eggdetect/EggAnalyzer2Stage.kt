@@ -214,11 +214,11 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
         // ANGEPASST FÜR DIESSES GERÄT:
         // Das "Gelb" auf diesem Gerät hat H=90-100° (Cyan/Grün)
         val (lowerYellow, upperYellow) = if (wideRange) {
-            // S1: Weiter Bereich (mehr Treffer)
-            Pair(Scalar(80.0, 50.0, 50.0), Scalar(110.0, 255.0, 255.0))
+            // S1: Weiter Bereich
+            Pair(Scalar(80.0, 100.0, 80.0), Scalar(110.0, 255.0, 200.0))
         } else {
             // S2: Enger Bereich (verschärfter Filter)
-            Pair(Scalar(85.0, 120.0, 120.0), Scalar(105.0, 255.0, 220.0))
+            Pair(Scalar(80.0, 150.0, 120.0), Scalar(110.0, 255.0, 210.0))
         }
 
         val mask = Mat()

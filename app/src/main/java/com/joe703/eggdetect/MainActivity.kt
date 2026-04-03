@@ -247,8 +247,8 @@ fun StatusBar(result: DetectionResult) {
                 )
             }
 
-            // Mitte: S2
-            Box(modifier = Modifier.width(70.dp), contentAlignment = Alignment.CenterEnd) {
+            // Mitte: S2 (um 2 Stellen nach links verschoben)
+            Box(modifier = Modifier.width(50.dp), contentAlignment = Alignment.CenterEnd) {
                 Text(
                     text = "S2: ${result.s2Count}",
                     color = Color.Yellow,
@@ -259,8 +259,8 @@ fun StatusBar(result: DetectionResult) {
                 )
             }
 
-            // Rechts: Framerate@Auflösung (grau wie S1, breiter)
-            Box(modifier = Modifier.width(220.dp), contentAlignment = Alignment.CenterEnd) {
+            // Rechts: Framerate@Auflösung (grau wie S1, ca 2 Stellen breiter)
+            Box(modifier = Modifier.width(260.dp), contentAlignment = Alignment.CenterEnd) {
                 Text(
                     text = "${result.processingTimeMs}ms@${result.imageWidth}x${result.imageHeight}",
                     color = Color.Gray,
