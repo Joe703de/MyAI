@@ -248,16 +248,26 @@ fun StatusBar(result: DetectionResult) {
                 )
             }
 
-            // Rechts: Framerate@Auflösung (breiter: 200dp statt 180dp)
-            Box(modifier = Modifier.width(200.dp), contentAlignment = Alignment.CenterEnd) {
-                Text(
-                    text = "${result.processingTimeMs}ms@${result.imageWidth}x${result.imageHeight}",
-                    color = Color.Yellow,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier
-                        .background(Color.Black.copy(alpha = 0.7f))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                )
+            // Rechts: Framerate@Auflösung mit RAW vorher
+            Box(modifier = Modifier.width(220.dp), contentAlignment = Alignment.CenterEnd) {
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = "RAW: ${result.rawImageWidth}x${result.rawImageHeight}",
+                        color = Color.Cyan,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier
+                            .background(Color.Black.copy(alpha = 0.7f))
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                    )
+                    Text(
+                        text = "${result.processingTimeMs}ms@${result.imageWidth}x${result.imageHeight}",
+                        color = Color.Yellow,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier
+                            .background(Color.Black.copy(alpha = 0.7f))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
             }
         }
     }

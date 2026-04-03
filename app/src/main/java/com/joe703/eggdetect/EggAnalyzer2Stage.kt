@@ -32,7 +32,9 @@ data class DetectionResult(
     val processingTimeMs: Long,
     val objects: List<DetectedObject> = emptyList(),
     val imageWidth: Int = 0,
-    val imageHeight: Int = 0
+    val imageHeight: Int = 0,
+    val rawImageWidth: Int = 0,  // Original von ImageProxy
+    val rawImageHeight: Int = 0
 )
 
 class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult) -> Unit) : ImageAnalysis.Analyzer {
@@ -99,6 +101,9 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
         lastProcessTime = currentTime
 
         val startTime = System.currentTimeMillis()
+
+        // LOG: Original Kamera-Auflösung (vor OpenCV, vor Rotation)
+        Log.d("EggAnalyzer", "RAW Camera: ${imageProxy.width}x${imageProxy.height}, rotation: ${imageProxy.imageInfo.rotationDegrees}")
 
         try {
             val planes = imageProxy.planes
@@ -171,7 +176,9 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
                 processingTimeMs = processingTime,
                 objects = validatedObjects,
                 imageWidth = imageProxy.width,
-                imageHeight = imageProxy.height
+                imageHeight = imageProxy.height,
+                rawImageWidth = imageProxy.width,
+                rawImageHeight = imageProxy.height
             ))
 
             yuvMat.release()
