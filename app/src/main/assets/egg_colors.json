@@ -100,7 +100,7 @@
         "aspectRatioMax": 2.0,
         "circularityMin": 0.2,
         "minArea": 500
-      },
+      }
       ,{
       "name": "Rot",
       "rgb": {
