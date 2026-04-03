@@ -219,28 +219,30 @@ fun StatusBar(result: DetectionResult) {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(
-                text = "${result.processingTimeMs}ms",
-                color = Color.Yellow,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier
-                    .background(Color.Black.copy(alpha = 0.7f))
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-            )
-
-            val step1Color = if (result.candidateCount > 0) Color.Green else Color.Gray
+            // Links: S1 (immer grau, Platz für 2 Stellen)
             Text(
                 text = "S1: ${result.candidateCount}",
-                color = step1Color,
+                color = Color.Gray,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier
                     .background(Color.Black.copy(alpha = 0.7f))
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             )
 
+            // Mitte: Eier
             Text(
                 text = "Eier: ${result.eggCount}",
                 color = Color.White,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier
+                    .background(Color.Black.copy(alpha = 0.7f))
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            )
+
+            // Rechts: Framerate@Auflösung (rechtsbündig)
+            Text(
+                text = "${result.processingTimeMs}ms@${result.imageWidth}x${result.imageHeight}",
+                color = Color.Yellow,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier
                     .background(Color.Black.copy(alpha = 0.7f))
