@@ -1,22 +1,14 @@
 package com.joe703.eggdetect
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.util.Log
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
-import org.opencv.android.Utils
 import org.opencv.core.Core
 import org.opencv.core.CvType
 import org.opencv.core.Mat
-import org.opencv.core.MatOfDMatch
-import org.opencv.core.MatOfKeyPoint
 import org.opencv.core.Scalar
-import org.opencv.features2d.DescriptorMatcher
-import org.opencv.features2d.ORB
 import org.opencv.imgproc.Imgproc
-import java.io.IOException
 
 data class DetectedObject(
     val x: Int,
@@ -39,57 +31,8 @@ data class DetectionResult(
 
 class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult) -> Unit) : ImageAnalysis.Analyzer {
 
-    private val referenceFeatures = mutableListOf<ReferenceFeature>()
     private var lastProcessTime = 0L
     private val processIntervalMs = 300
-
-    private val orb = ORB.create(500)
-    private val bfMatcher = DescriptorMatcher.create(DescriptorMatcher.BRUTEFORCE_HAMMING)
-
-    data class ReferenceFeature(
-        val name: String,
-        val keypoints: MatOfKeyPoint,
-        val descriptors: Mat
-    )
-
-    init {
-        loadReferenceFeatures(context)
-        Log.d("EggAnalyzer", "Loaded ${referenceFeatures.size} reference features")
-    }
-
-    private fun loadReferenceFeatures(context: Context) {
-        val assetManager = context.assets
-        val referenceFiles = listOf("ei-gelb_1.jpg", "ei-gelb_2.jpg", "ei-gelb_3.jpg", "ei-gelb_4.jpg")
-
-        referenceFiles.forEach { filename ->
-            try {
-                assetManager.open("reference/$filename").use { inputStream ->
-                    val bitmap = BitmapFactory.decodeStream(inputStream)
-                    if (bitmap != null) {
-                        val mat = Mat()
-                        Utils.bitmapToMat(bitmap, mat)
-
-                        val grayMat = Mat()
-                        Imgproc.cvtColor(mat, grayMat, Imgproc.COLOR_BGR2GRAY)
-
-                        val keypoints = MatOfKeyPoint()
-                        val descriptors = Mat()
-                        orb.detectAndCompute(grayMat, Mat(), keypoints, descriptors)
-
-                        if (!descriptors.empty()) {
-                            referenceFeatures.add(ReferenceFeature(filename, keypoints, descriptors))
-                            Log.d("EggAnalyzer", "Loaded reference: $filename")
-                        }
-
-                        mat.release()
-                        grayMat.release()
-                    }
-                }
-            } catch (e: IOException) {
-                Log.e("EggAnalyzer", "Failed to load $filename: ${e.message}")
-            }
-        }
-    }
 
     override fun analyze(imageProxy: ImageProxy) {
         val currentTime = System.currentTimeMillis()
@@ -136,7 +79,7 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
             }
             Log.d("EggAnalyzer", "S2: ${s2Candidates.size} candidates")
 
-            // Schritt 3: Validierung (ORB Feature Matching)
+            // Schritt 3: Eier = alle S2-Kandidaten (automatisch validiert)
             val validatedObjects = mutableListOf<DetectedObject>()
             var eggCount = 0
 
@@ -156,7 +99,8 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
                 }
                 if (tooClose) continue
 
-                val isEgg = matchFeatures(candidate.roi)
+                // NEU: Prüfe auf ovales Objekt im ROI
+                val isEgg = detectEggShape(candidate.roi)
 
                 validatedObjects.add(DetectedObject(
                     x = candidate.x,
@@ -164,7 +108,7 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
                     width = candidate.width,
                     height = candidate.height,
                     isValidated = isEgg,
-                    isS2Filtered = true // Alle durch S2 gekommen sind gelb
+                    isS2Filtered = true
                 ))
 
                 if (isEgg) {
@@ -265,50 +209,83 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
         return candidates
     }
 
-    private fun matchFeatures(roi: Mat): Boolean {
-        if (referenceFeatures.isEmpty()) {
-            Log.w("EggAnalyzer", "No reference features!")
+    private fun detectEggShape(roi: Mat): Boolean {
+        // ROI vergrößern (30% in alle Richtungen für große Eier)
+        val extendX = (roi.cols() * 0.3).toInt()
+        val extendY = (roi.rows() * 0.3).toInt()
+        
+        // Erstelle erweiterte ROI
+        val extendedRoi = Mat()
+        Core.copyMakeBorder(roi, extendedRoi, extendY, extendY, extendX, extendX, Core.BORDER_REPLICATE)
+        
+        // Konvertiere zu Grayscale
+        val gray = Mat()
+        Imgproc.cvtColor(extendedRoi, gray, Imgproc.COLOR_RGB2GRAY)
+
+        // Weichzeichnen
+        val blurred = Mat()
+        Imgproc.GaussianBlur(gray, blurred, org.opencv.core.Size(5.0, 5.0), 0.0)
+
+        // Adaptive Threshold für bessere Konturen
+        val thresh = Mat()
+        Imgproc.adaptiveThreshold(blurred, thresh, 255.0, Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C, Imgproc.THRESH_BINARY_INV, 11, 2.0)
+
+        // Finde Konturen
+        val contours = mutableListOf<org.opencv.core.MatOfPoint>()
+        val hierarchy = Mat()
+        Imgproc.findContours(thresh, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE)
+
+        if (contours.isEmpty()) {
+            extendedRoi.release()
+            gray.release()
+            blurred.release()
+            thresh.release()
+            hierarchy.release()
             return false
         }
 
-        val grayRoi = Mat()
-        Imgproc.cvtColor(roi, grayRoi, Imgproc.COLOR_RGB2GRAY)
-
-        val keypoints = MatOfKeyPoint()
-        val descriptors = Mat()
-        orb.detectAndCompute(grayRoi, Mat(), keypoints, descriptors)
-
-        if (descriptors.empty()) {
-            grayRoi.release()
-            return false
-        }
-
-        var bestMatches = 0
-
-        for (ref in referenceFeatures) {
-            try {
-                val matches = MatOfDMatch()
-                bfMatcher.match(descriptors, ref.descriptors, matches)
-
-                val matchList = matches.toList()
-                val goodMatches = matchList.count { it.distance < 50 }
-
-                if (goodMatches > bestMatches) {
-                    bestMatches = goodMatches
-                }
-
-                matches.release()
-            } catch (e: Exception) {
-                continue
+        // Größte Kontur finden
+        var largestContour: org.opencv.core.MatOfPoint? = null
+        var largestArea = 0.0
+        for (cnt in contours) {
+            val area = Imgproc.contourArea(cnt)
+            if (area > largestArea) {
+                largestArea = area
+                largestContour = cnt
             }
         }
 
-        grayRoi.release()
-        keypoints.release()
-        descriptors.release()
+        if (largestContour == null || largestArea < 500) { // Mindestfläche erhöht für große Eier
+            extendedRoi.release()
+            gray.release()
+            blurred.release()
+            thresh.release()
+            hierarchy.release()
+            contours.forEach { it.release() }
+            return false
+        }
 
-        Log.d("EggAnalyzer", "Best matches: $bestMatches")
-        return bestMatches >= 2
+        // Prüfe Ovalidität
+        val rect = Imgproc.boundingRect(largestContour)
+        val aspectRatio = rect.width.toFloat() / rect.height.toFloat()
+
+        // Kreisförmigkeit
+        val perimeter = Imgproc.arcLength(org.opencv.core.MatOfPoint2f(*largestContour.toArray()), true)
+        val circularity = if (perimeter > 0) 4 * Math.PI * largestArea / (perimeter * perimeter) else 0.0
+
+        // Kriterien: Aspect Ratio 0.4-2.0 (noch lockerer für verschiedene Ei-Größen), Circularität > 0.2
+        val isEgg = aspectRatio in 0.4f..2.0f && circularity > 0.2
+
+        Log.d("EggAnalyzer", "Egg check: aspect=$aspectRatio, circularity=$circularity, area=$largestArea, isEgg=$isEgg")
+
+        extendedRoi.release()
+        gray.release()
+        blurred.release()
+        thresh.release()
+        hierarchy.release()
+        contours.forEach { it.release() }
+
+        return isEgg
     }
 
     data class EggCandidate(
