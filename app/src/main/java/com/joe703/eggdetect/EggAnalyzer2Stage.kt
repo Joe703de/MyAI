@@ -99,17 +99,21 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
                 }
                 if (tooClose) continue
 
-                // Kein ORB-Feature-Matching mehr - alle S2-Objekte sind Eier
+                // NEU: Prüfe auf ovales Objekt im ROI
+                val isEgg = detectEggShape(candidate.roi)
+
                 validatedObjects.add(DetectedObject(
                     x = candidate.x,
                     y = candidate.y,
                     width = candidate.width,
                     height = candidate.height,
-                    isValidated = true, // Automatisch als Ei validiert
+                    isValidated = isEgg,
                     isS2Filtered = true
                 ))
 
-                eggCount++
+                if (isEgg) {
+                    eggCount++
+                }
 
                 if (eggCount >= 6) break
             }
@@ -203,6 +207,74 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
         contours.forEach { it.release() }
 
         return candidates
+    }
+
+    private fun detectEggShape(roi: Mat): Boolean {
+        // Konvertiere zu Grayscale
+        val gray = Mat()
+        Imgproc.cvtColor(roi, gray, Imgproc.COLOR_RGB2GRAY)
+
+        // Weichzeichnen
+        val blurred = Mat()
+        Imgproc.GaussianBlur(gray, blurred, org.opencv.core.Size(5, 5), 0.0)
+
+        // Kantendetektion
+        val edges = Mat()
+        Imgproc.Canny(blurred, edges, 50.0, 150.0)
+
+        // Finde Konturen
+        val contours = mutableListOf<org.opencv.core.MatOfPoint>()
+        val hierarchy = Mat()
+        Imgproc.findContours(edges, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE)
+
+        if (contours.isEmpty()) {
+            gray.release()
+            blurred.release()
+            edges.release()
+            hierarchy.release()
+            return false
+        }
+
+        // Größte Kontur finden
+        var largestContour: org.opencv.core.MatOfPoint? = null
+        var largestArea = 0.0
+        for (cnt in contours) {
+            val area = Imgproc.contourArea(cnt)
+            if (area > largestArea) {
+                largestArea = area
+                largestContour = cnt
+            }
+        }
+
+        if (largestContour == null || largestArea < 500) {
+            gray.release()
+            blurred.release()
+            edges.release()
+            hierarchy.release()
+            contours.forEach { it.release() }
+            return false
+        }
+
+        // Bounding Box für Aspect Ratio
+        val rect = Imgproc.boundingRect(largestContour)
+        val aspectRatio = rect.width.toFloat() / rect.height.toFloat()
+
+        // Kreisförmigkeit berechnen
+        val perimeter = Imgproc.arcLength(org.opencv.core.MatOfPoint2f(*largestContour.toArray()), true)
+        val circularity = if (perimeter > 0) 4 * Math.PI * largestArea / (perimeter * perimeter) else 0.0
+
+        // Prüfe: Aspect Ratio nahe 1:1 (0.6-1.4) und gute Kreisförmigkeit (>0.4)
+        val isEgg = aspectRatio in 0.6f..1.4f && circularity > 0.4
+
+        Log.d("EggAnalyzer", "Egg check: aspect=$aspectRatio, circularity=$circularity, isEgg=$isEgg")
+
+        gray.release()
+        blurred.release()
+        edges.release()
+        hierarchy.release()
+        contours.forEach { it.release() }
+
+        return isEgg
     }
 
     data class EggCandidate(
