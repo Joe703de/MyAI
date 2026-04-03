@@ -235,8 +235,8 @@ fun StatusBar(result: DetectionResult) {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Links: S1 (immer grau, feste Breite ~1 Stelle breiter)
-            Box(modifier = Modifier.width(90.dp)) {
+            // Links: S1 (85dp, Text linksbündig)
+            Box(modifier = Modifier.width(85.dp), contentAlignment = Alignment.CenterStart) {
                 Text(
                     text = "S1: ${result.candidateCount}",
                     color = Color.Gray,
@@ -247,8 +247,8 @@ fun StatusBar(result: DetectionResult) {
                 )
             }
 
-            // Mitte: S2 (90dp breit, um 40dp nach links verschoben)
-            Box(modifier = Modifier.width(90.dp).offset(x = (-40).dp), contentAlignment = Alignment.CenterEnd) {
+            // Mitte: S2 (85dp breit, um 20dp nach links verschoben, Text linksbündig)
+            Box(modifier = Modifier.width(85.dp).offset(x = (-20).dp), contentAlignment = Alignment.CenterStart) {
                 Text(
                     text = "S2: ${result.s2Count}",
                     color = Color.Yellow,
