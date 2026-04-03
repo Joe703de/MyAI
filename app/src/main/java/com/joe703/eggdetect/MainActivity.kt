@@ -219,35 +219,41 @@ fun StatusBar(result: DetectionResult) {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Links: S1 (immer grau, Platz für 2 Stellen)
-            Text(
-                text = "S1: ${result.candidateCount}",
-                color = Color.Gray,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier
-                    .background(Color.Black.copy(alpha = 0.7f))
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-            )
+            // Links: S1 (immer grau, feste Breite)
+            Box(modifier = Modifier.width(70.dp)) {
+                Text(
+                    text = "S1: ${result.candidateCount}",
+                    color = Color.Gray,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier
+                        .background(Color.Black.copy(alpha = 0.7f))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
 
-            // Mitte: Eier
-            Text(
-                text = "Eier: ${result.eggCount}",
-                color = Color.White,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier
-                    .background(Color.Black.copy(alpha = 0.7f))
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-            )
+            // Mitte: Eier (rechtsbündig in der Mitte)
+            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+                Text(
+                    text = "Eier: ${result.eggCount}",
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier
+                        .background(Color.Black.copy(alpha = 0.7f))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
 
-            // Rechts: Framerate@Auflösung (rechtsbündig)
-            Text(
-                text = "${result.processingTimeMs}ms@${result.imageWidth}x${result.imageHeight}",
-                color = Color.Yellow,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier
-                    .background(Color.Black.copy(alpha = 0.7f))
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-            )
+            // Rechts: Framerate@Auflösung (breiter: 200dp statt 180dp)
+            Box(modifier = Modifier.width(200.dp), contentAlignment = Alignment.CenterEnd) {
+                Text(
+                    text = "${result.processingTimeMs}ms@${result.imageWidth}x${result.imageHeight}",
+                    color = Color.Yellow,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier
+                        .background(Color.Black.copy(alpha = 0.7f))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
         }
     }
 }
