@@ -218,7 +218,10 @@ fun CameraScreen() {
                 }
             }
 
-            EggIndicatorRow(count = detectionResult.eggCount, modifier = Modifier.weight(0.15f))
+            EggIndicatorRow(
+                objects = detectionResult.objects.filter { it.isValidated },
+                modifier = Modifier.weight(0.15f)
+            )
             Box(modifier = Modifier.weight(0.05f))
         }
     }
@@ -352,7 +355,7 @@ fun DetectionOverlayFixed(
 }
 
 @Composable
-fun EggIndicatorRow(count: Int, modifier: Modifier = Modifier) {
+fun EggIndicatorRow(objects: List<DetectedObject>, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier.fillMaxWidth(),
         contentAlignment = Alignment.Center
@@ -363,16 +366,22 @@ fun EggIndicatorRow(count: Int, modifier: Modifier = Modifier) {
             modifier = Modifier.fillMaxWidth(0.8f)
         ) {
             repeat(6) { index ->
-                val isActive = index < count
+                val isActive = index < objects.size
+                val eggColor = if (isActive) {
+                    Color(objects[index].colorR, objects[index].colorG, objects[index].colorB)
+                } else {
+                    Color.DarkGray
+                }
+                
                 Box(
                     modifier = Modifier
                         .size(40.dp)
                         .background(
-                            color = if (isActive) Color.Yellow else Color.DarkGray,
+                            color = eggColor,
                             shape = CircleShape
                         )
                         .then(
-                            if (isActive) Modifier.border(2.dp, Color.Yellow.copy(alpha = 0.5f), CircleShape)
+                            if (isActive) Modifier.border(2.dp, eggColor.copy(alpha = 0.5f), CircleShape)
                             else Modifier
                         )
                 )
