@@ -193,8 +193,8 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
 
         // ANGEPASST FÜR DIESSES GERÄT:
         // Das "Gelb" auf diesem Gerät hat H=90-100° (Cyan/Grün)
-        val lowerYellow = Scalar(80.0, 50.0, 50.0)   // H=80 statt 20
-        val upperYellow = Scalar(110.0, 255.0, 255.0) // H=110 statt 35
+        val lowerYellow = Scalar(80.0, 100.0, 100.0)   // S=100, V=100-220
+        val upperYellow = Scalar(110.0, 255.0, 220.0)
 
         val mask = Mat()
         Core.inRange(hsv, lowerYellow, upperYellow, mask)
