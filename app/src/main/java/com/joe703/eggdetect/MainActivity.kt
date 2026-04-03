@@ -285,9 +285,7 @@ fun StatusBar(result: DetectionResult) {
 }
 
 /**
- * KORRIGIERTES OVERLAY
- * 1. Rotation: (x,y) -> (y,x)
- * 2. Nur X-Achse spiegeln (horizontal)
+ * OVERLAY - Canvas hat volle PreviewView-Größe, Koordinaten werden skaliert
  */
 @Composable
 fun DetectionOverlayFixed(
@@ -304,42 +302,41 @@ fun DetectionOverlayFixed(
     // Berechne FILL_CENTER Transformation (wie PreviewView)
     val scaleX = previewWidth / rotatedImageWidth
     val scaleY = previewHeight / rotatedImageHeight
-    val scale = kotlin.math.max(scaleX, scaleY)
+    val scale = max(scaleX, scaleY)
     
+    // Berechne Offset für Zentrierung (wie PreviewView)
     val scaledWidth = rotatedImageWidth * scale
     val scaledHeight = rotatedImageHeight * scale
     val offsetX = (previewWidth - scaledWidth) / 2
     val offsetY = (previewHeight - scaledHeight) / 2
     
-    // Canvas hat exakt die Bildgröße (nach Rotation)
-    // und wird dann wie die Kamera transformiert
-    Box(modifier = Modifier.fillMaxSize()) {
-        Canvas(
-            modifier = Modifier
-                .size((rotatedImageWidth * scale).dp, (rotatedImageHeight * scale).dp)
-                .offset(offsetX.dp, offsetY.dp)
-        ) {
-            // Zeichne in "nativer" Bildauflösung (keine weitere Skalierung nötig)
-            objects.forEach { obj ->
-                val color = if (obj.isValidated) Color.Green else Color.Red
-                
-                // 1. ROTATION
-                val rotatedX = obj.y.toFloat()
-                val rotatedY = obj.x.toFloat()
-                val rotatedW = obj.height.toFloat()
-                val rotatedH = obj.width.toFloat()
-                
-                // 2. X-ACHSE SPIEGELN
-                val mirroredX = rotatedImageWidth - rotatedX - rotatedW
-                
-                // Zeichnen (keine zusätzliche Skalierung, Canvas hat schon Bildgröße)
-                drawRect(
-                    color = color,
-                    topLeft = Offset(mirroredX, rotatedY),
-                    size = Size(rotatedW, rotatedH),
-                    style = Stroke(width = 3f)
-                )
-            }
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        // Zeichne Boxen - skaliere und verschiebe wie das Kamera-Bild
+        objects.forEach { obj ->
+            val color = if (obj.isValidated) Color.Green else Color.Red
+            
+            // 1. ROTATION (obj.x/y sind im Bild-Koordinatensystem)
+            val rotatedX = obj.y.toFloat()
+            val rotatedY = obj.x.toFloat()
+            val rotatedW = obj.height.toFloat()
+            val rotatedH = obj.width.toFloat()
+            
+            // 2. X-ACHSE SPIEGELN
+            val mirroredX = rotatedImageWidth - rotatedX - rotatedW
+            
+            // 3. SKALIERUNG und VERSCHIEBUNG (wie PreviewView)
+            val finalX = (mirroredX * scale) + offsetX
+            val finalY = (rotatedY * scale) + offsetY
+            val finalW = rotatedW * scale
+            val finalH = rotatedH * scale
+            
+            // Zeichnen
+            drawRect(
+                color = color,
+                topLeft = Offset(finalX, finalY),
+                size = Size(finalW, finalH),
+                style = Stroke(width = 3f)
+            )
         }
     }
 }
