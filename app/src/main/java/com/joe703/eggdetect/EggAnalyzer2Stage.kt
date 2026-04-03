@@ -210,9 +210,17 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
     }
 
     private fun detectEggShape(roi: Mat): Boolean {
+        // ROI vergrößern (30% in alle Richtungen für große Eier)
+        val extendX = (roi.cols() * 0.3).toInt()
+        val extendY = (roi.rows() * 0.3).toInt()
+        
+        // Erstelle erweiterte ROI
+        val extendedRoi = Mat()
+        Imgproc.copyMakeBorder(roi, extendedRoi, extendY, extendY, extendX, extendX, Imgproc.BORDER_REPLICATE)
+        
         // Konvertiere zu Grayscale
         val gray = Mat()
-        Imgproc.cvtColor(roi, gray, Imgproc.COLOR_RGB2GRAY)
+        Imgproc.cvtColor(extendedRoi, gray, Imgproc.COLOR_RGB2GRAY)
 
         // Weichzeichnen
         val blurred = Mat()
@@ -228,6 +236,7 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
         Imgproc.findContours(thresh, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE)
 
         if (contours.isEmpty()) {
+            extendedRoi.release()
             gray.release()
             blurred.release()
             thresh.release()
@@ -246,7 +255,8 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
             }
         }
 
-        if (largestContour == null || largestArea < 200) {
+        if (largestContour == null || largestArea < 500) { // Mindestfläche erhöht für große Eier
+            extendedRoi.release()
             gray.release()
             blurred.release()
             thresh.release()
@@ -263,11 +273,12 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
         val perimeter = Imgproc.arcLength(org.opencv.core.MatOfPoint2f(*largestContour.toArray()), true)
         val circularity = if (perimeter > 0) 4 * Math.PI * largestArea / (perimeter * perimeter) else 0.0
 
-        // Kriterien: Aspect Ratio 0.5-1.8 (etwas lockerer), Circularität > 0.25
-        val isEgg = aspectRatio in 0.5f..1.8f && circularity > 0.25
+        // Kriterien: Aspect Ratio 0.4-2.0 (noch lockerer für verschiedene Ei-Größen), Circularität > 0.2
+        val isEgg = aspectRatio in 0.4f..2.0f && circularity > 0.2
 
         Log.d("EggAnalyzer", "Egg check: aspect=$aspectRatio, circularity=$circularity, area=$largestArea, isEgg=$isEgg")
 
+        extendedRoi.release()
         gray.release()
         blurred.release()
         thresh.release()
