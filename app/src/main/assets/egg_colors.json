@@ -35,24 +35,24 @@
       }
     },
     {
-      "name": "Rot",
+      "name": "Blau",
       "rgb": {
-        "r": 255,
+        "r": 0,
         "g": 0,
-        "b": 0
+        "b": 255
       },
       "hsv": {
         "s1": {
-          "hMin": 140,
-          "hMax": 180,
+          "hMin": 0,
+          "hMax": 20,
           "sMin": 100,
           "sMax": 255,
           "vMin": 80,
           "vMax": 200
         },
         "s2": {
-          "hMin": 150,
-          "hMax": 170,
+          "hMin": 0,
+          "hMax": 40,
           "sMin": 150,
           "sMax": 255,
           "vMin": 120,
