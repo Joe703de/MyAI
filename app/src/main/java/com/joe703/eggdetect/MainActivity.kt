@@ -301,13 +301,9 @@ fun DetectionOverlayFixed(
     val offsetY = (previewHeight - scaledHeight) / 2
     
     Canvas(modifier = Modifier.fillMaxSize()) {
-        // Zeichne Boxen - skaliere und verschiebe wie das Kamera-Bild
-        objects.forEach { obj ->
-            val color = when {
-                obj.isValidated -> Color.Green  // Eier
-                obj.isS2Filtered -> Color.Yellow // S2 gefiltert
-                else -> Color.Red
-            }
+        // Zeichne nur Eier (nur validierte Objekte, alle in Gelb)
+        objects.filter { it.isValidated }.forEach { obj ->
+            val color = Color.Yellow  // Alle Eier in Gelb
             
             // 1. ROTATION (obj.x/y sind im Bild-Koordinatensystem)
             val rotatedX = obj.y.toFloat()
