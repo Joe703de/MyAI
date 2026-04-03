@@ -191,7 +191,15 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
 
         } catch (e: Exception) {
             Log.e("EggAnalyzer", "Error: ${e.message}", e)
-            onResult(DetectionResult(0, 0, 0, System.currentTimeMillis() - startTime))
+            onResult(DetectionResult(
+                eggCount = 0,
+                candidateCount = 0,
+                s2Count = 0,
+                processingTimeMs = System.currentTimeMillis() - startTime,
+                objects = emptyList(),
+                imageWidth = imageProxy?.width ?: 0,
+                imageHeight = imageProxy?.height ?: 0
+            ))
         } finally {
             imageProxy.close()
         }
