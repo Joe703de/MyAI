@@ -205,11 +205,39 @@ class EggAnalyzer2Stage(context: Context, private val onResult: (DetectionResult
         // Werte aus aktueller JSON-Konfiguration
         val colorConfig = colorConfigs[currentColorIndex]
         val hsvRange = if (wideRange) colorConfig.hsv.s1 else colorConfig.hsv.s2
-        val lowerYellow = Scalar(hsvRange.hMin.toDouble(), hsvRange.sMin.toDouble(), hsvRange.vMin.toDouble())
-        val upperYellow = Scalar(hsvRange.hMax.toDouble(), hsvRange.sMax.toDouble(), hsvRange.vMax.toDouble())
+        
+        // Prüfe auf Wrap-around (hMin > hMax)
+        val masks = mutableListOf<Mat>()
+        
+        if (hsvRange.hMin > hsvRange.hMax) {
+            // Wrap-around: zwei Bereiche (hMin-255 und 0-hMax)
+            val lower1 = Scalar(hsvRange.hMin.toDouble(), hsvRange.sMin.toDouble(), hsvRange.vMin.toDouble())
+            val upper1 = Scalar(255.0, hsvRange.sMax.toDouble(), hsvRange.vMax.toDouble())
+            val lower2 = Scalar(0.0, hsvRange.sMin.toDouble(), hsvRange.vMin.toDouble())
+            val upper2 = Scalar(hsvRange.hMax.toDouble(), hsvRange.sMax.toDouble(), hsvRange.vMax.toDouble())
+            
+            val mask1 = Mat()
+            val mask2 = Mat()
+            Core.inRange(hsv, lower1, upper1, mask1)
+            Core.inRange(hsv, lower2, upper2, mask2)
+            
+            // Kombiniere beide Masken
+            val combinedMask = Mat()
+            Core.bitwise_or(mask1, mask2, combinedMask)
+            masks.add(combinedMask)
+            mask1.release()
+            mask2.release()
+        } else {
+            // Normaler Bereich
+            val lowerYellow = Scalar(hsvRange.hMin.toDouble(), hsvRange.sMin.toDouble(), hsvRange.vMin.toDouble())
+            val upperYellow = Scalar(hsvRange.hMax.toDouble(), hsvRange.sMax.toDouble(), hsvRange.vMax.toDouble())
+            val mask = Mat()
+            Core.inRange(hsv, lowerYellow, upperYellow, mask)
+            masks.add(mask)
+        }
 
-        val mask = Mat()
-        Core.inRange(hsv, lowerYellow, upperYellow, mask)
+        // Verwende die (kombinierte) Maske
+        val mask = masks.first()
 
         val kernel = Mat.ones(5, 5, CvType.CV_8U)
         Imgproc.morphologyEx(mask, mask, Imgproc.MORPH_CLOSE, kernel)
