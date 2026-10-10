@@ -189,7 +189,11 @@ class YoloEggAnalyzer(
         val hasObjectness = valuesPerBox == 85
         val classCount = if (hasObjectness) valuesPerBox - 5 else valuesPerBox - 4
 
+        Log.d("YoloEggAnalyzer", "Processing output: boxes=$outputBoxesDim, valuesPerBox=$valuesPerBox, classCount=$classCount, hasObjectness=$hasObjectness, transposed=$transposedOutput")
+
         val candidates = mutableListOf<RawDetection>()
+        var maxSeenScore = 0f
+        var maxSeenBox = -1
         for (i in 0 until outputBoxesDim) {
             val cx = readOutputValue(outputBuffer, i, 0)
             val cy = readOutputValue(outputBuffer, i, 1)
@@ -203,6 +207,11 @@ class YoloEggAnalyzer(
             val classId = classScores.indices.maxByOrNull { classScores[it] } ?: 0
             val classScore = classScores.getOrElse(classId) { 0f }
 
+            if (classScore > maxSeenScore) {
+                maxSeenScore = classScore
+                maxSeenBox = i
+            }
+
             // YOLOv8: confidence ist direkt der maximale Klassen-Score
             val finalScore = if (hasObjectness) {
                 val objectness = readOutputValue(outputBuffer, i, 4)
@@ -212,6 +221,10 @@ class YoloEggAnalyzer(
             }
 
             if (finalScore < confThreshold) continue
+
+            if (candidates.size < 5) {
+                Log.d("YoloEggAnalyzer", "Detection candidate box=$i class=$classId score=$finalScore box=[$cx, $cy, $w, $h]")
+            }
 
             val x1 = cx - w / 2f
             val y1 = cy - h / 2f
@@ -232,6 +245,9 @@ class YoloEggAnalyzer(
 
         // NMS
         val nmsBoxes = nms(candidates)
+
+        Log.d("YoloEggAnalyzer", "NMS kept ${nmsBoxes.size} detections from ${candidates.size} candidates")
+        Log.d("YoloEggAnalyzer", "Max seen score was $maxSeenScore at box $maxSeenBox")
 
         // Skalierung auf Originalgröße
         val scaleX = originalWidth.toFloat() / modelInputSize
