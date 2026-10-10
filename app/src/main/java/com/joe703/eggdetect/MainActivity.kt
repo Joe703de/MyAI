@@ -11,9 +11,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.Preview as CameraPreview
 import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
-import androidx.camera.core.Preview as CameraPreview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
@@ -52,7 +52,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.joe703.eggdetect.ui.theme.EggdetectTheme
-import org.opencv.android.OpenCVLoader
 import java.util.concurrent.Executors
 
 import kotlin.math.max
@@ -62,9 +61,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-
-        val isOpenCVInitialized = OpenCVLoader.initDebug()
-        Log.d("OpenCV", "OpenCV initialized: $isOpenCVInitialized")
 
         setContent {
             EggdetectTheme {
@@ -124,7 +120,19 @@ fun CameraScreen() {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    var detectionResult by remember { mutableStateOf(DetectionResult(0, 0, 0, 0L, emptyList(), 0, 0)) }
+    var detectionResult by remember {
+        mutableStateOf(
+            DetectionResult(
+                eggCount = 0,
+                candidateCount = 0,
+                s2Count = 0,
+                processingTimeMs = 0L,
+                objects = emptyList(),
+                imageWidth = 0,
+                imageHeight = 0
+            )
+        )
+    }
     var previewViewSize by remember { mutableStateOf(android.util.Size(0, 0)) }
 
     val imageAnalyzer = remember(context) {
@@ -144,7 +152,7 @@ fun CameraScreen() {
             .also {
                 it.setAnalyzer(
                     Executors.newSingleThreadExecutor(),
-                    EggAnalyzer2Stage(context) { result ->
+                    YoloEggAnalyzer(context) { result ->
                         detectionResult = result
                     }
                 )
@@ -197,7 +205,7 @@ fun CameraScreen() {
                                         imageAnalyzer
                                     )
                                 } catch (e: Exception) {
-                                    e.printStackTrace()
+                                    Log.e("EggDetect", "Camera binding failed", e)
                                 }
                             }, ContextCompat.getMainExecutor(ctx))
 
@@ -207,7 +215,7 @@ fun CameraScreen() {
                     )
 
                     if (previewViewSize.width > 0 && detectionResult.imageWidth > 0) {
-                        DetectionOverlayFixed(
+                        DetectionOverlay(
                             objects = detectionResult.objects,
                             previewWidth = previewViewSize.width.toFloat(),
                             previewHeight = previewViewSize.height.toFloat(),
@@ -219,7 +227,7 @@ fun CameraScreen() {
             }
 
             EggIndicatorRow(
-                objects = detectionResult.objects.filter { it.isValidated },
+                objects = detectionResult.objects,
                 modifier = Modifier.weight(0.15f)
             )
             Box(modifier = Modifier.weight(0.05f))
@@ -238,22 +246,9 @@ fun StatusBar(result: DetectionResult) {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Links: S1 (85dp, Text linksbündig)
-            Box(modifier = Modifier.width(85.dp), contentAlignment = Alignment.CenterStart) {
+            Box(modifier = Modifier.width(120.dp), contentAlignment = Alignment.CenterStart) {
                 Text(
-                    text = "S1: ${result.candidateCount}",
-                    color = Color.Gray,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier
-                        .background(Color.Black.copy(alpha = 0.7f))
-                        .padding(horizontal = 4.dp, vertical = 4.dp)
-                )
-            }
-
-            // Mitte: S2 (85dp breit, um 20dp nach links verschoben, Text linksbündig)
-            Box(modifier = Modifier.width(85.dp).offset(x = (-20).dp), contentAlignment = Alignment.CenterStart) {
-                Text(
-                    text = "S2: ${result.s2Count}",
+                    text = "Eier: ${result.eggCount}",
                     color = Color.Yellow,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier
@@ -262,7 +257,6 @@ fun StatusBar(result: DetectionResult) {
                 )
             }
 
-            // Rechts: Framerate@Auflösung (breiter wie vorher)
             Box(modifier = Modifier.width(220.dp), contentAlignment = Alignment.CenterEnd) {
                 Text(
                     text = "${result.processingTimeMs}ms@${result.imageWidth}x${result.imageHeight}",
@@ -277,73 +271,45 @@ fun StatusBar(result: DetectionResult) {
     }
 }
 
-/**
- * OVERLAY - Canvas hat volle PreviewView-Größe, Koordinaten werden skaliert
- */
 @Composable
-fun DetectionOverlayFixed(
+fun DetectionOverlay(
     objects: List<DetectedObject>,
     previewWidth: Float,
     previewHeight: Float,
     imageWidth: Float,
     imageHeight: Float
 ) {
-    // Nach Rotation: width/height getauscht (Landscape -> Portrait)
+    // CameraX ImageAnalysis liefert im Querformat-Stream width > height;
+    // das PreviewView zeigt es gedreht an.
     val rotatedImageWidth = imageHeight
     val rotatedImageHeight = imageWidth
-    
-    // Berechne FILL_CENTER Transformation (wie PreviewView)
+
     val scaleX = previewWidth / rotatedImageWidth
     val scaleY = previewHeight / rotatedImageHeight
     val scale = max(scaleX, scaleY)
-    
-    // Berechne Offset für Zentrierung (wie PreviewView)
+
     val scaledWidth = rotatedImageWidth * scale
     val scaledHeight = rotatedImageHeight * scale
     val offsetX = (previewWidth - scaledWidth) / 2
     val offsetY = (previewHeight - scaledHeight) / 2
-    
+
     Canvas(modifier = Modifier.fillMaxSize()) {
-        // 1. Graue Vierecke für S2-Objekte der LETZTEN Farbe (nicht validiert)
-        objects.filter { !it.isValidated && it.isLastColor }.forEach { obj ->
-            val color = Color.Gray
-            
-            val rotatedX = obj.y.toFloat()
-            val rotatedY = obj.x.toFloat()
-            val rotatedW = obj.height.toFloat()
-            val rotatedH = obj.width.toFloat()
-            
-            val mirroredX = rotatedImageWidth - rotatedX - rotatedW
-            
-            val finalX = (mirroredX * scale) + offsetX
-            val finalY = (rotatedY * scale) + offsetY
-            val finalW = rotatedW * scale
-            val finalH = rotatedH * scale
-            
-            drawRect(
-                color = color,
-                topLeft = Offset(finalX, finalY),
-                size = Size(finalW, finalH),
-                style = Stroke(width = 2f)
-            )
-        }
-        
-        // 2. Farbige Vierecke für Eier (validiert) - JSON-Farbe
-        objects.filter { it.isValidated }.forEach { obj ->
+        objects.forEach { obj ->
             val color = Color(obj.colorR, obj.colorG, obj.colorB)
-            
+
+            // Rotation + Spiegelung für Back-Kamera
             val rotatedX = obj.y.toFloat()
             val rotatedY = obj.x.toFloat()
             val rotatedW = obj.height.toFloat()
             val rotatedH = obj.width.toFloat()
-            
+
             val mirroredX = rotatedImageWidth - rotatedX - rotatedW
-            
+
             val finalX = (mirroredX * scale) + offsetX
             val finalY = (rotatedY * scale) + offsetY
             val finalW = rotatedW * scale
             val finalH = rotatedH * scale
-            
+
             drawRect(
                 color = color,
                 topLeft = Offset(finalX, finalY),
@@ -372,7 +338,7 @@ fun EggIndicatorRow(objects: List<DetectedObject>, modifier: Modifier = Modifier
                 } else {
                     Color.DarkGray
                 }
-                
+
                 Box(
                     modifier = Modifier
                         .size(40.dp)
