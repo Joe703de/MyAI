@@ -9,8 +9,8 @@ activityCompose = "1.13.0"
 kotlin = "2.0.21"
 composeBom = "2024.09.00"
 camerax = "1.3.4"
-tflite = "2.16.1"
-tfliteGpu = "2.16.1"
+tflite = "2.17.0"
+tfliteGpu = "2.17.0"
 tfliteSupport = "0.4.4"
 
 [libraries]
