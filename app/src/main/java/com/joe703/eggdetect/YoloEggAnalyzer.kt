@@ -184,22 +184,32 @@ class YoloEggAnalyzer(
         val valuesPerBox = outputValuesDim
         if (valuesPerBox <= 0) return emptyList()
 
+        // YOLOv8: 84 Werte = 4 Box-Koordinaten + 80 Klassen-Scores (keine objectness)
+        // YOLOv5/v7: 85 Werte = 4 Box-Koordinaten + objectness + 80 Klassen-Scores
+        val hasObjectness = valuesPerBox == 85
+        val classCount = if (hasObjectness) valuesPerBox - 5 else valuesPerBox - 4
+
         val candidates = mutableListOf<RawDetection>()
         for (i in 0 until outputBoxesDim) {
             val cx = readOutputValue(outputBuffer, i, 0)
             val cy = readOutputValue(outputBuffer, i, 1)
             val w = readOutputValue(outputBuffer, i, 2)
             val h = readOutputValue(outputBuffer, i, 3)
-            val confidence = readOutputValue(outputBuffer, i, 4)
 
-            if (confidence < confThreshold) continue
-
-            val classScores = FloatArray(valuesPerBox - 5) { j ->
-                readOutputValue(outputBuffer, i, 5 + j)
+            val classScores = FloatArray(classCount) { j ->
+                val valueOffset = if (hasObjectness) 5 else 4
+                readOutputValue(outputBuffer, i, valueOffset + j)
             }
-            val classId = classScores.indices.maxByOrNull<Int, Float> { classScores[it] } ?: 0
+            val classId = classScores.indices.maxByOrNull { classScores[it] } ?: 0
             val classScore = classScores.getOrElse(classId) { 0f }
-            val finalScore = confidence * classScore
+
+            // YOLOv8: confidence ist direkt der maximale Klassen-Score
+            val finalScore = if (hasObjectness) {
+                val objectness = readOutputValue(outputBuffer, i, 4)
+                objectness * classScore
+            } else {
+                classScore
+            }
 
             if (finalScore < confThreshold) continue
 
