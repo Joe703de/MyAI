@@ -1,0 +1,28 @@
+package com.joe703.eggdetect
+
+/**
+ * Ergebnis einer Objekterkennungs-Analyse.
+ */
+data class DetectionResult(
+    val eggCount: Int,
+    val candidateCount: Int,
+    val s2Count: Int,
+    val processingTimeMs: Long,
+    val objects: List<DetectedObject>,
+    val imageWidth: Int,
+    val imageHeight: Int
+)
+
+/**
+ * Ein erkanntes Objekt im Bild.
+ */
+data class DetectedObject(
+    val x: Int,
+    val y: Int,
+    val width: Int,
+    val height: Int,
+    val isValidated: Boolean = true,
+    val colorR: Int = 255,
+    val colorG: Int = 255,
+    val colorB: Int = 0
+)

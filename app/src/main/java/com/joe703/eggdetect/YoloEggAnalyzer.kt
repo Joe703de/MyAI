@@ -197,7 +197,7 @@ class YoloEggAnalyzer(
             val classScores = FloatArray(valuesPerBox - 5) { j ->
                 readOutputValue(outputBuffer, i, 5 + j)
             }
-            val classId = classScores.indices.maxByOrNull { classScores[it] } ?: 0
+            val classId = classScores.indices.maxByOrNull<Int, Float> { classScores[it] } ?: 0
             val classScore = classScores.getOrElse(classId) { 0f }
             val finalScore = confidence * classScore
 
@@ -227,7 +227,7 @@ class YoloEggAnalyzer(
         val scaleX = originalWidth.toFloat() / modelInputSize
         val scaleY = originalHeight.toFloat() / modelInputSize
 
-        return nmsBoxes.mapNotNull { raw ->
+        return nmsBoxes.mapNotNull<RawDetection, DetectedObject> { raw ->
             val x = (raw.x1 * scaleX).toInt()
             val y = (raw.y1 * scaleY).toInt()
             val width = ((raw.x2 - raw.x1) * scaleX).toInt()
@@ -324,7 +324,7 @@ class YoloEggAnalyzer(
         val avgG = (gSum / count).toInt()
         val avgB = (bSum / count).toInt()
 
-        return colorConfigs.minByOrNull { config ->
+        return colorConfigs.minByOrNull<EggColor, Double> { config ->
             colorDistance(config.rgb, avgR, avgG, avgB)
         }?.rgb ?: RGB(255, 255, 0)
     }
