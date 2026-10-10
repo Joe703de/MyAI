@@ -53,7 +53,8 @@ dependencies {
     // TensorFlow Lite + GPU Delegate
     implementation(libs.tensorflow.lite)
     implementation(libs.tensorflow.lite.gpu)
-    implementation(libs.tensorflow.lite.support)
+    // tensorflow-lite-support darf nicht gleichzeitig mit support-api verwendet werden
+    // implementation(libs.tensorflow.lite.support)
 
     // Kotlinx Serialization für JSON
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
