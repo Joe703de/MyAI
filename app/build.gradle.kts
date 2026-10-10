@@ -53,6 +53,7 @@ dependencies {
     // TensorFlow Lite + GPU Delegate
     implementation(libs.tensorflow.lite)
     implementation(libs.tensorflow.lite.gpu)
+    implementation(libs.tensorflow.lite.gpu.api)
     // tensorflow-lite-support darf nicht gleichzeitig mit support-api verwendet werden
     // implementation(libs.tensorflow.lite.support)
 
