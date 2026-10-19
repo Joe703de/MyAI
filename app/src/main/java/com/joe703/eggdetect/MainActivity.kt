@@ -195,14 +195,37 @@ fun CameraScreen() {
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Image(
-                            bitmap = processedBitmap.asImageBitmap(),
-                            contentDescription = "YOLO processed image",
-                            modifier = Modifier.size(320.dp)
-                        )
+                        Box(
+                            modifier = Modifier
+                                .size(320.dp)
+                                .border(4.dp, Color.Red)
+                        ) {
+                            Image(
+                                bitmap = processedBitmap.asImageBitmap(),
+                                contentDescription = "YOLO processed image",
+                                modifier = Modifier.fillMaxSize()
+                            )
+                            // Sichtbarer Marker, der nur im YOLO-Modus erscheint
+                            Canvas(modifier = Modifier.fillMaxSize()) {
+                                val centerX = size.width / 2
+                                val centerY = size.height / 2
+                                drawLine(
+                                    color = Color.Green,
+                                    start = Offset(centerX - 30f, centerY),
+                                    end = Offset(centerX + 30f, centerY),
+                                    strokeWidth = 4f
+                                )
+                                drawLine(
+                                    color = Color.Green,
+                                    start = Offset(centerX, centerY - 30f),
+                                    end = Offset(centerX, centerY + 30f),
+                                    strokeWidth = 4f
+                                )
+                            }
+                        }
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "${processedBitmap.width}x${processedBitmap.height}",
+                            text = "YOLO Input: ${processedBitmap.width}x${processedBitmap.height}",
                             color = Color.Yellow,
                             style = MaterialTheme.typography.bodySmall
                         )
