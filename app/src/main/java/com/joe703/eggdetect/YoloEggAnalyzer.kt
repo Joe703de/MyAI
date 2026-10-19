@@ -434,27 +434,38 @@ class YoloEggAnalyzer(
         val classId: Int
     )
 
-    private fun bitmapToFloatBuffer(bitmap: Bitmap, normalize255: Boolean, bgr: Boolean = false): ByteBuffer {
+    private fun bitmapToFloatBuffer(bitmap: Bitmap, normalize255: Boolean, bgr: Boolean): ByteBuffer {
+        return bitmapToFloatBufferNCHW(bitmap, normalize255, bgr)
+    }
+
+    private fun bitmapToFloatBufferNCHW(bitmap: Bitmap, normalize255: Boolean, bgr: Boolean): ByteBuffer {
         val size = modelInputSize * modelInputSize * 3 * 4
         val buffer = ByteBuffer.allocateDirect(size).order(ByteOrder.nativeOrder())
+        val r = FloatArray(modelInputSize * modelInputSize)
+        val g = FloatArray(modelInputSize * modelInputSize)
+        val b = FloatArray(modelInputSize * modelInputSize)
         for (y in 0 until modelInputSize) {
             for (x in 0 until modelInputSize) {
                 val pixel = bitmap.getPixel(x, y)
-                val r = ((pixel shr 16) and 0xFF).toFloat()
-                val g = ((pixel shr 8) and 0xFF).toFloat()
-                val b = (pixel and 0xFF).toFloat()
+                val rf = ((pixel shr 16) and 0xFF).toFloat()
+                val gf = ((pixel shr 8) and 0xFF).toFloat()
+                val bf = (pixel and 0xFF).toFloat()
                 val scale = if (normalize255) 255f else 1f
+                val idx = y * modelInputSize + x
                 if (bgr) {
-                    buffer.putFloat(b / scale)
-                    buffer.putFloat(g / scale)
-                    buffer.putFloat(r / scale)
+                    r[idx] = bf / scale
+                    g[idx] = gf / scale
+                    b[idx] = rf / scale
                 } else {
-                    buffer.putFloat(r / scale)
-                    buffer.putFloat(g / scale)
-                    buffer.putFloat(b / scale)
+                    r[idx] = rf / scale
+                    g[idx] = gf / scale
+                    b[idx] = bf / scale
                 }
             }
         }
+        r.forEach { buffer.putFloat(it) }
+        g.forEach { buffer.putFloat(it) }
+        b.forEach { buffer.putFloat(it) }
         buffer.rewind()
         return buffer
     }
