@@ -314,16 +314,19 @@ class YoloEggAnalyzer(
         }
         Log.i("YoloEggAnalyzer", "Max seen score was $maxSeenScore at box $maxSeenBox")
 
-        // Skalierung auf Originalgröße
-        val scaleX = originalWidth.toFloat() / modelInputSize
-        val scaleY = originalHeight.toFloat() / modelInputSize
+        // Center-Crop und Modellskalierung ins vollständige Bitmap zurückrechnen.
+        // Dieselben ganzzahligen Ausschnitt-Offsets wie in cropToCenterSquare verwenden.
+        val cropSize = min(originalWidth, originalHeight)
+        val cropX = (originalWidth - cropSize) / 2
+        val cropY = (originalHeight - cropSize) / 2
+        val scale = cropSize.toFloat() / modelInputSize
 
         return DetectedFrame(
             objects = nmsBoxes.mapNotNull<RawDetection, DetectedObject> { raw ->
-                val x = (raw.x1 * scaleX).toInt()
-                val y = (raw.y1 * scaleY).toInt()
-                val width = ((raw.x2 - raw.x1) * scaleX).toInt()
-                val height = ((raw.y2 - raw.y1) * scaleY).toInt()
+                val x = (raw.x1 * scale + cropX).toInt()
+                val y = (raw.y1 * scale + cropY).toInt()
+                val width = ((raw.x2 - raw.x1) * scale).toInt()
+                val height = ((raw.y2 - raw.y1) * scale).toInt()
 
                 if (width <= 0 || height <= 0) return@mapNotNull null
 
