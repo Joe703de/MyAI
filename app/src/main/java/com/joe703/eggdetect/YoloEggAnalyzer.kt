@@ -39,7 +39,7 @@ class YoloEggAnalyzer(
 ) : ImageAnalysis.Analyzer {
 
     private val modelInputSize = 640
-    private val confThreshold = 0.5f
+    private val confThreshold = 0.15f
     private val nmsThreshold = 0.45f
     private val maxDetections = 12
 
