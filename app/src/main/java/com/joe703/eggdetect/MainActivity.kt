@@ -29,6 +29,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
@@ -188,11 +190,23 @@ fun CameraScreen() {
                 Box(modifier = Modifier.fillMaxSize()) {
                 val processedBitmap = detectionResult.processedBitmap
                 if (showProcessedImage && processedBitmap != null) {
-                    Image(
-                        bitmap = processedBitmap.asImageBitmap(),
-                        contentDescription = "YOLO processed image",
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Image(
+                            bitmap = processedBitmap.asImageBitmap(),
+                            contentDescription = "YOLO processed image",
+                            modifier = Modifier.size(320.dp)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "${processedBitmap.width}x${processedBitmap.height}",
+                            color = Color.Yellow,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
                 } else {
                     AndroidView(
                         factory = { ctx ->
