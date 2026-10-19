@@ -17,7 +17,8 @@ data class DetectionResult(
     val rawBitmap: Bitmap? = null,
     val maxScore: Float = 0f,
     val topClassId: Int = -1,
-    val inputMode: Int = 0
+    val inputMode: Int = 0,
+    val topCarScore: Float = 0f
 )
 
 /**

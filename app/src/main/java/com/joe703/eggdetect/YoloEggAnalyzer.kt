@@ -43,7 +43,7 @@ class YoloEggAnalyzer(
     private val confThreshold = 0.3f
     private val nmsThreshold = 0.45f
     private val maxDetections = 12
-    private val targetClassId = -1  // -1 = alle Klassen erlauben; COCO: 2=car
+    private val targetClassId = 2  // Nur COCO-Klasse 2 = Auto erkennen
 
     private var interpreter: Interpreter? = null
     private var gpuDelegate: GpuDelegate? = null
@@ -142,9 +142,9 @@ class YoloEggAnalyzer(
             val bitmap = if (rotationDegrees != 0) rotateBitmap(rawBitmap, rotationDegrees) else rawBitmap
 
             val detections = interpreter?.let { detect(it, bitmap, imageProxy.width, imageProxy.height, inputModeProvider()) }
-                ?: DetectedFrame(emptyList(), scaleToModelInput(bitmap), 0f, -1)
+                ?: DetectedFrame(emptyList(), scaleToModelInput(bitmap), 0f, -1, 0f)
 
-            Log.i("YoloEggAnalyzer", "Frame OK: mode=${inputModeProvider()} raw=${rawBitmap.width}x${rawBitmap.height}, rotated=${bitmap.width}x${bitmap.height}, scaled=${detections.scaled.width}x${detections.scaled.height}, detections=${detections.objects.size}, maxScore=${detections.maxScore}, topClass=${detections.topClassId}")
+            Log.i("YoloEggAnalyzer", "Frame OK: mode=${inputModeProvider()} raw=${rawBitmap.width}x${rawBitmap.height}, rotated=${bitmap.width}x${bitmap.height}, scaled=${detections.scaled.width}x${detections.scaled.height}, detections=${detections.objects.size}, maxScore=${detections.maxScore}, topClass=${detections.topClassId}, topCarScore=${detections.topCarScore}")
 
             onResult(
                 DetectionResult(
@@ -159,7 +159,8 @@ class YoloEggAnalyzer(
                     rawBitmap = bitmap,
                     maxScore = detections.maxScore,
                     topClassId = detections.topClassId,
-                    inputMode = inputModeProvider()
+                    inputMode = inputModeProvider(),
+                    topCarScore = detections.topCarScore
                 )
             )
         } catch (e: Exception) {
@@ -191,7 +192,8 @@ class YoloEggAnalyzer(
         val objects: List<DetectedObject>,
         val scaled: Bitmap,
         val maxScore: Float,
-        val topClassId: Int
+        val topClassId: Int,
+        val topCarScore: Float
     )
 
     private fun detect(
@@ -221,7 +223,7 @@ class YoloEggAnalyzer(
         outputBuffer.rewind()
 
         val valuesPerBox = outputValuesDim
-        if (valuesPerBox <= 0) return DetectedFrame(emptyList(), scaled, 0f, -1)
+        if (valuesPerBox <= 0) return DetectedFrame(emptyList(), scaled, 0f, -1, 0f)
 
         val hasObjectness = valuesPerBox == 85
         val classCount = if (hasObjectness) valuesPerBox - 5 else valuesPerBox - 4
@@ -233,6 +235,7 @@ class YoloEggAnalyzer(
         var maxSeenBox = -1
         var topClassId = -1
         var topConfidence = 0f
+        var topCarScore = 0f
 
         for (i in 0 until outputBoxesDim) {
             val cx = readOutputValue(outputBuffer, i, 0)
@@ -254,8 +257,13 @@ class YoloEggAnalyzer(
                 topConfidence = if (hasObjectness) readOutputValue(outputBuffer, i, 4) else classScore
             }
 
-            // Für Tests: Zielklasse filtern (wenn targetClassId >= 0)
-            if (targetClassId >= 0 && classId != targetClassId) continue
+            // Nur COCO-Klasse 2 (Auto) berücksichtigen
+            if (classId != targetClassId) continue
+
+            // Merke den besten Auto-Score für Debug-Anzeige
+            if (classScore > topCarScore) {
+                topCarScore = classScore
+            }
 
             val finalScore = if (hasObjectness) {
                 val objectness = readOutputValue(outputBuffer, i, 4)
@@ -287,7 +295,7 @@ class YoloEggAnalyzer(
             )
         }
 
-        Log.i("YoloEggAnalyzer", "Top score: class=$topClassId confidence=$topConfidence maxClassScore=$maxSeenScore at box=$maxSeenBox")
+        Log.i("YoloEggAnalyzer", "Top score: class=$topClassId confidence=$topConfidence maxClassScore=$maxSeenScore topCarScore=$topCarScore at box=$maxSeenBox")
 
         val nmsBoxes = nms(candidates)
 
@@ -322,7 +330,8 @@ class YoloEggAnalyzer(
             }.take(maxDetections),
             scaled = scaled,
             maxScore = maxSeenScore,
-            topClassId = topClassId
+            topClassId = topClassId,
+            topCarScore = topCarScore
         )
     }
 

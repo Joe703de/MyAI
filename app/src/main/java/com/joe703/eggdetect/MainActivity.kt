@@ -439,7 +439,7 @@ fun StatusBar(result: DetectionResult) {
                 }
             }
             Text(
-                text = "MaxScore: ${"%.3f".format(result.maxScore)} class=${result.topClassId} mode=${result.inputMode}",
+                text = "AutoScore: ${"%.3f".format(result.topCarScore)} (need >0.3)",
                 color = Color.Cyan,
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier
