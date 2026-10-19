@@ -353,17 +353,12 @@ fun DetectionOverlay(
     imageWidth: Float,
     imageHeight: Float
 ) {
-    // CameraX ImageAnalysis liefert im Querformat-Stream width > height;
-    // das PreviewView zeigt es gedreht an.
-    val rotatedImageWidth = imageHeight
-    val rotatedImageHeight = imageWidth
-
-    val scaleX = previewWidth / rotatedImageWidth
-    val scaleY = previewHeight / rotatedImageHeight
+    val scaleX = previewWidth / imageWidth
+    val scaleY = previewHeight / imageHeight
     val scale = max(scaleX, scaleY)
 
-    val scaledWidth = rotatedImageWidth * scale
-    val scaledHeight = rotatedImageHeight * scale
+    val scaledWidth = imageWidth * scale
+    val scaledHeight = imageHeight * scale
     val offsetX = (previewWidth - scaledWidth) / 2
     val offsetY = (previewHeight - scaledHeight) / 2
 
@@ -380,18 +375,13 @@ fun DetectionOverlay(
         objects.forEach { obj ->
             val color = Color(obj.colorR, obj.colorG, obj.colorB)
 
-            // Rotation + Spiegelung für Back-Kamera
-            val rotatedX = obj.y.toFloat()
-            val rotatedY = obj.x.toFloat()
-            val rotatedW = obj.height.toFloat()
-            val rotatedH = obj.width.toFloat()
-
-            val mirroredX = rotatedImageWidth - rotatedX - rotatedW
+            // Nur Spiegelung für Back-Kamera, keine Rotation
+            val mirroredX = imageWidth - obj.x.toFloat() - obj.width.toFloat()
 
             val finalX = (mirroredX * scale) + offsetX
-            val finalY = (rotatedY * scale) + offsetY
-            val finalW = rotatedW * scale
-            val finalH = rotatedH * scale
+            val finalY = (obj.y.toFloat() * scale) + offsetY
+            val finalW = obj.width.toFloat() * scale
+            val finalH = obj.height.toFloat() * scale
 
             drawRect(
                 color = color,

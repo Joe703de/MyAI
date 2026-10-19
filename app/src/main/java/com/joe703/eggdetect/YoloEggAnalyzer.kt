@@ -43,7 +43,7 @@ class YoloEggAnalyzer(
     private val confThreshold = 0.3f
     private val nmsThreshold = 0.45f
     private val maxDetections = 12
-    private val targetClassId = 12  // COCO-Klasse 12 = Stoppschild
+    private val targetClassId = 2  // COCO-Klasse 2 = Auto erkennen
 
     private var interpreter: Interpreter? = null
     private var gpuDelegate: GpuDelegate? = null
@@ -138,8 +138,9 @@ class YoloEggAnalyzer(
                 return
             }
 
-            val rotationDegrees = imageProxy.imageInfo.rotationDegrees
-            val bitmap = if (rotationDegrees != 0) rotateBitmap(rawBitmap, rotationDegrees) else rawBitmap
+            // Keine zusätzliche Rotation: PreviewView zeigt das Bild bereits korrekt an,
+            // und YOLO soll das Bild im Kamera-Stream-Koordinatensystem sehen.
+            val bitmap = rawBitmap
 
             val detections = interpreter?.let { detect(it, bitmap, imageProxy.width, imageProxy.height, inputModeProvider()) }
                 ?: DetectedFrame(emptyList(), scaleToModelInput(bitmap), 0f, -1, 0f, 0f, -1)
