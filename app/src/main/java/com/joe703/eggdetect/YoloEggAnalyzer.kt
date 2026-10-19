@@ -444,6 +444,8 @@ class YoloEggAnalyzer(
         val sampleTop = top + insetY
         val sampleRight = right - insetX
         val sampleBottom = bottom - insetY
+        if (sampleRight <= sampleLeft || sampleBottom <= sampleTop) return unknown
+
         val stepX = max(1, (sampleRight - sampleLeft) / 24)
         val stepY = max(1, (sampleBottom - sampleTop) / 24)
         val names = listOf("Rot", "Gelb", "Grün", "Blau")
@@ -452,13 +454,20 @@ class YoloEggAnalyzer(
         var sampled = 0
         var chromatic = 0
 
+        // Komplette Pixelzeile in einem Rutsch auslesen, dann abtasten.
+        val rowPixels = IntArray(sampleRight - sampleLeft)
+
         for (py in sampleTop until sampleBottom step stepY) {
-            for (px in sampleLeft until sampleRight step stepX) {
+            bitmap.getPixels(rowPixels, 0, rowPixels.size, sampleLeft, py, rowPixels.size, 1)
+            var pxIndex = 0
+            while (pxIndex < rowPixels.size) {
                 sampled++
-                Color.colorToHSV(bitmap.getPixel(px, py), hsv)
+                Color.colorToHSV(rowPixels[pxIndex], hsv)
                 // Keine Abstimmung durch Grau, Weiß oder sehr dunkle Schatten.
-                // Helles, gesättigtes Gelb bleibt ausdrücklich zugelassen.
-                if (hsv[1] < 0.30f || hsv[2] < 0.20f) continue
+                if (hsv[1] < 0.30f || hsv[2] < 0.20f) {
+                    pxIndex += stepX
+                    continue
+                }
                 chromatic++
                 val hue = hsv[0]
                 val index = when {
@@ -466,15 +475,14 @@ class YoloEggAnalyzer(
                     hue >= 35f && hue < 75f -> 1
                     hue >= 75f && hue < 170f -> 2
                     hue >= 190f && hue < 265f -> 3
-                    else -> -1 // Orange, Türkis und Violett nicht erzwingen.
+                    else -> -1
                 }
                 if (index >= 0) votes[index]++
+                pxIndex += stepX
             }
         }
 
         val winner = votes.indices.maxByOrNull { votes[it] } ?: return unknown
-        // Mindestens 10 % der Fläche und eine klare Mehrheit der farbigen Pixel.
-        // Auch nicht unterstützte Farbtöne zählen im Nenner mit.
         if (sampled == 0 || votes[winner] < 3 ||
             votes[winner] < sampled * 0.10f || votes[winner] <= chromatic * 0.60f
         ) return unknown
