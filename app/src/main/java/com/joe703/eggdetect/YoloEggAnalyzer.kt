@@ -4,10 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.ImageFormat
 import android.graphics.Paint
-import android.graphics.Rect
-import android.graphics.YuvImage
 import android.util.Log
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
@@ -15,7 +12,6 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import org.tensorflow.lite.Interpreter
 import org.tensorflow.lite.gpu.GpuDelegate
-import java.io.ByteArrayOutputStream
 import java.io.FileInputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -412,87 +408,12 @@ class YoloEggAnalyzer(
     }
 
     private fun ImageProxy.toBitmapSafe(): Bitmap? {
-        Log.d("YoloEggAnalyzer", "toBitmapSafe: format=${format}, width=${width}, height=${height}, planes=${planes.size}")
-        for ((i, plane) in planes.withIndex()) {
-            Log.d("YoloEggAnalyzer", "Plane $i: bufferSize=${plane.buffer.remaining()}, rowStride=${plane.rowStride}, pixelStride=${plane.pixelStride}")
-        }
-        return toBitmapRgba() ?: toBitmapYuv()
-    }
-
-    private fun ImageProxy.toBitmapRgba(): Bitmap? {
         return try {
-            if (planes.size != 1) {
-                Log.d("YoloEggAnalyzer", "RGBA path skipped: ${planes.size} planes")
-                return null
-            }
-            val buffer = planes[0].buffer
-            val expected = width * height * 4
-            if (buffer.remaining() < expected) {
-                Log.w("YoloEggAnalyzer", "RGBA buffer too small: ${buffer.remaining()} < $expected")
-                return null
-            }
-            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-            buffer.rewind()
-            bitmap.copyPixelsFromBuffer(buffer)
-            Log.d("YoloEggAnalyzer", "RGBA toBitmap success: ${bitmap.width}x${bitmap.height}")
+            val bitmap = this.toBitmap()
+            Log.d("YoloEggAnalyzer", "CameraX toBitmap success: ${bitmap.width}x${bitmap.height}")
             bitmap
         } catch (e: Exception) {
-            Log.e("YoloEggAnalyzer", "toBitmapRgba failed: ${e.message}", e)
-            null
-        }
-    }
-
-    private fun ImageProxy.toBitmapYuv(): Bitmap? {
-        return try {
-            if (planes.size < 3) {
-                Log.w("YoloEggAnalyzer", "YUV path skipped: only ${planes.size} planes")
-                return null
-            }
-            val yPlane = planes[0]
-            val uPlane = planes[1]
-            val vPlane = planes[2]
-
-            val ySize = width * height
-            val uvSize = width * height / 2
-            val nv21 = ByteArray(ySize + uvSize)
-
-            val yBuffer = yPlane.buffer
-            val yRowStride = yPlane.rowStride
-            val yPixelStride = yPlane.pixelStride
-            var pos = 0
-            for (row in 0 until height) {
-                yBuffer.position(row * yRowStride)
-                for (col in 0 until width) {
-                    nv21[pos++] = yBuffer.get(col * yPixelStride)
-                }
-            }
-
-            val uvRowStride = uPlane.rowStride
-            val uvPixelStride = uPlane.pixelStride
-            val uvHeight = height / 2
-            val uvWidth = width / 2
-            var nvPos = ySize
-            for (row in 0 until uvHeight) {
-                val uRowPos = row * uvRowStride
-                val vRowPos = row * vPlane.rowStride
-                uPlane.buffer.position(uRowPos)
-                vPlane.buffer.position(vRowPos)
-                for (col in 0 until uvWidth) {
-                    val offset = col * uvPixelStride
-                    nv21[nvPos++] = vPlane.buffer.get(offset)
-                    nv21[nvPos++] = uPlane.buffer.get(offset)
-                }
-            }
-
-            val yuvImage = YuvImage(nv21, ImageFormat.NV21, width, height, null)
-            val output = ByteArrayOutputStream()
-            yuvImage.compressToJpeg(Rect(0, 0, width, height), 90, output)
-            val jpegBytes = output.toByteArray()
-            val bitmap = android.graphics.BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size)
-            Log.d("YoloEggAnalyzer", "YUV toBitmap success: ${bitmap?.width}x${bitmap?.height}")
-            bitmap
-        } catch (e: Exception) {
-            Log.e("YoloEggAnalyzer", "toBitmapYuv failed: ${e.message}", e)
+            Log.e("YoloEggAnalyzer", "CameraX toBitmap failed: ${e.message}", e)
             null
         }
     }
