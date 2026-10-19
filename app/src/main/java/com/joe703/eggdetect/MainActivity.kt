@@ -353,10 +353,6 @@ fun DetectionOverlay(
     imageWidth: Float,
     imageHeight: Float
 ) {
-    val scaleX = previewWidth / imageWidth
-    val scaleY = previewHeight / imageHeight
-    val scale = max(scaleX, scaleY)
-
     // CameraX ImageAnalysis liefert im Querformat-Stream width > height;
     // das PreviewView zeigt es gedreht an.
     val rotatedImageWidth = imageHeight
