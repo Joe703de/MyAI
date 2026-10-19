@@ -155,8 +155,6 @@ fun CameraScreen() {
         )
     }
     var previewViewSize by remember { mutableStateOf(android.util.Size(0, 0)) }
-    var imageMode by remember { mutableStateOf(0) } // 0=preview, 1=raw, 2=yolo
-    var inputMode by remember { mutableStateOf(0) } // 0=RGB[0,1], 1=BGR[0,1], 2=RGB[0,255], 3=BGR[0,255]
     var frameCount by remember { mutableStateOf(0) }
 
     val imageAnalyzer = remember(context) {
@@ -176,7 +174,7 @@ fun CameraScreen() {
             .also {
                 it.setAnalyzer(
                     Executors.newSingleThreadExecutor(),
-                    YoloEggAnalyzer(context, inputModeProvider = { inputMode }) { result ->
+                    YoloEggAnalyzer(context, inputModeProvider = { 0 }) { result ->
                         val activity = context as? ComponentActivity
                         activity?.runOnUiThread {
                             detectionResult = result
@@ -206,132 +204,52 @@ fun CameraScreen() {
                 modifier = Modifier
                     .weight(0.7f)
                     .fillMaxWidth(0.9f)
-                    .border(1.dp, if (imageMode > 0) Color.Red else Color.White),
+                    .border(1.dp, Color.White),
                 contentAlignment = Alignment.Center
             ) {
-                if (imageMode > 0) {
-                    val bitmap = when (imageMode) {
-                        1 -> detectionResult.rawBitmap
-                        2 -> detectionResult.processedBitmap
-                        else -> null
-                    }
-                    if (bitmap != null) {
-                        Column(
-                            modifier = Modifier.fillMaxSize(),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(320.dp)
-                                    .border(4.dp, Color.Red)
-                                    .background(Color.Black)
-                            ) {
-                                Image(
-                                    bitmap = bitmap.asImageBitmap(),
-                                    contentDescription = "debug image",
-                                    modifier = Modifier.fillMaxSize()
+                AndroidView(
+                    factory = { ctx ->
+                        val previewView = PreviewView(ctx)
+                        previewView.scaleType = PreviewView.ScaleType.FILL_CENTER
+                        previewView.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+
+                        previewView.post {
+                            previewViewSize = android.util.Size(previewView.width, previewView.height)
+                        }
+
+                        val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
+                        cameraProviderFuture.addListener({
+                            try {
+                                val cameraProvider = cameraProviderFuture.get()
+                                val preview = CameraPreview.Builder()
+                                    .build()
+                                    .also { it.setSurfaceProvider(previewView.surfaceProvider) }
+
+                                cameraProvider.unbindAll()
+                                cameraProvider.bindToLifecycle(
+                                    lifecycleOwner,
+                                    CameraSelector.DEFAULT_BACK_CAMERA,
+                                    preview,
+                                    imageAnalyzer
                                 )
-                                Canvas(modifier = Modifier.fillMaxSize()) {
-                                    val centerX = size.width / 2
-                                    val centerY = size.height / 2
-                                    drawLine(
-                                        color = Color.Green,
-                                        start = Offset(centerX - 30f, centerY),
-                                        end = Offset(centerX + 30f, centerY),
-                                        strokeWidth = 4f
-                                    )
-                                    drawLine(
-                                        color = Color.Green,
-                                        start = Offset(centerX, centerY - 30f),
-                                        end = Offset(centerX, centerY + 30f),
-                                        strokeWidth = 4f
-                                    )
-                                }
+                            } catch (e: Exception) {
+                                Log.e("EggDetect", "Camera binding failed", e)
                             }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = when (imageMode) {
-                                    1 -> "RAW: ${bitmap.width}x${bitmap.height}"
-                                    2 -> "YOLO Input: ${bitmap.width}x${bitmap.height}"
-                                    else -> ""
-                                },
-                                color = Color.Yellow,
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                            Text(
-                                text = "Frames: $frameCount",
-                                color = Color.Gray,
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                    } else {
-                        Column(
-                            modifier = Modifier.fillMaxSize(),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Text(
-                                text = when (imageMode) {
-                                    1 -> "RAW: kein Bild verfügbar"
-                                    2 -> "YOLO Input: kein Bild verfügbar"
-                                    else -> ""
-                                },
-                                color = Color.Red,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                            Text(
-                                text = "Frames: $frameCount",
-                                color = Color.Gray,
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                    }
-                } else {
-                    AndroidView(
-                        factory = { ctx ->
-                            val previewView = PreviewView(ctx)
-                            previewView.scaleType = PreviewView.ScaleType.FILL_CENTER
-                            previewView.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+                        }, ContextCompat.getMainExecutor(ctx))
 
-                            previewView.post {
-                                previewViewSize = android.util.Size(previewView.width, previewView.height)
-                            }
+                        previewView
+                    },
+                    modifier = Modifier.fillMaxSize().clipToBounds()
+                )
 
-                            val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
-                            cameraProviderFuture.addListener({
-                                try {
-                                    val cameraProvider = cameraProviderFuture.get()
-                                    val preview = CameraPreview.Builder()
-                                        .build()
-                                        .also { it.setSurfaceProvider(previewView.surfaceProvider) }
-
-                                    cameraProvider.unbindAll()
-                                    cameraProvider.bindToLifecycle(
-                                        lifecycleOwner,
-                                        CameraSelector.DEFAULT_BACK_CAMERA,
-                                        preview,
-                                        imageAnalyzer
-                                    )
-                                } catch (e: Exception) {
-                                    Log.e("EggDetect", "Camera binding failed", e)
-                                }
-                            }, ContextCompat.getMainExecutor(ctx))
-
-                            previewView
-                        },
-                        modifier = Modifier.fillMaxSize().clipToBounds()
+                if (previewViewSize.width > 0 && detectionResult.imageWidth > 0) {
+                    DetectionOverlay(
+                        objects = detectionResult.objects,
+                        previewWidth = previewViewSize.width.toFloat(),
+                        previewHeight = previewViewSize.height.toFloat(),
+                        imageWidth = detectionResult.imageWidth.toFloat(),
+                        imageHeight = detectionResult.imageHeight.toFloat()
                     )
-
-                    if (previewViewSize.width > 0 && detectionResult.imageWidth > 0) {
-                        DetectionOverlay(
-                            objects = detectionResult.objects,
-                            previewWidth = previewViewSize.width.toFloat(),
-                            previewHeight = previewViewSize.height.toFloat(),
-                            imageWidth = detectionResult.imageWidth.toFloat(),
-                            imageHeight = detectionResult.imageHeight.toFloat()
-                        )
-                    }
                 }
             }
 
@@ -339,63 +257,6 @@ fun CameraScreen() {
                 objects = detectionResult.objects,
                 modifier = Modifier.weight(0.15f)
             )
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .padding(vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = when (imageMode) {
-                        0 -> "Kamera"
-                        1 -> "RAW"
-                        2 -> "YOLO Input"
-                        else -> "?"
-                    },
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Button(
-                    onClick = { imageMode = (imageMode + 1) % 3 },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Yellow)
-                ) {
-                    Text(
-                        text = "Weiter",
-                        color = Color.Black
-                    )
-                }
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .padding(vertical = 2.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = when (inputMode) {
-                        0 -> "RGB 0-1"
-                        1 -> "BGR 0-1"
-                        2 -> "RGB 0-255"
-                        3 -> "BGR 0-255"
-                        else -> "?"
-                    },
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodySmall
-                )
-                Button(
-                    onClick = { inputMode = (inputMode + 1) % 4 },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Cyan)
-                ) {
-                    Text(
-                        text = "Input",
-                        color = Color.Black
-                    )
-                }
-            }
 
             Box(modifier = Modifier.weight(0.05f))
         }
