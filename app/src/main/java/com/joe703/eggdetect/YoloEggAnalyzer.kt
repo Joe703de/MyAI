@@ -138,7 +138,7 @@ class YoloEggAnalyzer(
             )
         } catch (e: Exception) {
             Log.e("YoloEggAnalyzer", "Error during analysis: ${e.message}", e)
-            onEmptyResult(startTime, imageProxy.width, imageProxy.height, null)
+            onEmptyResult(startTime, imageProxy.width, imageProxy.height, createFallbackBitmap(imageProxy.width, imageProxy.height))
         } finally {
             imageProxy.close()
         }

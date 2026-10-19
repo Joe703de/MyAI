@@ -123,6 +123,18 @@ fun EggDetectApp() {
     }
 }
 
+fun createTestBitmap(): android.graphics.Bitmap {
+    val bitmap = android.graphics.Bitmap.createBitmap(320, 320, android.graphics.Bitmap.Config.ARGB_8888)
+    val canvas = android.graphics.Canvas(bitmap)
+    canvas.drawColor(android.graphics.Color.BLUE)
+    val paint = android.graphics.Paint().apply {
+        color = android.graphics.Color.YELLOW
+        textSize = 32f
+    }
+    canvas.drawText("TEST", 20f, 170f, paint)
+    return bitmap
+}
+
 @Composable
 fun CameraScreen() {
     val context = LocalContext.current
@@ -137,7 +149,8 @@ fun CameraScreen() {
                 processingTimeMs = 0L,
                 objects = emptyList(),
                 imageWidth = 0,
-                imageHeight = 0
+                imageHeight = 0,
+                rawBitmap = createTestBitmap()
             )
         )
     }
@@ -164,8 +177,14 @@ fun CameraScreen() {
                 it.setAnalyzer(
                     Executors.newSingleThreadExecutor(),
                     YoloEggAnalyzer(context) { result ->
-                        detectionResult = result
-                        frameCount++
+                        val activity = context as? ComponentActivity
+                        activity?.runOnUiThread {
+                            detectionResult = result
+                            frameCount++
+                        } ?: run {
+                            detectionResult = result
+                            frameCount++
+                        }
                     }
                 )
             }
