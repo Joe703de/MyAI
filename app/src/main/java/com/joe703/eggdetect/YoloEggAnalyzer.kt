@@ -2,8 +2,10 @@ package com.joe703.eggdetect
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.ImageFormat
+import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.YuvImage
 import android.util.Log
@@ -109,6 +111,7 @@ class YoloEggAnalyzer(
         val startTime = System.currentTimeMillis()
         try {
             val bitmap = imageProxy.toBitmapSafe()
+                ?: createFallbackBitmap(imageProxy.width, imageProxy.height)
             if (bitmap == null) {
                 Log.w("YoloEggAnalyzer", "imageProxy.toBitmapSafe() returned null")
                 onEmptyResult(startTime, imageProxy.width, imageProxy.height, null)
@@ -392,6 +395,21 @@ class YoloEggAnalyzer(
         val score: Float,
         val classId: Int
     )
+
+    private fun createFallbackBitmap(width: Int, height: Int): Bitmap {
+        val w = max(width, 640)
+        val h = max(height, 640)
+        val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        canvas.drawColor(Color.RED)
+        val paint = Paint().apply {
+            color = Color.YELLOW
+            textSize = 48f
+        }
+        canvas.drawText("FALLBACK", 20f, h / 2f, paint)
+        Log.w("YoloEggAnalyzer", "Created fallback bitmap: ${w}x${h}")
+        return bitmap
+    }
 
     private fun ImageProxy.toBitmapSafe(): Bitmap? {
         Log.d("YoloEggAnalyzer", "toBitmapSafe: format=${format}, width=${width}, height=${height}, planes=${planes.size}")
