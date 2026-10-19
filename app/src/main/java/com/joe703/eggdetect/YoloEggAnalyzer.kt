@@ -40,9 +40,10 @@ class YoloEggAnalyzer(
 ) : ImageAnalysis.Analyzer {
 
     private val modelInputSize = 640
-    private val confThreshold = 0.15f
+    private val confThreshold = 0.3f
     private val nmsThreshold = 0.45f
     private val maxDetections = 12
+    private val targetClassId = 0  // Konfigurierbare Zielklasse; COCO-car=2, eigenes Modell evtl. 0
 
     private var interpreter: Interpreter? = null
     private var gpuDelegate: GpuDelegate? = null
@@ -253,8 +254,8 @@ class YoloEggAnalyzer(
                 topConfidence = if (hasObjectness) readOutputValue(outputBuffer, i, 4) else classScore
             }
 
-            // Für Tests: Nur Klasse 2 (car) berücksichtigen
-            if (classId != 2) continue
+            // Für Tests: Zielklasse filtern (wenn targetClassId >= 0)
+            if (targetClassId >= 0 && classId != targetClassId) continue
 
             val finalScore = if (hasObjectness) {
                 val objectness = readOutputValue(outputBuffer, i, 4)
