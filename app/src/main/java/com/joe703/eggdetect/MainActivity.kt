@@ -443,14 +443,6 @@ fun StatusBar(result: DetectionResult, previewWidth: Float, previewHeight: Float
                 " no box"
             }
             Text(
-                text = "Preview: ${previewWidth.toInt()}x${previewHeight.toInt()} | Img: ${result.imageWidth}x${result.imageHeight}",
-                color = Color.Gray,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier
-                    .background(Color.Black.copy(alpha = 0.7f))
-                    .padding(horizontal = 4.dp, vertical = 2.dp)
-            )
-            Text(
                 text = "TargetScore: ${"%.3f".format(result.topCarScore)} (need >0.3) | Global: ${"%.3f".format(result.maxGlobalScore)} class=${result.maxGlobalClassId}$boxText",
                 color = Color.Cyan,
                 style = MaterialTheme.typography.bodySmall,
