@@ -2,9 +2,7 @@ package com.joe703.eggdetect
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.ImageFormat
-import android.graphics.Rect
-import android.graphics.YuvImage
+import android.graphics.Color
 import android.util.Log
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
@@ -12,7 +10,6 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import org.tensorflow.lite.Interpreter
 import org.tensorflow.lite.gpu.GpuDelegate
-import java.io.ByteArrayOutputStream
 import java.io.FileInputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -391,54 +388,14 @@ class YoloEggAnalyzer(
 
     private fun ImageProxy.toBitmap(): Bitmap? {
         return try {
-            val yPlane = planes[0]
-            val uPlane = planes[1]
-            val vPlane = planes[2]
-
-            val yBuffer = yPlane.buffer
-            val uBuffer = uPlane.buffer
-            val vBuffer = vPlane.buffer
-
-            val ySize = width * height
-            val uvSize = width * height / 2
-            val nv21 = ByteArray(ySize + uvSize)
-
-            // Y-Plane kopieren, dabei rowStride beachten
-            val yRowStride = yPlane.rowStride
-            val yPixelStride = yPlane.pixelStride
-            var pos = 0
-            for (row in 0 until height) {
-                yBuffer.position(row * yRowStride)
-                for (col in 0 until width) {
-                    nv21[pos++] = yBuffer.get(col * yPixelStride)
-                }
-            }
-
-            // U/V-Planes zu interleaved VU zusammenführen
-            val uvRowStride = uPlane.rowStride
-            val uvPixelStride = uPlane.pixelStride
-            val uvHeight = height / 2
-            val uvWidth = width / 2
-            var nvPos = ySize
-            for (row in 0 until uvHeight) {
-                val uRowPos = row * uvRowStride
-                val vRowPos = row * vPlane.rowStride
-                uBuffer.position(uRowPos)
-                vBuffer.position(vRowPos)
-                for (col in 0 until uvWidth) {
-                    val offset = col * uvPixelStride
-                    nv21[nvPos++] = vBuffer.get(offset) // V
-                    nv21[nvPos++] = uBuffer.get(offset) // U
-                }
-            }
-
-            val yuvImage = YuvImage(nv21, ImageFormat.NV21, width, height, null)
-            val output = ByteArrayOutputStream()
-            yuvImage.compressToJpeg(Rect(0, 0, width, height), 90, output)
-            val jpegBytes = output.toByteArray()
-            android.graphics.BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size)
+            val buffer = planes[0].buffer
+            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            buffer.rewind()
+            bitmap.copyPixelsFromBuffer(buffer)
+            bitmap
         } catch (e: Exception) {
-            Log.e("YoloEggAnalyzer", "toBitmap failed: ${e.message}", e)
+            Log.e("YoloEggAnalyzer", "toBitmap RGBA failed: ${e.message}", e)
             null
         }
-    }}
+    }
+}
