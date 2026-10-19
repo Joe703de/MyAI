@@ -43,7 +43,7 @@ class YoloEggAnalyzer(
     private val confThreshold = 0.3f
     private val nmsThreshold = 0.45f
     private val maxDetections = 12
-    private val targetClassId = 2  // COCO: 0=person, 2=car, 28=suitcase
+    private val targetClassId = -1  // -1 = alle Klassen erlauben; COCO: 2=car
 
     private var interpreter: Interpreter? = null
     private var gpuDelegate: GpuDelegate? = null
