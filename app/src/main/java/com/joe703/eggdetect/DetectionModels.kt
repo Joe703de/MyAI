@@ -31,6 +31,9 @@ data class TimingBreakdown(
     val preprocessMs: Long = 0,
     val inferenceMs: Long = 0,
     val postprocessMs: Long = 0,
+    val postReadMs: Long = 0,
+    val postNmsMs: Long = 0,
+    val postColorMs: Long = 0,
     val totalMs: Long = 0,
     val delegateName: String = "unknown"
 )

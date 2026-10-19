@@ -452,6 +452,14 @@ fun StatusBar(result: DetectionResult, previewWidth: Float, previewHeight: Float
                     .background(Color.Black.copy(alpha = 0.7f))
                     .padding(horizontal = 4.dp, vertical = 2.dp)
             )
+            Text(
+                text = "post: read=${result.timingMs.postReadMs} nms=${result.timingMs.postNmsMs} color=${result.timingMs.postColorMs}",
+                color = Color.Cyan,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier
+                    .background(Color.Black.copy(alpha = 0.7f))
+                    .padding(horizontal = 4.dp, vertical = 2.dp)
+            )
         }
     }
 }

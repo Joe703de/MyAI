@@ -250,6 +250,7 @@ class YoloEggAnalyzer(
         outputBuffer.rewind()
 
         val postprocessStart = System.currentTimeMillis()
+        val outputReadStart = System.currentTimeMillis()
 
         val valuesPerBox = outputValuesDim
         if (valuesPerBox <= 0) return DetectedFrame(
@@ -332,11 +333,16 @@ class YoloEggAnalyzer(
             )
         }
 
+        val postReadMs = System.currentTimeMillis() - outputReadStart
+
         Log.i("YoloEggAnalyzer", "Top score: class=$topClassId confidence=$topConfidence maxClassScore=$maxSeenScore topTargetScore=$topCarScore candidateCount=$candidateCount at box=$maxSeenBox")
 
+        val nmsStart = System.currentTimeMillis()
         val nmsBoxes = nms(candidates)
+        val postNmsMs = System.currentTimeMillis() - nmsStart
 
         Log.i("YoloEggAnalyzer", "NMS kept ${nmsBoxes.size} detections from ${candidates.size} candidates")
+        val colorStart = System.currentTimeMillis()
         nmsBoxes.forEachIndexed { index, raw ->
             Log.i("YoloEggAnalyzer", "NMS result $index: score=${raw.score} box=[${raw.x1}, ${raw.y1}, ${raw.x2}, ${raw.y2}]")
         }
@@ -351,8 +357,7 @@ class YoloEggAnalyzer(
         val cropY = (originalHeight - cropSize) / 2
         val scale = cropSize.toFloat() / modelInputSize
 
-        return DetectedFrame(
-            objects = nmsBoxes.mapNotNull<RawDetection, DetectedObject> { raw ->
+        val objects = nmsBoxes.mapNotNull<RawDetection, DetectedObject> { raw ->
                 val x = (raw.x1 * scale + cropX).toInt()
                 val y = (raw.y1 * scale + cropY).toInt()
                 val width = ((raw.x2 - raw.x1) * scale).toInt()
@@ -372,7 +377,11 @@ class YoloEggAnalyzer(
                     colorG = color.g,
                     colorB = color.b
                 )
-            }.take(maxDetections),
+            }.take(maxDetections)
+        val postColorMs = System.currentTimeMillis() - colorStart
+
+        return DetectedFrame(
+            objects = objects,
             scaled = scaled,
             maxScore = maxSeenScore,
             topClassId = topClassId,
@@ -383,6 +392,9 @@ class YoloEggAnalyzer(
                 preprocessMs = preprocessMs,
                 inferenceMs = inferenceMs,
                 postprocessMs = postprocessMs,
+                postReadMs = postReadMs,
+                postNmsMs = postNmsMs,
+                postColorMs = postColorMs,
                 totalMs = preprocessMs + inferenceMs + postprocessMs,
                 delegateName = if (gpuDelegate != null) "GPU" else "CPU"
             )
