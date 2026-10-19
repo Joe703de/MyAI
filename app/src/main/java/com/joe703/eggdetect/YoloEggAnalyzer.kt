@@ -252,7 +252,11 @@ class YoloEggAnalyzer(
         val postprocessStart = System.currentTimeMillis()
         val outputReadStart = System.currentTimeMillis()
 
+        // Kompletten Output in ein FloatArray kopieren, dann schnell indexieren
+        val outputArray = FloatArray(outputSize)
+        outputBuffer.asFloatBuffer().get(outputArray)
         val valuesPerBox = outputValuesDim
+
         if (valuesPerBox <= 0) return DetectedFrame(
             emptyList(), scaled, 0f, -1, 0f, 0f, -1,
             TimingBreakdown(preprocessMs = preprocessMs, inferenceMs = inferenceMs, postprocessMs = 0L, totalMs = preprocessMs + inferenceMs, delegateName = if (gpuDelegate != null) "GPU" else "CPU")
@@ -274,14 +278,14 @@ class YoloEggAnalyzer(
         var maxGlobalClassId = -1
 
         for (i in 0 until outputBoxesDim) {
-            val cx = readOutputValue(outputBuffer, i, 0)
-            val cy = readOutputValue(outputBuffer, i, 1)
-            val w = readOutputValue(outputBuffer, i, 2)
-            val h = readOutputValue(outputBuffer, i, 3)
+            val cx = readOutputValue(outputArray, i, 0)
+            val cy = readOutputValue(outputArray, i, 1)
+            val w = readOutputValue(outputArray, i, 2)
+            val h = readOutputValue(outputArray, i, 3)
 
             val classScores = FloatArray(classCount) { j ->
                 val valueOffset = if (hasObjectness) 5 else 4
-                readOutputValue(outputBuffer, i, valueOffset + j)
+                readOutputValue(outputArray, i, valueOffset + j)
             }
             val classId = classScores.indices.maxByOrNull { classScores[it] } ?: 0
             val classScore = classScores.getOrElse(classId) { 0f }
@@ -297,7 +301,7 @@ class YoloEggAnalyzer(
                 maxSeenScore = classScore
                 maxSeenBox = i
                 topClassId = classId
-                topConfidence = if (hasObjectness) readOutputValue(outputBuffer, i, 4) else classScore
+                topConfidence = if (hasObjectness) readOutputValue(outputArray, i, 4) else classScore
             }
 
             // Besten Target-Score für Debug-Anzeige merken
@@ -401,13 +405,13 @@ class YoloEggAnalyzer(
         )
     }
 
-    private fun readOutputValue(buffer: ByteBuffer, boxIndex: Int, valueIndex: Int): Float {
+    private fun readOutputValue(array: FloatArray, boxIndex: Int, valueIndex: Int): Float {
         val index = if (transposedOutput) {
             valueIndex * outputBoxesDim + boxIndex
         } else {
             boxIndex * outputValuesDim + valueIndex
         }
-        return buffer.getFloat(index * 4)
+        return array[index]
     }
 
     private fun nms(boxes: List<RawDetection>): List<RawDetection> {
