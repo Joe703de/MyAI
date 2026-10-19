@@ -275,10 +275,10 @@ class YoloEggAnalyzer(
 
             val finalScore = carScore
 
-            val x1 = cx - w / 2f
-            val y1 = cy - h / 2f
-            val x2 = cx + w / 2f
-            val y2 = cy + h / 2f
+            val x1 = (cx - w / 2f) * modelInputSize
+            val y1 = (cy - h / 2f) * modelInputSize
+            val x2 = (cx + w / 2f) * modelInputSize
+            val y2 = (cy + h / 2f) * modelInputSize
 
             candidates.add(
                 RawDetection(
