@@ -249,6 +249,7 @@ class YoloEggAnalyzer(
             }
             val classId = classScores.indices.maxByOrNull { classScores[it] } ?: 0
             val classScore = classScores.getOrElse(classId) { 0f }
+            val carScore = classScores.getOrElse(targetClassId) { 0f }
 
             if (classScore > maxSeenScore) {
                 maxSeenScore = classScore
@@ -257,26 +258,19 @@ class YoloEggAnalyzer(
                 topConfidence = if (hasObjectness) readOutputValue(outputBuffer, i, 4) else classScore
             }
 
-            // Nur COCO-Klasse 2 (Auto) berücksichtigen
-            if (classId != targetClassId) continue
-
-            // Merke den besten Auto-Score für Debug-Anzeige
-            if (classScore > topCarScore) {
-                topCarScore = classScore
+            // Besten Auto-Score für Debug-Anzeige merken
+            if (carScore > topCarScore) {
+                topCarScore = carScore
             }
 
-            val finalScore = if (hasObjectness) {
-                val objectness = readOutputValue(outputBuffer, i, 4)
-                objectness * classScore
-            } else {
-                classScore
-            }
-
-            if (finalScore < confThreshold) continue
+            // Box verwenden, wenn der Auto-Score über dem Threshold liegt
+            if (carScore < confThreshold) continue
 
             if (candidates.size < 5) {
-                Log.i("YoloEggAnalyzer", "Detection candidate box=$i class=$classId score=$finalScore box=[$cx, $cy, $w, $h]")
+                Log.i("YoloEggAnalyzer", "Detection candidate box=$i class=$classId carScore=$carScore box=[$cx, $cy, $w, $h]")
             }
+
+            val finalScore = carScore
 
             val x1 = cx - w / 2f
             val y1 = cy - h / 2f
@@ -290,7 +284,7 @@ class YoloEggAnalyzer(
                     x2 = x2.coerceIn(0f, modelInputSize.toFloat()),
                     y2 = y2.coerceIn(0f, modelInputSize.toFloat()),
                     score = finalScore,
-                    classId = classId
+                    classId = targetClassId
                 )
             )
         }
