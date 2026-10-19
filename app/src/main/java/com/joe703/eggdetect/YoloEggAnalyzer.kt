@@ -60,6 +60,7 @@ class YoloEggAnalyzer(
                 addDelegate(gpuDelegate)
             }
             interpreter = Interpreter(model, options)
+            inspectModel(interpreter!!)
             inspectOutputShape()
             Log.d("YoloEggAnalyzer", "YOLO interpreter initialized")
         } catch (e: Exception) {
@@ -78,6 +79,19 @@ class YoloEggAnalyzer(
                 )
             }
         }
+    }
+
+    private fun inspectModel(interpreter: Interpreter) {
+        val inputTensor = interpreter.getInputTensor(0)
+        val outputTensor = interpreter.getOutputTensor(0)
+        Log.d(
+            "YoloEggAnalyzer",
+            "Model input: shape=${inputTensor.shape().contentToString()}, dtype=${inputTensor.dataType()}"
+        )
+        Log.d(
+            "YoloEggAnalyzer",
+            "Model output: shape=${outputTensor.shape().contentToString()}, dtype=${outputTensor.dataType()}"
+        )
     }
 
     private fun inspectOutputShape() {
