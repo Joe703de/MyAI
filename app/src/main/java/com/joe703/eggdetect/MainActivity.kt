@@ -436,14 +436,8 @@ fun StatusBar(result: DetectionResult, previewWidth: Float, previewHeight: Float
                     )
                 }
             }
-            val firstBox = result.objects.firstOrNull()
-            val boxText = if (firstBox != null) {
-                "${firstBox.x},${firstBox.y} ${firstBox.width}x${firstBox.height}"
-            } else {
-                "-"
-            }
             Text(
-                text = "Target: ${"%.3f".format(result.topCarScore)} Global: ${"%.3f".format(result.maxGlobalScore)} class=${result.maxGlobalClassId} $boxText",
+                text = "Target: ${"%.3f".format(result.topCarScore)} Global: ${"%.3f".format(result.maxGlobalScore)} class=${result.maxGlobalClassId}",
                 color = Color.Cyan,
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier
