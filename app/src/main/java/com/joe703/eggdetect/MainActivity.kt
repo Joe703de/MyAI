@@ -184,50 +184,58 @@ fun CameraScreen() {
                 modifier = Modifier
                     .weight(0.7f)
                     .fillMaxWidth(0.9f)
-                    .border(1.dp, Color.White),
+                    .border(1.dp, if (showProcessedImage) Color.Red else Color.White),
                 contentAlignment = Alignment.Center
             ) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                val processedBitmap = detectionResult.processedBitmap
-                if (showProcessedImage && processedBitmap != null) {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(320.dp)
-                                .border(4.dp, Color.Red)
+                if (showProcessedImage) {
+                    val processedBitmap = detectionResult.processedBitmap
+                    if (processedBitmap != null) {
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
                         ) {
-                            Image(
-                                bitmap = processedBitmap.asImageBitmap(),
-                                contentDescription = "YOLO processed image",
-                                modifier = Modifier.fillMaxSize()
-                            )
-                            // Sichtbarer Marker, der nur im YOLO-Modus erscheint
-                            Canvas(modifier = Modifier.fillMaxSize()) {
-                                val centerX = size.width / 2
-                                val centerY = size.height / 2
-                                drawLine(
-                                    color = Color.Green,
-                                    start = Offset(centerX - 30f, centerY),
-                                    end = Offset(centerX + 30f, centerY),
-                                    strokeWidth = 4f
+                            Box(
+                                modifier = Modifier
+                                    .size(320.dp)
+                                    .border(4.dp, Color.Red)
+                                    .background(Color.Black)
+                            ) {
+                                Image(
+                                    bitmap = processedBitmap.asImageBitmap(),
+                                    contentDescription = "YOLO processed image",
+                                    modifier = Modifier.fillMaxSize()
                                 )
-                                drawLine(
-                                    color = Color.Green,
-                                    start = Offset(centerX, centerY - 30f),
-                                    end = Offset(centerX, centerY + 30f),
-                                    strokeWidth = 4f
-                                )
+                                Canvas(modifier = Modifier.fillMaxSize()) {
+                                    val centerX = size.width / 2
+                                    val centerY = size.height / 2
+                                    drawLine(
+                                        color = Color.Green,
+                                        start = Offset(centerX - 30f, centerY),
+                                        end = Offset(centerX + 30f, centerY),
+                                        strokeWidth = 4f
+                                    )
+                                    drawLine(
+                                        color = Color.Green,
+                                        start = Offset(centerX, centerY - 30f),
+                                        end = Offset(centerX, centerY + 30f),
+                                        strokeWidth = 4f
+                                    )
+                                }
                             }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "YOLO Input: ${processedBitmap.width}x${processedBitmap.height}",
+                                color = Color.Yellow,
+                                style = MaterialTheme.typography.bodySmall
+                            )
                         }
-                        Spacer(modifier = Modifier.height(8.dp))
+                    } else {
                         Text(
-                            text = "YOLO Input: ${processedBitmap.width}x${processedBitmap.height}",
-                            color = Color.Yellow,
-                            style = MaterialTheme.typography.bodySmall
+                            text = "YOLO Input: kein Bild verfügbar",
+                            color = Color.Red,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.align(Alignment.Center)
                         )
                     }
                 } else {
@@ -265,17 +273,16 @@ fun CameraScreen() {
                         },
                         modifier = Modifier.fillMaxSize().clipToBounds()
                     )
-                }
 
-                if (!showProcessedImage && previewViewSize.width > 0 && detectionResult.imageWidth > 0) {
-                    DetectionOverlay(
-                        objects = detectionResult.objects,
-                        previewWidth = previewViewSize.width.toFloat(),
-                        previewHeight = previewViewSize.height.toFloat(),
-                        imageWidth = detectionResult.imageWidth.toFloat(),
-                        imageHeight = detectionResult.imageHeight.toFloat()
-                    )
-                }
+                    if (previewViewSize.width > 0 && detectionResult.imageWidth > 0) {
+                        DetectionOverlay(
+                            objects = detectionResult.objects,
+                            previewWidth = previewViewSize.width.toFloat(),
+                            previewHeight = previewViewSize.height.toFloat(),
+                            imageWidth = detectionResult.imageWidth.toFloat(),
+                            imageHeight = detectionResult.imageHeight.toFloat()
+                        )
+                    }
                 }
             }
 
