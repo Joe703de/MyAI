@@ -17,7 +17,6 @@ import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -29,17 +28,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -63,6 +63,90 @@ import com.joe703.eggdetect.ui.theme.EggdetectTheme
 import java.util.concurrent.Executors
 
 import kotlin.math.max
+
+
+val CocoClassNames = listOf(
+    "Person",
+    "Fahrrad",
+    "Auto",
+    "Motorrad",
+    "Flugzeug",
+    "Bus",
+    "Zug",
+    "LKW",
+    "Boot",
+    "Ampel",
+    "Feuerhydrant",
+    "Stoppschild",
+    "Parkuhr",
+    "Bank",
+    "Vogel",
+    "Katze",
+    "Hund",
+    "Pferd",
+    "Schaf",
+    "Kuh",
+    "Elefant",
+    "Bär",
+    "Zebra",
+    "Giraffe",
+    "Rucksack",
+    "Regenschirm",
+    "Handtasche",
+    "Krawatte",
+    "Koffer",
+    "Frisbee",
+    "Ski",
+    "Snowboard",
+    "Sportball",
+    "Drachen",
+    "Baseballschläger",
+    "Baseballhandschuh",
+    "Skateboard",
+    "Surfbrett",
+    "Tennisball",
+    "Flasche",
+    "Weinglas",
+    "Tasse",
+    "Gabel",
+    "Messer",
+    "Löffel",
+    "Schüssel",
+    "Banane",
+    "Apfel",
+    "Sandwich",
+    "Orange",
+    "Brokkoli",
+    "Karotte",
+    "Hot Dog",
+    "Pizza",
+    "Donut",
+    "Kuchen",
+    "Stuhl",
+    "Sofa",
+    "Topfpflanze",
+    "Bett",
+    "Esstisch",
+    "Toilette",
+    "Fernseher",
+    "Laptop",
+    "Maus",
+    "Fernbedienung",
+    "Tastatur",
+    "Handy",
+    "Mikrowelle",
+    "Backofen",
+    "Toaster",
+    "Spülbecken",
+    "Kühlschrank",
+    "Buch",
+    "Uhr",
+    "Vase",
+    "Schere",
+    "Teddybär",
+    "Haartrockner",
+    "Zahnbürste"
+)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -155,7 +239,7 @@ fun CameraScreen() {
         )
     }
     var previewViewSize by remember { mutableStateOf(android.util.Size(0, 0)) }
-    var inputMode by remember { mutableStateOf(2) } // 0=RGB[0,1], 1=BGR[0,1], 2=RGB[0,255], 3=BGR[0,255]
+    var targetClassIndex by remember { mutableStateOf(2) } // COCO-Klasse 2 = Auto
     var frameCount by remember { mutableStateOf(0) }
 
     val imageAnalyzer = remember(context) {
@@ -175,7 +259,7 @@ fun CameraScreen() {
             .also {
                 it.setAnalyzer(
                     Executors.newSingleThreadExecutor(),
-                    YoloEggAnalyzer(context, inputModeProvider = { inputMode }) { result ->
+                    YoloEggAnalyzer(context, targetClassProvider = { targetClassIndex }) { result ->
                         val activity = context as? ComponentActivity
                         activity?.runOnUiThread {
                             detectionResult = result
@@ -259,38 +343,63 @@ fun CameraScreen() {
                 modifier = Modifier.weight(0.15f)
             )
 
-            Row(
+            ClassDropdown(
+                selectedIndex = targetClassIndex,
+                onSelectionChanged = { targetClassIndex = it },
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
-                    .padding(vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = when (inputMode) {
-                        2 -> "RGB 0-255"
-                        3 -> "BGR 0-255"
-                        else -> "?"
-                    },
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Button(
-                    onClick = { inputMode = if (inputMode == 2) 3 else 2 },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Cyan)
-                ) {
-                    Text(
-                        text = "Input",
-                        color = Color.Black
-                    )
-                }
-            }
+                    .padding(vertical = 4.dp)
+            )
 
             Box(modifier = Modifier.weight(0.05f))
         }
     }
 }
 
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ClassDropdown(
+    selectedIndex: Int,
+    onSelectionChanged: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedName = CocoClassNames.getOrElse(selectedIndex) { "Unbekannt" }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded },
+        modifier = modifier
+    ) {
+        TextField(
+            value = "COCO #$selectedIndex: $selectedName",
+            onValueChange = {},
+            readOnly = true,
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(),
+            colors = ExposedDropdownMenuDefaults.textFieldColors(),
+            textStyle = MaterialTheme.typography.bodyMedium
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            CocoClassNames.forEachIndexed { index, name ->
+                DropdownMenuItem(
+                    text = { Text("$index: $name") },
+                    onClick = {
+                        onSelectionChanged(index)
+                        expanded = false
+                    },
+                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                )
+            }
+        }
+    }
+}
 @Composable
 fun StatusBar(result: DetectionResult, previewWidth: Float, previewHeight: Float) {
     Box(

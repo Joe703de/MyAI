@@ -35,7 +35,7 @@ import kotlin.math.min
  */
 class YoloEggAnalyzer(
     context: Context,
-    private val inputModeProvider: () -> Int,
+    private val targetClassProvider: () -> Int,
     private val onResult: (DetectionResult) -> Unit
 ) : ImageAnalysis.Analyzer {
 
@@ -43,7 +43,7 @@ class YoloEggAnalyzer(
     private val confThreshold = 0.3f
     private val nmsThreshold = 0.45f
     private val maxDetections = 12
-    private val targetClassId = 2  // COCO-Klasse 2 = Auto erkennen
+    private val inputMode = 2 // fest RGB 0-255
 
     private var interpreter: Interpreter? = null
     private var gpuDelegate: GpuDelegate? = null
@@ -141,10 +141,10 @@ class YoloEggAnalyzer(
             val rotationDegrees = imageProxy.imageInfo.rotationDegrees
             val bitmap = if (rotationDegrees != 0) rotateBitmap(rawBitmap, rotationDegrees) else rawBitmap
 
-            val detections = interpreter?.let { detect(it, bitmap, bitmap.width, bitmap.height, inputModeProvider()) }
+            val detections = interpreter?.let { detect(it, bitmap, bitmap.width, bitmap.height, targetClassProvider()) }
                 ?: DetectedFrame(emptyList(), scaleToModelInput(bitmap), 0f, -1, 0f, 0f, -1)
 
-            Log.i("YoloEggAnalyzer", "Frame OK: mode=${inputModeProvider()} raw=${rawBitmap.width}x${rawBitmap.height}, rotated=${bitmap.width}x${bitmap.height}, scaled=${detections.scaled.width}x${detections.scaled.height}, detections=${detections.objects.size}, maxScore=${detections.maxScore}, topClass=${detections.topClassId}, topCarScore=${detections.topCarScore}")
+            Log.i("YoloEggAnalyzer", "Frame OK: class=${targetClassProvider()} raw=${rawBitmap.width}x${rawBitmap.height}, rotated=${bitmap.width}x${bitmap.height}, scaled=${detections.scaled.width}x${detections.scaled.height}, detections=${detections.objects.size}, maxScore=${detections.maxScore}, topClass=${detections.topClassId}, topCarScore=${detections.topCarScore}")
 
             onResult(
                 DetectionResult(
@@ -159,7 +159,7 @@ class YoloEggAnalyzer(
                     rawBitmap = bitmap,
                     maxScore = detections.maxScore,
                     topClassId = detections.topClassId,
-                    inputMode = inputModeProvider(),
+                    inputMode = inputMode,
                     topCarScore = detections.topCarScore,
                     maxGlobalScore = detections.maxGlobalScore,
                     maxGlobalClassId = detections.maxGlobalClassId
@@ -205,18 +205,13 @@ class YoloEggAnalyzer(
         bitmap: Bitmap,
         originalWidth: Int,
         originalHeight: Int,
-        inputMode: Int
+        targetClassId: Int
     ): DetectedFrame {
         val scaled = scaleToModelInput(bitmap)
 
-        val inputBuffer = when (inputMode) {
-            1 -> bitmapToFloatBuffer(scaled, normalize255 = false, bgr = true)
-            2 -> bitmapToFloatBuffer(scaled, normalize255 = true, bgr = false)
-            3 -> bitmapToFloatBuffer(scaled, normalize255 = true, bgr = true)
-            else -> bitmapToFloatBuffer(scaled, normalize255 = false, bgr = false)
-        }
+        val inputBuffer = bitmapToFloatBuffer(scaled, normalize255 = true, bgr = false)
 
-        Log.i("YoloEggAnalyzer", "Running inference with inputMode=$inputMode")
+        Log.i("YoloEggAnalyzer", "Running inference for targetClass=$targetClassId")
 
         val outputShape = interpreter.getOutputTensor(0).shape()
         val outputSize = outputShape.fold(1) { acc, value -> acc * value }
@@ -256,7 +251,7 @@ class YoloEggAnalyzer(
             }
             val classId = classScores.indices.maxByOrNull { classScores[it] } ?: 0
             val classScore = classScores.getOrElse(classId) { 0f }
-            val carScore = classScores.getOrElse(targetClassId) { 0f }
+            val targetScore = classScores.getOrElse(targetClassId) { 0f }
 
             // Globale Top-Klasse unabhängig vom Ziel-Filter merken
             if (classScore > maxGlobalScore) {
@@ -271,21 +266,21 @@ class YoloEggAnalyzer(
                 topConfidence = if (hasObjectness) readOutputValue(outputBuffer, i, 4) else classScore
             }
 
-            // Besten Auto-Score für Debug-Anzeige merken
-            if (carScore > topCarScore) {
-                topCarScore = carScore
+            // Besten Target-Score für Debug-Anzeige merken
+            if (targetScore > topCarScore) {
+                topCarScore = targetScore
             }
 
-            // Box verwenden, wenn der Auto-Score über dem Threshold liegt
-            if (carScore < confThreshold) continue
+            // Box verwenden, wenn der Target-Score über dem Threshold liegt
+            if (targetScore < confThreshold) continue
 
             candidateCount++
 
             if (candidateCount <= 5) {
-                Log.i("YoloEggAnalyzer", "Detection candidate box=$i class=$classId carScore=$carScore box=[$cx, $cy, $w, $h]")
+                Log.i("YoloEggAnalyzer", "Detection candidate box=$i class=$classId targetScore=$targetScore box=[$cx, $cy, $w, $h]")
             }
 
-            val finalScore = carScore
+            val finalScore = targetScore
 
             val x1 = (cx - w / 2f) * modelInputSize
             val y1 = (cy - h / 2f) * modelInputSize
@@ -304,7 +299,7 @@ class YoloEggAnalyzer(
             )
         }
 
-        Log.i("YoloEggAnalyzer", "Top score: class=$topClassId confidence=$topConfidence maxClassScore=$maxSeenScore topCarScore=$topCarScore candidateCount=$candidateCount at box=$maxSeenBox")
+        Log.i("YoloEggAnalyzer", "Top score: class=$topClassId confidence=$topConfidence maxClassScore=$maxSeenScore topTargetScore=$topCarScore candidateCount=$candidateCount at box=$maxSeenBox")
 
         val nmsBoxes = nms(candidates)
 
