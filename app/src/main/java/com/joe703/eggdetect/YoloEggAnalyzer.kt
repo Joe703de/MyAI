@@ -114,7 +114,7 @@ class YoloEggAnalyzer(
             val detections = interpreter?.let { detect(it, bitmap, imageProxy.width, imageProxy.height) }
                 ?: (emptyList<DetectedObject>() to bitmap)
 
-            Log.d("YoloEggAnalyzer", "Returning ${detections.first.size} detections, processedBitmap=${detections.second.width}x${detections.second.height}")
+            Log.d("YoloEggAnalyzer", "Frame OK: raw=${bitmap.width}x${bitmap.height}, scaled=${detections.second.width}x${detections.second.height}, detections=${detections.first.size}")
 
             onResult(
                 DetectionResult(
@@ -125,7 +125,8 @@ class YoloEggAnalyzer(
                     objects = detections.first,
                     imageWidth = imageProxy.width,
                     imageHeight = imageProxy.height,
-                    processedBitmap = detections.second
+                    processedBitmap = detections.second,
+                    rawBitmap = bitmap
                 )
             )
         } catch (e: Exception) {
@@ -137,6 +138,7 @@ class YoloEggAnalyzer(
     }
 
     private fun onEmptyResult(startTime: Long, width: Int, height: Int, bitmap: Bitmap?) {
+        Log.w("YoloEggAnalyzer", "Empty result: ${width}x${height}, bitmap=${bitmap?.let { "${it.width}x${it.height}" } ?: "null"}")
         onResult(
             DetectionResult(
                 eggCount = 0,
@@ -146,7 +148,8 @@ class YoloEggAnalyzer(
                 objects = emptyList(),
                 imageWidth = width,
                 imageHeight = height,
-                processedBitmap = bitmap
+                processedBitmap = bitmap,
+                rawBitmap = bitmap
             )
         )
     }

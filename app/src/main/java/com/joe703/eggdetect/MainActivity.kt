@@ -142,7 +142,7 @@ fun CameraScreen() {
         )
     }
     var previewViewSize by remember { mutableStateOf(android.util.Size(0, 0)) }
-    var showProcessedImage by remember { mutableStateOf(false) }
+    var imageMode by remember { mutableStateOf(0) } // 0=preview, 1=raw, 2=yolo
     var frameCount by remember { mutableStateOf(0) }
 
     val imageAnalyzer = remember(context) {
@@ -187,12 +187,16 @@ fun CameraScreen() {
                 modifier = Modifier
                     .weight(0.7f)
                     .fillMaxWidth(0.9f)
-                    .border(1.dp, if (showProcessedImage) Color.Red else Color.White),
+                    .border(1.dp, if (imageMode > 0) Color.Red else Color.White),
                 contentAlignment = Alignment.Center
             ) {
-                if (showProcessedImage) {
-                    val processedBitmap = detectionResult.processedBitmap
-                    if (processedBitmap != null) {
+                if (imageMode > 0) {
+                    val bitmap = when (imageMode) {
+                        1 -> detectionResult.rawBitmap
+                        2 -> detectionResult.processedBitmap
+                        else -> null
+                    }
+                    if (bitmap != null) {
                         Column(
                             modifier = Modifier.fillMaxSize(),
                             horizontalAlignment = Alignment.CenterHorizontally,
@@ -205,8 +209,8 @@ fun CameraScreen() {
                                     .background(Color.Black)
                             ) {
                                 Image(
-                                    bitmap = processedBitmap.asImageBitmap(),
-                                    contentDescription = "YOLO processed image",
+                                    bitmap = bitmap.asImageBitmap(),
+                                    contentDescription = "debug image",
                                     modifier = Modifier.fillMaxSize()
                                 )
                                 Canvas(modifier = Modifier.fillMaxSize()) {
@@ -228,7 +232,11 @@ fun CameraScreen() {
                             }
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "YOLO Input: ${processedBitmap.width}x${processedBitmap.height}",
+                                text = when (imageMode) {
+                                    1 -> "RAW: ${bitmap.width}x${bitmap.height}"
+                                    2 -> "YOLO Input: ${bitmap.width}x${bitmap.height}"
+                                    else -> ""
+                                },
                                 color = Color.Yellow,
                                 style = MaterialTheme.typography.bodySmall
                             )
@@ -245,7 +253,11 @@ fun CameraScreen() {
                             verticalArrangement = Arrangement.Center
                         ) {
                             Text(
-                                text = "YOLO Input: kein Bild verfügbar",
+                                text = when (imageMode) {
+                                    1 -> "RAW: kein Bild verfügbar"
+                                    2 -> "YOLO Input: kein Bild verfügbar"
+                                    else -> ""
+                                },
                                 color = Color.Red,
                                 style = MaterialTheme.typography.bodyMedium
                             )
@@ -317,20 +329,24 @@ fun CameraScreen() {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = if (showProcessedImage) "YOLO Input" else "Kamera",
+                    text = when (imageMode) {
+                        0 -> "Kamera"
+                        1 -> "RAW"
+                        2 -> "YOLO Input"
+                        else -> "?"
+                    },
                     color = Color.White,
                     style = MaterialTheme.typography.bodyMedium
                 )
-                Switch(
-                    checked = showProcessedImage,
-                    onCheckedChange = { showProcessedImage = it },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.Yellow,
-                        checkedTrackColor = Color.Yellow.copy(alpha = 0.5f),
-                        uncheckedThumbColor = Color.White,
-                        uncheckedTrackColor = Color.White.copy(alpha = 0.5f)
+                Button(
+                    onClick = { imageMode = (imageMode + 1) % 3 },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Yellow)
+                ) {
+                    Text(
+                        text = "Weiter",
+                        color = Color.Black
                     )
-                )
+                }
             }
 
             Box(modifier = Modifier.weight(0.05f))

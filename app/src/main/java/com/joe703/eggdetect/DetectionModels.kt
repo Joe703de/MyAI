@@ -13,7 +13,8 @@ data class DetectionResult(
     val objects: List<DetectedObject>,
     val imageWidth: Int,
     val imageHeight: Int,
-    val processedBitmap: Bitmap? = null
+    val processedBitmap: Bitmap? = null,
+    val rawBitmap: Bitmap? = null
 )
 
 /**
