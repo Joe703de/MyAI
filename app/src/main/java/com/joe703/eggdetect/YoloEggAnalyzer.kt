@@ -35,6 +35,7 @@ import kotlin.math.min
  */
 class YoloEggAnalyzer(
     context: Context,
+    private val inputMode: Int = 0,
     private val onResult: (DetectionResult) -> Unit
 ) : ImageAnalysis.Analyzer {
 
@@ -142,7 +143,7 @@ class YoloEggAnalyzer(
             val detections = interpreter?.let { detect(it, bitmap, imageProxy.width, imageProxy.height) }
                 ?: DetectedFrame(emptyList(), scaleToModelInput(bitmap), 0f, -1)
 
-            Log.i("YoloEggAnalyzer", "Frame OK: raw=${rawBitmap.width}x${rawBitmap.height}, rotated=${bitmap.width}x${bitmap.height}, scaled=${detections.scaled.width}x${detections.scaled.height}, detections=${detections.objects.size}, maxScore=${detections.maxScore}, topClass=${detections.topClassId}")
+            Log.i("YoloEggAnalyzer", "Frame OK: mode=$inputMode raw=${rawBitmap.width}x${rawBitmap.height}, rotated=${bitmap.width}x${bitmap.height}, scaled=${detections.scaled.width}x${detections.scaled.height}, detections=${detections.objects.size}, maxScore=${detections.maxScore}, topClass=${detections.topClassId}")
 
             onResult(
                 DetectionResult(
@@ -156,7 +157,8 @@ class YoloEggAnalyzer(
                     processedBitmap = detections.scaled,
                     rawBitmap = bitmap,
                     maxScore = detections.maxScore,
-                    topClassId = detections.topClassId
+                    topClassId = detections.topClassId,
+                    inputMode = inputMode
                 )
             )
         } catch (e: Exception) {
@@ -199,11 +201,14 @@ class YoloEggAnalyzer(
     ): DetectedFrame {
         val scaled = scaleToModelInput(bitmap)
 
-        // YOLOv8-TFLite erwartet typischerweise [0,1] normalisierte Floats im NHWC-Layout.
-        // Wir testen RGB vs. BGR und [0,1] vs [0,255].
-        val inputBuffer = bitmapToFloatBuffer(scaled, normalize255 = false, bgr = false)
-        val inputBufferBgr = bitmapToFloatBuffer(scaled, normalize255 = false, bgr = true)
-        val inputBuffer255 = bitmapToFloatBuffer(scaled, normalize255 = true, bgr = false)
+        val inputBuffer = when (inputMode) {
+            1 -> bitmapToFloatBuffer(scaled, normalize255 = false, bgr = true)
+            2 -> bitmapToFloatBuffer(scaled, normalize255 = true, bgr = false)
+            3 -> bitmapToFloatBuffer(scaled, normalize255 = true, bgr = true)
+            else -> bitmapToFloatBuffer(scaled, normalize255 = false, bgr = false)
+        }
+
+        Log.i("YoloEggAnalyzer", "Running inference with inputMode=$inputMode")
 
         val outputShape = interpreter.getOutputTensor(0).shape()
         val outputSize = outputShape.fold(1) { acc, value -> acc * value }

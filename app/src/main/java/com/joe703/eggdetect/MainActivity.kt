@@ -156,9 +156,10 @@ fun CameraScreen() {
     }
     var previewViewSize by remember { mutableStateOf(android.util.Size(0, 0)) }
     var imageMode by remember { mutableStateOf(0) } // 0=preview, 1=raw, 2=yolo
+    var inputMode by remember { mutableStateOf(0) } // 0=RGB[0,1], 1=BGR[0,1], 2=RGB[0,255], 3=BGR[0,255]
     var frameCount by remember { mutableStateOf(0) }
 
-    val imageAnalyzer = remember(context) {
+    val imageAnalyzer = remember(context, inputMode) {
         ImageAnalysis.Builder()
             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
             .setResolutionSelector(
@@ -175,7 +176,7 @@ fun CameraScreen() {
             .also {
                 it.setAnalyzer(
                     Executors.newSingleThreadExecutor(),
-                    YoloEggAnalyzer(context) { result ->
+                    YoloEggAnalyzer(context, inputMode) { result ->
                         val activity = context as? ComponentActivity
                         activity?.runOnUiThread {
                             detectionResult = result
@@ -367,6 +368,35 @@ fun CameraScreen() {
                 }
             }
 
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .padding(vertical = 2.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = when (inputMode) {
+                        0 -> "RGB 0-1"
+                        1 -> "BGR 0-1"
+                        2 -> "RGB 0-255"
+                        3 -> "BGR 0-255"
+                        else -> "?"
+                    },
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Button(
+                    onClick = { inputMode = (inputMode + 1) % 4 },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Cyan)
+                ) {
+                    Text(
+                        text = "Input",
+                        color = Color.Black
+                    )
+                }
+            }
+
             Box(modifier = Modifier.weight(0.05f))
         }
     }
@@ -409,7 +439,7 @@ fun StatusBar(result: DetectionResult) {
                 }
             }
             Text(
-                text = "MaxScore: ${"%.3f".format(result.maxScore)} class=${result.topClassId} (need >0.15)",
+                text = "MaxScore: ${"%.3f".format(result.maxScore)} class=${result.topClassId} mode=${result.inputMode}",
                 color = Color.Cyan,
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier
