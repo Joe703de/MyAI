@@ -353,18 +353,12 @@ fun DetectionOverlay(
     imageWidth: Float,
     imageHeight: Float
 ) {
-    // Die PreviewView zeigt das Original-Kamerabild im Format 1920x1440 an,
-    // waehrend die Boxkoordinaten aus dem gedrehten 1440x1920 YOLO-Bild kommen.
-    // Wir skalieren hier auf die Originalabmessungen, um die vertikale Position zu korrigieren.
-    val overlayImageWidth = imageHeight
-    val overlayImageHeight = imageWidth
-
-    val scaleX = previewWidth / overlayImageWidth
-    val scaleY = previewHeight / overlayImageHeight
+    val scaleX = previewWidth / imageWidth
+    val scaleY = previewHeight / imageHeight
     val scale = max(scaleX, scaleY)
 
-    val scaledWidth = overlayImageWidth * scale
-    val scaledHeight = overlayImageHeight * scale
+    val scaledWidth = imageWidth * scale
+    val scaledHeight = imageHeight * scale
     val offsetX = (previewWidth - scaledWidth) / 2
     val offsetY = (previewHeight - scaledHeight) / 2
 
