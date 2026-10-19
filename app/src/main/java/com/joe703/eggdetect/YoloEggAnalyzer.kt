@@ -118,21 +118,23 @@ class YoloEggAnalyzer(
             val bitmap = if (rotationDegrees != 0) rotateBitmap(rawBitmap, rotationDegrees) else rawBitmap
 
             val detections = interpreter?.let { detect(it, bitmap, imageProxy.width, imageProxy.height) }
-                ?: (emptyList<DetectedObject>() to scaleToModelInput(bitmap))
+                ?: DetectedFrame(emptyList(), scaleToModelInput(bitmap), 0f, -1)
 
-            Log.d("YoloEggAnalyzer", "Frame OK: raw=${rawBitmap.width}x${rawBitmap.height}, rotated=${bitmap.width}x${bitmap.height}, scaled=${detections.second.width}x${detections.second.height}, detections=${detections.first.size}")
+            Log.d("YoloEggAnalyzer", "Frame OK: raw=${rawBitmap.width}x${rawBitmap.height}, rotated=${bitmap.width}x${bitmap.height}, scaled=${detections.scaled.width}x${detections.scaled.height}, detections=${detections.objects.size}, maxScore=${detections.maxScore}, topClass=${detections.topClassId}")
 
             onResult(
                 DetectionResult(
-                    eggCount = detections.first.size,
+                    eggCount = detections.objects.size,
                     candidateCount = 0,
                     s2Count = 0,
                     processingTimeMs = System.currentTimeMillis() - startTime,
-                    objects = detections.first,
+                    objects = detections.objects,
                     imageWidth = imageProxy.width,
                     imageHeight = imageProxy.height,
-                    processedBitmap = detections.second,
-                    rawBitmap = bitmap
+                    processedBitmap = detections.scaled,
+                    rawBitmap = bitmap,
+                    maxScore = detections.maxScore,
+                    topClassId = detections.topClassId
                 )
             )
         } catch (e: Exception) {
@@ -160,18 +162,25 @@ class YoloEggAnalyzer(
         )
     }
 
+    private data class DetectedFrame(
+        val objects: List<DetectedObject>,
+        val scaled: Bitmap,
+        val maxScore: Float,
+        val topClassId: Int
+    )
+
     private fun detect(
         interpreter: Interpreter,
         bitmap: Bitmap,
         originalWidth: Int,
         originalHeight: Int
-    ): Pair<List<DetectedObject>, Bitmap> {
+    ): DetectedFrame {
         val scaled = scaleToModelInput(bitmap)
 
         // YOLOv8-TFLite erwartet typischerweise [0,1] normalisierte Floats im NHWC-Layout.
         // Wir testen zusätzlich [0,255] als Float, falls /255.0 nicht passt.
-        val inputBuffer01 = bitmapToFloatBuffer(scaled, normalize255 = true)
-        val inputBuffer255 = bitmapToFloatBuffer(scaled, normalize255 = false)
+        val inputBuffer01 = bitmapToFloatBuffer(scaled, normalize255 = false)
+        val inputBuffer255 = bitmapToFloatBuffer(scaled, normalize255 = true)
 
         val outputShape = interpreter.getOutputTensor(0).shape()
         val outputSize = outputShape.fold(1) { acc, value -> acc * value }
@@ -182,7 +191,7 @@ class YoloEggAnalyzer(
         outputBuffer.rewind()
 
         val valuesPerBox = outputValuesDim
-        if (valuesPerBox <= 0) return emptyList<DetectedObject>() to scaled
+        if (valuesPerBox <= 0) return DetectedFrame(emptyList(), scaled, 0f, -1)
 
         val hasObjectness = valuesPerBox == 85
         val classCount = if (hasObjectness) valuesPerBox - 5 else valuesPerBox - 4
@@ -259,27 +268,32 @@ class YoloEggAnalyzer(
         val scaleX = originalWidth.toFloat() / modelInputSize
         val scaleY = originalHeight.toFloat() / modelInputSize
 
-        return nmsBoxes.mapNotNull<RawDetection, DetectedObject> { raw ->
-            val x = (raw.x1 * scaleX).toInt()
-            val y = (raw.y1 * scaleY).toInt()
-            val width = ((raw.x2 - raw.x1) * scaleX).toInt()
-            val height = ((raw.y2 - raw.y1) * scaleY).toInt()
+        return DetectedFrame(
+            objects = nmsBoxes.mapNotNull<RawDetection, DetectedObject> { raw ->
+                val x = (raw.x1 * scaleX).toInt()
+                val y = (raw.y1 * scaleY).toInt()
+                val width = ((raw.x2 - raw.x1) * scaleX).toInt()
+                val height = ((raw.y2 - raw.y1) * scaleY).toInt()
 
-            if (width <= 0 || height <= 0) return@mapNotNull null
+                if (width <= 0 || height <= 0) return@mapNotNull null
 
-            val color = classifyColor(bitmap, x, y, width, height)
+                val color = classifyColor(bitmap, x, y, width, height)
 
-            DetectedObject(
-                x = x,
-                y = y,
-                width = width,
-                height = height,
-                isValidated = true,
-                colorR = color.r,
-                colorG = color.g,
-                colorB = color.b
-            )
-        }.take(maxDetections) to scaled
+                DetectedObject(
+                    x = x,
+                    y = y,
+                    width = width,
+                    height = height,
+                    isValidated = true,
+                    colorR = color.r,
+                    colorG = color.g,
+                    colorB = color.b
+                )
+            }.take(maxDetections),
+            scaled = scaled,
+            maxScore = maxSeenScore,
+            topClassId = topClassId
+        )
     }
 
     private fun readOutputValue(buffer: ByteBuffer, boxIndex: Int, valueIndex: Int): Float {

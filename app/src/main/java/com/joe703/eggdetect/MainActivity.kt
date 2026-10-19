@@ -379,31 +379,43 @@ fun StatusBar(result: DetectionResult) {
             .fillMaxWidth(0.9f)
             .padding(horizontal = 3.dp, vertical = 4.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+        Column(
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Box(modifier = Modifier.width(120.dp), contentAlignment = Alignment.CenterStart) {
-                Text(
-                    text = "Eier: ${result.eggCount}",
-                    color = Color.Yellow,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier
-                        .background(Color.Black.copy(alpha = 0.7f))
-                        .padding(horizontal = 4.dp, vertical = 4.dp)
-                )
-            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Box(modifier = Modifier.width(120.dp), contentAlignment = Alignment.CenterStart) {
+                    Text(
+                        text = "Eier: ${result.eggCount}",
+                        color = Color.Yellow,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier
+                            .background(Color.Black.copy(alpha = 0.7f))
+                            .padding(horizontal = 4.dp, vertical = 4.dp)
+                    )
+                }
 
-            Box(modifier = Modifier.width(220.dp), contentAlignment = Alignment.CenterEnd) {
-                Text(
-                    text = "${result.processingTimeMs}ms@${result.imageWidth}x${result.imageHeight}",
-                    color = Color.Gray,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier
-                        .background(Color.Black.copy(alpha = 0.7f))
-                        .padding(horizontal = 4.dp, vertical = 4.dp)
-                )
+                Box(modifier = Modifier.width(220.dp), contentAlignment = Alignment.CenterEnd) {
+                    Text(
+                        text = "${result.processingTimeMs}ms@${result.imageWidth}x${result.imageHeight}",
+                        color = Color.Gray,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier
+                            .background(Color.Black.copy(alpha = 0.7f))
+                            .padding(horizontal = 4.dp, vertical = 4.dp)
+                    )
+                }
             }
+            Text(
+                text = "MaxScore: ${"%.3f".format(result.maxScore)} class=${result.topClassId} (need >0.15)",
+                color = Color.Cyan,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier
+                    .background(Color.Black.copy(alpha = 0.7f))
+                    .padding(horizontal = 4.dp, vertical = 2.dp)
+            )
         }
     }
 }
