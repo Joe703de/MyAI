@@ -35,7 +35,7 @@ import kotlin.math.min
  */
 class YoloEggAnalyzer(
     context: Context,
-    private val inputMode: Int = 0,
+    private val inputModeProvider: () -> Int,
     private val onResult: (DetectionResult) -> Unit
 ) : ImageAnalysis.Analyzer {
 
@@ -140,10 +140,10 @@ class YoloEggAnalyzer(
             val rotationDegrees = imageProxy.imageInfo.rotationDegrees
             val bitmap = if (rotationDegrees != 0) rotateBitmap(rawBitmap, rotationDegrees) else rawBitmap
 
-            val detections = interpreter?.let { detect(it, bitmap, imageProxy.width, imageProxy.height) }
+            val detections = interpreter?.let { detect(it, bitmap, imageProxy.width, imageProxy.height, inputModeProvider()) }
                 ?: DetectedFrame(emptyList(), scaleToModelInput(bitmap), 0f, -1)
 
-            Log.i("YoloEggAnalyzer", "Frame OK: mode=$inputMode raw=${rawBitmap.width}x${rawBitmap.height}, rotated=${bitmap.width}x${bitmap.height}, scaled=${detections.scaled.width}x${detections.scaled.height}, detections=${detections.objects.size}, maxScore=${detections.maxScore}, topClass=${detections.topClassId}")
+            Log.i("YoloEggAnalyzer", "Frame OK: mode=${inputModeProvider()} raw=${rawBitmap.width}x${rawBitmap.height}, rotated=${bitmap.width}x${bitmap.height}, scaled=${detections.scaled.width}x${detections.scaled.height}, detections=${detections.objects.size}, maxScore=${detections.maxScore}, topClass=${detections.topClassId}")
 
             onResult(
                 DetectionResult(
@@ -158,7 +158,7 @@ class YoloEggAnalyzer(
                     rawBitmap = bitmap,
                     maxScore = detections.maxScore,
                     topClassId = detections.topClassId,
-                    inputMode = inputMode
+                    inputMode = inputModeProvider()
                 )
             )
         } catch (e: Exception) {
@@ -197,7 +197,8 @@ class YoloEggAnalyzer(
         interpreter: Interpreter,
         bitmap: Bitmap,
         originalWidth: Int,
-        originalHeight: Int
+        originalHeight: Int,
+        inputMode: Int
     ): DetectedFrame {
         val scaled = scaleToModelInput(bitmap)
 

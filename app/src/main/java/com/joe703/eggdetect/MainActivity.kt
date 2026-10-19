@@ -159,7 +159,7 @@ fun CameraScreen() {
     var inputMode by remember { mutableStateOf(0) } // 0=RGB[0,1], 1=BGR[0,1], 2=RGB[0,255], 3=BGR[0,255]
     var frameCount by remember { mutableStateOf(0) }
 
-    val imageAnalyzer = remember(context, inputMode) {
+    val imageAnalyzer = remember(context) {
         ImageAnalysis.Builder()
             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
             .setResolutionSelector(
@@ -176,7 +176,7 @@ fun CameraScreen() {
             .also {
                 it.setAnalyzer(
                     Executors.newSingleThreadExecutor(),
-                    YoloEggAnalyzer(context, inputMode) { result ->
+                    YoloEggAnalyzer(context, inputModeProvider = { inputMode }) { result ->
                         val activity = context as? ComponentActivity
                         activity?.runOnUiThread {
                             detectionResult = result
