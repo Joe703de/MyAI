@@ -438,8 +438,14 @@ fun StatusBar(result: DetectionResult) {
                     )
                 }
             }
+            val firstBox = result.objects.firstOrNull()
+            val boxText = if (firstBox != null) {
+                " box=[${firstBox.x},${firstBox.y} ${firstBox.width}x${firstBox.height}]"
+            } else {
+                " no box"
+            }
             Text(
-                text = "AutoScore: ${"%.3f".format(result.topCarScore)} (need >0.3)",
+                text = "AutoScore: ${"%.3f".format(result.topCarScore)} (need >0.3)$boxText",
                 color = Color.Cyan,
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier
