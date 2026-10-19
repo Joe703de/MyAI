@@ -236,6 +236,7 @@ class YoloEggAnalyzer(
         var topClassId = -1
         var topConfidence = 0f
         var topCarScore = 0f
+        var candidateCount = 0
 
         for (i in 0 until outputBoxesDim) {
             val cx = readOutputValue(outputBuffer, i, 0)
@@ -266,7 +267,9 @@ class YoloEggAnalyzer(
             // Box verwenden, wenn der Auto-Score über dem Threshold liegt
             if (carScore < confThreshold) continue
 
-            if (candidates.size < 5) {
+            candidateCount++
+
+            if (candidateCount <= 5) {
                 Log.i("YoloEggAnalyzer", "Detection candidate box=$i class=$classId carScore=$carScore box=[$cx, $cy, $w, $h]")
             }
 
@@ -289,11 +292,14 @@ class YoloEggAnalyzer(
             )
         }
 
-        Log.i("YoloEggAnalyzer", "Top score: class=$topClassId confidence=$topConfidence maxClassScore=$maxSeenScore topCarScore=$topCarScore at box=$maxSeenBox")
+        Log.i("YoloEggAnalyzer", "Top score: class=$topClassId confidence=$topConfidence maxClassScore=$maxSeenScore topCarScore=$topCarScore candidateCount=$candidateCount at box=$maxSeenBox")
 
         val nmsBoxes = nms(candidates)
 
         Log.i("YoloEggAnalyzer", "NMS kept ${nmsBoxes.size} detections from ${candidates.size} candidates")
+        nmsBoxes.forEachIndexed { index, raw ->
+            Log.i("YoloEggAnalyzer", "NMS result $index: score=${raw.score} box=[${raw.x1}, ${raw.y1}, ${raw.x2}, ${raw.y2}]")
+        }
         Log.i("YoloEggAnalyzer", "Max seen score was $maxSeenScore at box $maxSeenBox")
 
         // Skalierung auf Originalgröße
