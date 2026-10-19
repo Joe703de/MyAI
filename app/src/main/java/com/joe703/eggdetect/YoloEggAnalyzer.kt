@@ -30,7 +30,7 @@ import kotlin.math.min
  *   - [1, N, 5 + C]  (x, y, w, h, conf, class-scores...)
  *   - [1, 5 + C, N]  (transponiert)
  *
- * Die Farbklassifikation erfolgt nach dem YOLO-Crop per einfacher Mittelwert-Analyse,
+ * Die Farbklassifikation erfolgt im erkannten Bereich per HSV-Pixelabstimmung,
  * ohne OpenCV.
  */
 class YoloEggAnalyzer(
@@ -393,49 +393,56 @@ class YoloEggAnalyzer(
     }
 
     private fun classifyColor(bitmap: Bitmap, x: Int, y: Int, width: Int, height: Int): RGB {
-        val clampedX = x.coerceIn(0, bitmap.width - 1)
-        val clampedY = y.coerceIn(0, bitmap.height - 1)
-        val clampedWidth = min(width, bitmap.width - clampedX)
-        val clampedHeight = min(height, bitmap.height - clampedY)
+        val unknown = RGB(128, 128, 128)
+        val left = x.coerceIn(0, bitmap.width)
+        val top = y.coerceIn(0, bitmap.height)
+        val right = (x + width).coerceIn(0, bitmap.width)
+        val bottom = (y + height).coerceIn(0, bitmap.height)
+        if (right <= left || bottom <= top) return unknown
 
-        if (clampedWidth <= 0 || clampedHeight <= 0) {
-            return RGB(255, 255, 0)
-        }
+        // Rand etwas auslassen: Dort liegt besonders häufig Hintergrund.
+        val insetX = (right - left) / 10
+        val insetY = (bottom - top) / 10
+        val sampleLeft = left + insetX
+        val sampleTop = top + insetY
+        val sampleRight = right - insetX
+        val sampleBottom = bottom - insetY
+        val stepX = max(1, (sampleRight - sampleLeft) / 24)
+        val stepY = max(1, (sampleBottom - sampleTop) / 24)
+        val names = listOf("Rot", "Gelb", "Grün", "Blau")
+        val votes = IntArray(names.size)
+        val hsv = FloatArray(3)
+        var sampled = 0
+        var chromatic = 0
 
-        var rSum = 0L
-        var gSum = 0L
-        var bSum = 0L
-        var count = 0
-
-        val stepX = max(1, clampedWidth / 10)
-        val stepY = max(1, clampedHeight / 10)
-
-        for (py in clampedY until clampedY + clampedHeight step stepY) {
-            for (px in clampedX until clampedX + clampedWidth step stepX) {
-                val pixel = bitmap.getPixel(px, py)
-                rSum += (pixel shr 16) and 0xFF
-                gSum += (pixel shr 8) and 0xFF
-                bSum += pixel and 0xFF
-                count++
+        for (py in sampleTop until sampleBottom step stepY) {
+            for (px in sampleLeft until sampleRight step stepX) {
+                sampled++
+                Color.colorToHSV(bitmap.getPixel(px, py), hsv)
+                // Keine Abstimmung durch Grau, Weiß oder sehr dunkle Schatten.
+                // Helles, gesättigtes Gelb bleibt ausdrücklich zugelassen.
+                if (hsv[1] < 0.30f || hsv[2] < 0.20f) continue
+                chromatic++
+                val hue = hsv[0]
+                val index = when {
+                    hue < 25f || hue >= 335f -> 0
+                    hue >= 35f && hue < 75f -> 1
+                    hue >= 75f && hue < 170f -> 2
+                    hue >= 190f && hue < 265f -> 3
+                    else -> -1 // Orange, Türkis und Violett nicht erzwingen.
+                }
+                if (index >= 0) votes[index]++
             }
         }
 
-        if (count == 0) return RGB(255, 255, 0)
+        val winner = votes.indices.maxByOrNull { votes[it] } ?: return unknown
+        // Mindestens 10 % der Fläche und eine klare Mehrheit der farbigen Pixel.
+        // Auch nicht unterstützte Farbtöne zählen im Nenner mit.
+        if (sampled == 0 || votes[winner] < 3 ||
+            votes[winner] < sampled * 0.10f || votes[winner] <= chromatic * 0.60f
+        ) return unknown
 
-        val avgR = (rSum / count).toInt()
-        val avgG = (gSum / count).toInt()
-        val avgB = (bSum / count).toInt()
-
-        return colorConfigs.minByOrNull<EggColor, Double> { config ->
-            colorDistance(config.rgb, avgR, avgG, avgB)
-        }?.rgb ?: RGB(255, 255, 0)
-    }
-
-    private fun colorDistance(rgb: RGB, r: Int, g: Int, b: Int): Double {
-        val dr = rgb.r - r
-        val dg = rgb.g - g
-        val db = rgb.b - b
-        return (dr * dr + dg * dg + db * db).toDouble()
+        return colorConfigs.firstOrNull { it.name == names[winner] }?.rgb ?: unknown
     }
 
     private fun loadColorConfig(context: Context): List<EggColor> {
@@ -446,7 +453,9 @@ class YoloEggAnalyzer(
             Log.i("YoloEggAnalyzer", "Failed to load color config: ${e.message}")
             listOf(
                 EggColor("Gelb", RGB(255, 255, 0)),
-                EggColor("Rot", RGB(255, 0, 0))
+                EggColor("Rot", RGB(255, 0, 0)),
+                EggColor("Grün", RGB(0, 255, 0)),
+                EggColor("Blau", RGB(0, 0, 255))
             )
         }
     }
