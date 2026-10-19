@@ -252,7 +252,10 @@ class YoloEggAnalyzer(
         val postprocessStart = System.currentTimeMillis()
 
         val valuesPerBox = outputValuesDim
-        if (valuesPerBox <= 0) return DetectedFrame(emptyList(), scaled, 0f, -1, 0f, 0f, -1)
+        if (valuesPerBox <= 0) return DetectedFrame(
+            emptyList(), scaled, 0f, -1, 0f, 0f, -1,
+            TimingBreakdown(preprocessMs = preprocessMs, inferenceMs = inferenceMs, postprocessMs = 0L, totalMs = preprocessMs + inferenceMs, delegateName = if (gpuDelegate != null) "GPU" else "CPU")
+        )
 
         val hasObjectness = valuesPerBox == 85
         val classCount = if (hasObjectness) valuesPerBox - 5 else valuesPerBox - 4
