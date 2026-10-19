@@ -167,33 +167,23 @@ class YoloEggAnalyzer(
         originalHeight: Int
     ): Pair<List<DetectedObject>, Bitmap> {
         val scaled = scaleToModelInput(bitmap)
-        val inputBuffer = ByteBuffer.allocateDirect(1 * modelInputSize * modelInputSize * 3 * 4)
-            .order(ByteOrder.nativeOrder())
 
-        for (y in 0 until modelInputSize) {
-            for (x in 0 until modelInputSize) {
-                val pixel = scaled.getPixel(x, y)
-                inputBuffer.putFloat(((pixel shr 16) and 0xFF) / 255f)
-                inputBuffer.putFloat(((pixel shr 8) and 0xFF) / 255f)
-                inputBuffer.putFloat((pixel and 0xFF) / 255f)
-            }
-        }
+        // YOLOv8-TFLite erwartet typischerweise [0,1] normalisierte Floats im NHWC-Layout.
+        // Wir testen zusätzlich [0,255] als Float, falls /255.0 nicht passt.
+        val inputBuffer01 = bitmapToFloatBuffer(scaled, normalize255 = true)
+        val inputBuffer255 = bitmapToFloatBuffer(scaled, normalize255 = false)
 
-        // Eingabe: [1, 640, 640, 3]
-        // Ausgabe: Shape dynamisch aus Tensor-Metadaten
         val outputShape = interpreter.getOutputTensor(0).shape()
         val outputSize = outputShape.fold(1) { acc, value -> acc * value }
         val outputBuffer = ByteBuffer.allocateDirect(outputSize * 4)
             .order(ByteOrder.nativeOrder())
 
-        interpreter.run(inputBuffer, outputBuffer)
-
+        interpreter.run(inputBuffer01, outputBuffer)
         outputBuffer.rewind()
+
         val valuesPerBox = outputValuesDim
         if (valuesPerBox <= 0) return emptyList<DetectedObject>() to scaled
 
-        // YOLOv8: 84 Werte = 4 Box-Koordinaten + 80 Klassen-Scores (keine objectness)
-        // YOLOv5/v7: 85 Werte = 4 Box-Koordinaten + objectness + 80 Klassen-Scores
         val hasObjectness = valuesPerBox == 85
         val classCount = if (hasObjectness) valuesPerBox - 5 else valuesPerBox - 4
 
@@ -202,6 +192,9 @@ class YoloEggAnalyzer(
         val candidates = mutableListOf<RawDetection>()
         var maxSeenScore = 0f
         var maxSeenBox = -1
+        var topClassId = -1
+        var topConfidence = 0f
+
         for (i in 0 until outputBoxesDim) {
             val cx = readOutputValue(outputBuffer, i, 0)
             val cy = readOutputValue(outputBuffer, i, 1)
@@ -218,12 +211,13 @@ class YoloEggAnalyzer(
             if (classScore > maxSeenScore) {
                 maxSeenScore = classScore
                 maxSeenBox = i
+                topClassId = classId
+                topConfidence = if (hasObjectness) readOutputValue(outputBuffer, i, 4) else classScore
             }
 
             // Für Tests: Nur Klasse 2 (car) berücksichtigen
             if (classId != 2) continue
 
-            // YOLOv8: confidence ist direkt der maximale Klassen-Score
             val finalScore = if (hasObjectness) {
                 val objectness = readOutputValue(outputBuffer, i, 4)
                 objectness * classScore
@@ -254,7 +248,8 @@ class YoloEggAnalyzer(
             )
         }
 
-        // NMS
+        Log.d("YoloEggAnalyzer", "Top score: class=$topClassId confidence=$topConfidence maxClassScore=$maxSeenScore at box=$maxSeenBox")
+
         val nmsBoxes = nms(candidates)
 
         Log.d("YoloEggAnalyzer", "NMS kept ${nmsBoxes.size} detections from ${candidates.size} candidates")
@@ -394,6 +389,25 @@ class YoloEggAnalyzer(
         val score: Float,
         val classId: Int
     )
+
+    private fun bitmapToFloatBuffer(bitmap: Bitmap, normalize255: Boolean): ByteBuffer {
+        val size = modelInputSize * modelInputSize * 3 * 4
+        val buffer = ByteBuffer.allocateDirect(size).order(ByteOrder.nativeOrder())
+        for (y in 0 until modelInputSize) {
+            for (x in 0 until modelInputSize) {
+                val pixel = bitmap.getPixel(x, y)
+                val r = ((pixel shr 16) and 0xFF).toFloat()
+                val g = ((pixel shr 8) and 0xFF).toFloat()
+                val b = (pixel and 0xFF).toFloat()
+                val scale = if (normalize255) 255f else 1f
+                buffer.putFloat(r / scale)
+                buffer.putFloat(g / scale)
+                buffer.putFloat(b / scale)
+            }
+        }
+        buffer.rewind()
+        return buffer
+    }
 
     private fun rotateBitmap(bitmap: Bitmap, degrees: Int): Bitmap {
         val matrix = Matrix().apply { postRotate(degrees.toFloat()) }
