@@ -276,6 +276,7 @@ class YoloEggAnalyzer(
         var candidateCount = 0
         var maxGlobalScore = 0f
         var maxGlobalClassId = -1
+        val classScores = FloatArray(classCount)
 
         for (i in 0 until outputBoxesDim) {
             val cx = readOutputValue(outputArray, i, 0)
@@ -283,9 +284,16 @@ class YoloEggAnalyzer(
             val w = readOutputValue(outputArray, i, 2)
             val h = readOutputValue(outputArray, i, 3)
 
-            val classScores = FloatArray(classCount) { j ->
-                val valueOffset = if (hasObjectness) 5 else 4
-                readOutputValue(outputArray, i, valueOffset + j)
+            // Bei YOLOv8-Format (85 Werte) erst objectness prüfen.
+            // Nur bei relevantem objectness die Klassen-Scores auslesen.
+            val objectness = if (hasObjectness) readOutputValue(outputArray, i, 4) else 1f
+            if (hasObjectness && objectness < confThreshold * 0.5f) {
+                continue
+            }
+
+            val valueOffset = if (hasObjectness) 5 else 4
+            for (j in classScores.indices) {
+                classScores[j] = readOutputValue(outputArray, i, valueOffset + j)
             }
             val classId = classScores.indices.maxByOrNull { classScores[it] } ?: 0
             val classScore = classScores.getOrElse(classId) { 0f }
@@ -301,7 +309,7 @@ class YoloEggAnalyzer(
                 maxSeenScore = classScore
                 maxSeenBox = i
                 topClassId = classId
-                topConfidence = if (hasObjectness) readOutputValue(outputArray, i, 4) else classScore
+                topConfidence = objectness
             }
 
             // Besten Target-Score für Debug-Anzeige merken
