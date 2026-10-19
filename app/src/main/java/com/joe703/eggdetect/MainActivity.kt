@@ -480,15 +480,6 @@ fun DetectionOverlay(
     val offsetY = (previewHeight - scaledHeight) / 2
 
     Canvas(modifier = Modifier.fillMaxSize()) {
-        val crossX = previewWidth / 2
-        val crossY = previewHeight / 2
-        drawRect(
-            color = Color.Magenta,
-            topLeft = Offset(crossX - 40f, crossY - 40f),
-            size = Size(80f, 80f),
-            style = Stroke(width = 4f)
-        )
-
         objects.forEach { obj ->
             val color = Color(obj.colorR, obj.colorG, obj.colorB)
 
