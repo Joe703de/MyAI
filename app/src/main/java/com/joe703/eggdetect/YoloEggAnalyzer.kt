@@ -141,17 +141,33 @@ class YoloEggAnalyzer(
             val rotationDegrees = imageProxy.imageInfo.rotationDegrees
             val bitmap = if (rotationDegrees != 0) rotateBitmap(rawBitmap, rotationDegrees) else rawBitmap
 
-            val detections = interpreter?.let { detect(it, bitmap, bitmap.width, bitmap.height, targetClassProvider()) }
-                ?: DetectedFrame(emptyList(), scaleToModelInput(bitmap), 0f, -1, 0f, 0f, -1)
+            val preprocessTime = System.currentTimeMillis() - startTime
+            val detections = interpreter?.let { detect(it, bitmap, bitmap.width, bitmap.height, targetClassProvider(), preprocessTime) }
+                ?: DetectedFrame(
+                    emptyList(),
+                    scaleToModelInput(bitmap),
+                    0f,
+                    -1,
+                    0f,
+                    0f,
+                    -1,
+                    TimingBreakdown(preprocessMs = preprocessTime, totalMs = System.currentTimeMillis() - startTime, delegateName = "no-model")
+                )
 
-            Log.i("YoloEggAnalyzer", "Frame OK: class=${targetClassProvider()} raw=${rawBitmap.width}x${rawBitmap.height}, rotated=${bitmap.width}x${bitmap.height}, scaled=${detections.scaled.width}x${detections.scaled.height}, detections=${detections.objects.size}, maxScore=${detections.maxScore}, topClass=${detections.topClassId}, topCarScore=${detections.topCarScore}")
+            Log.i(
+                "YoloEggAnalyzer",
+                "Frame OK: class=${targetClassProvider()} raw=${rawBitmap.width}x${rawBitmap.height}, rotated=${bitmap.width}x${bitmap.height}, " +
+                "scaled=${detections.scaled.width}x${detections.scaled.height}, detections=${detections.objects.size}, " +
+                "maxScore=${detections.maxScore}, topClass=${detections.topClassId}, topCarScore=${detections.topCarScore} " +
+                "timing=${detections.timing}"
+            )
 
             onResult(
                 DetectionResult(
                     eggCount = detections.objects.size,
                     candidateCount = 0,
                     s2Count = 0,
-                    processingTimeMs = System.currentTimeMillis() - startTime,
+                    processingTimeMs = detections.timing.totalMs,
                     objects = detections.objects,
                     imageWidth = bitmap.width,
                     imageHeight = bitmap.height,
@@ -162,7 +178,8 @@ class YoloEggAnalyzer(
                     inputMode = inputMode,
                     topCarScore = detections.topCarScore,
                     maxGlobalScore = detections.maxGlobalScore,
-                    maxGlobalClassId = detections.maxGlobalClassId
+                    maxGlobalClassId = detections.maxGlobalClassId,
+                    timingMs = detections.timing
                 )
             )
         } catch (e: Exception) {
@@ -185,7 +202,12 @@ class YoloEggAnalyzer(
                 imageWidth = width,
                 imageHeight = height,
                 processedBitmap = bitmap,
-                rawBitmap = bitmap
+                rawBitmap = bitmap,
+                timingMs = TimingBreakdown(
+                    preprocessMs = System.currentTimeMillis() - startTime,
+                    totalMs = System.currentTimeMillis() - startTime,
+                    delegateName = "error"
+                )
             )
         )
     }
@@ -197,7 +219,8 @@ class YoloEggAnalyzer(
         val topClassId: Int,
         val topCarScore: Float,
         val maxGlobalScore: Float,
-        val maxGlobalClassId: Int
+        val maxGlobalClassId: Int,
+        val timing: TimingBreakdown
     )
 
     private fun detect(
@@ -205,7 +228,8 @@ class YoloEggAnalyzer(
         bitmap: Bitmap,
         originalWidth: Int,
         originalHeight: Int,
-        targetClassId: Int
+        targetClassId: Int,
+        preprocessMs: Long
     ): DetectedFrame {
         val scaled = scaleToModelInput(bitmap)
 
@@ -213,13 +237,19 @@ class YoloEggAnalyzer(
 
         Log.i("YoloEggAnalyzer", "Running inference for targetClass=$targetClassId")
 
+        val inferenceStart = System.currentTimeMillis()
+
         val outputShape = interpreter.getOutputTensor(0).shape()
         val outputSize = outputShape.fold(1) { acc, value -> acc * value }
         val outputBuffer = ByteBuffer.allocateDirect(outputSize * 4)
             .order(ByteOrder.nativeOrder())
 
         interpreter.run(inputBuffer, outputBuffer)
+
+        val inferenceMs = System.currentTimeMillis() - inferenceStart
         outputBuffer.rewind()
+
+        val postprocessStart = System.currentTimeMillis()
 
         val valuesPerBox = outputValuesDim
         if (valuesPerBox <= 0) return DetectedFrame(emptyList(), scaled, 0f, -1, 0f, 0f, -1)
@@ -309,6 +339,8 @@ class YoloEggAnalyzer(
         }
         Log.i("YoloEggAnalyzer", "Max seen score was $maxSeenScore at box $maxSeenBox")
 
+        val postprocessMs = System.currentTimeMillis() - postprocessStart
+
         // Center-Crop und Modellskalierung ins vollständige Bitmap zurückrechnen.
         // Dieselben ganzzahligen Ausschnitt-Offsets wie in cropToCenterSquare verwenden.
         val cropSize = min(originalWidth, originalHeight)
@@ -343,7 +375,14 @@ class YoloEggAnalyzer(
             topClassId = topClassId,
             topCarScore = topCarScore,
             maxGlobalScore = maxGlobalScore,
-            maxGlobalClassId = maxGlobalClassId
+            maxGlobalClassId = maxGlobalClassId,
+            timing = TimingBreakdown(
+                preprocessMs = preprocessMs,
+                inferenceMs = inferenceMs,
+                postprocessMs = postprocessMs,
+                totalMs = preprocessMs + inferenceMs + postprocessMs,
+                delegateName = if (gpuDelegate != null) "GPU" else "CPU"
+            )
         )
     }
 

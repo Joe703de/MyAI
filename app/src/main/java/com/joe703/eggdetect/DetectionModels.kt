@@ -20,7 +20,19 @@ data class DetectionResult(
     val inputMode: Int = 0,
     val topCarScore: Float = 0f,
     val maxGlobalScore: Float = 0f,
-    val maxGlobalClassId: Int = -1
+    val maxGlobalClassId: Int = -1,
+    val timingMs: TimingBreakdown = TimingBreakdown()
+)
+
+/**
+ * Detailliertes Timing für die Analysepipeline.
+ */
+data class TimingBreakdown(
+    val preprocessMs: Long = 0,
+    val inferenceMs: Long = 0,
+    val postprocessMs: Long = 0,
+    val totalMs: Long = 0,
+    val delegateName: String = "unknown"
 )
 
 /**

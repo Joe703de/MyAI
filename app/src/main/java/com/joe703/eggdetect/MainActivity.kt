@@ -458,6 +458,14 @@ fun StatusBar(result: DetectionResult, previewWidth: Float, previewHeight: Float
                     .background(Color.Black.copy(alpha = 0.7f))
                     .padding(horizontal = 4.dp, vertical = 2.dp)
             )
+            Text(
+                text = "Timing ${result.timingMs.totalMs}ms: prep=${result.timingMs.preprocessMs} inf=${result.timingMs.inferenceMs} post=${result.timingMs.postprocessMs} [${result.timingMs.delegateName}]",
+                color = Color.Yellow,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier
+                    .background(Color.Black.copy(alpha = 0.7f))
+                    .padding(horizontal = 4.dp, vertical = 2.dp)
+            )
         }
     }
 }
