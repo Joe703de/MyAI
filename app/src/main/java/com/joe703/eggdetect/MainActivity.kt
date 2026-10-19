@@ -443,7 +443,7 @@ fun StatusBar(result: DetectionResult, previewWidth: Float, previewHeight: Float
                 "-"
             }
             Text(
-                text = "Target: ${"%.3f".format(result.topCarScore)} Global: ${"%.3f".format(result.maxGlobalScore)} class=${result.maxGlobalClassId} box: $boxText",
+                text = "Target: ${"%.3f".format(result.topCarScore)} Global: ${"%.3f".format(result.maxGlobalScore)} class=${result.maxGlobalClassId} $boxText",
                 color = Color.Cyan,
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier
