@@ -380,21 +380,57 @@ class YoloEggAnalyzer(
         }
     }
 
+    private data class RawDetection(
+        val x1: Float,
+        val y1: Float,
+        val x2: Float,
+        val y2: Float,
+        val score: Float,
+        val classId: Int
+    )
+
     private fun ImageProxy.toBitmap(): Bitmap? {
         return try {
-            val yBuffer = planes[0].buffer
-            val uBuffer = planes[1].buffer
-            val vBuffer = planes[2].buffer
+            val yPlane = planes[0]
+            val uPlane = planes[1]
+            val vPlane = planes[2]
 
-            val ySize = yBuffer.remaining()
-            val uSize = uBuffer.remaining()
-            val vSize = vBuffer.remaining()
+            val yBuffer = yPlane.buffer
+            val uBuffer = uPlane.buffer
+            val vBuffer = vPlane.buffer
 
-            // NV21 erwartet Y, gefolgt von interleaved VU (nicht UV)
-            val nv21 = ByteArray(ySize + uSize + vSize)
-            yBuffer.get(nv21, 0, ySize)
-            vBuffer.get(nv21, ySize, vSize)
-            uBuffer.get(nv21, ySize + vSize, uSize)
+            val ySize = width * height
+            val uvSize = width * height / 2
+            val nv21 = ByteArray(ySize + uvSize)
+
+            // Y-Plane kopieren, dabei rowStride beachten
+            val yRowStride = yPlane.rowStride
+            val yPixelStride = yPlane.pixelStride
+            var pos = 0
+            for (row in 0 until height) {
+                yBuffer.position(row * yRowStride)
+                for (col in 0 until width) {
+                    nv21[pos++] = yBuffer.get(col * yPixelStride)
+                }
+            }
+
+            // U/V-Planes zu interleaved VU zusammenführen
+            val uvRowStride = uPlane.rowStride
+            val uvPixelStride = uPlane.pixelStride
+            val uvHeight = height / 2
+            val uvWidth = width / 2
+            var nvPos = ySize
+            for (row in 0 until uvHeight) {
+                val uRowPos = row * uvRowStride
+                val vRowPos = row * vPlane.rowStride
+                uBuffer.position(uRowPos)
+                vBuffer.position(vRowPos)
+                for (col in 0 until uvWidth) {
+                    val offset = col * uvPixelStride
+                    nv21[nvPos++] = vBuffer.get(offset) // V
+                    nv21[nvPos++] = uBuffer.get(offset) // U
+                }
+            }
 
             val yuvImage = YuvImage(nv21, ImageFormat.NV21, width, height, null)
             val output = ByteArrayOutputStream()
@@ -405,14 +441,4 @@ class YoloEggAnalyzer(
             Log.e("YoloEggAnalyzer", "toBitmap failed: ${e.message}", e)
             null
         }
-    }
-
-    private data class RawDetection(
-        val x1: Float,
-        val y1: Float,
-        val x2: Float,
-        val y2: Float,
-        val score: Float,
-        val classId: Int
-    )
-}
+    }}
