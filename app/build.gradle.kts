@@ -49,26 +49,30 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
-    
-    // OpenCV via quickbirdstudios (bekannte funktionierende Version)
-    implementation("com.quickbirdstudios:opencv:4.5.3.0")
-    
+
+    // TensorFlow Lite + GPU Delegate
+    implementation(libs.tensorflow.lite)
+    implementation(libs.tensorflow.lite.gpu)
+    implementation(libs.tensorflow.lite.gpu.api)
+    // tensorflow-lite-support darf nicht gleichzeitig mit support-api verwendet werden
+    // implementation(libs.tensorflow.lite.support)
+
     // Kotlinx Serialization für JSON
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
-    
+
     // CameraX - neueste Version mit 16 KB Support
     val cameraxVersion = "1.4.0-alpha05"
     implementation("androidx.camera:camera-core:$cameraxVersion")
     implementation("androidx.camera:camera-camera2:$cameraxVersion")
     implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
     implementation("androidx.camera:camera-view:$cameraxVersion")
-    
+
     // Permissions
     implementation("com.google.accompanist:accompanist-permissions:0.35.1-alpha")
-    
+
     // Lifecycle für Compose
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
-    
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
