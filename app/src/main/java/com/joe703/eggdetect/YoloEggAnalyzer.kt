@@ -109,12 +109,15 @@ class YoloEggAnalyzer(
         try {
             val bitmap = imageProxy.toBitmap()
             if (bitmap == null) {
-                onEmptyResult(startTime, imageProxy.width, imageProxy.height)
+                Log.w("YoloEggAnalyzer", "imageProxy.toBitmap() returned null")
+                onEmptyResult(startTime, imageProxy.width, imageProxy.height, null)
                 return
             }
 
             val detections = interpreter?.let { detect(it, bitmap, imageProxy.width, imageProxy.height) }
                 ?: (emptyList<DetectedObject>() to bitmap)
+
+            Log.d("YoloEggAnalyzer", "Returning ${detections.first.size} detections, processedBitmap=${detections.second.width}x${detections.second.height}")
 
             onResult(
                 DetectionResult(
@@ -130,13 +133,13 @@ class YoloEggAnalyzer(
             )
         } catch (e: Exception) {
             Log.e("YoloEggAnalyzer", "Error during analysis: ${e.message}", e)
-            onEmptyResult(startTime, imageProxy.width, imageProxy.height)
+            onEmptyResult(startTime, imageProxy.width, imageProxy.height, null)
         } finally {
             imageProxy.close()
         }
     }
 
-    private fun onEmptyResult(startTime: Long, width: Int, height: Int) {
+    private fun onEmptyResult(startTime: Long, width: Int, height: Int, bitmap: Bitmap?) {
         onResult(
             DetectionResult(
                 eggCount = 0,
@@ -145,7 +148,8 @@ class YoloEggAnalyzer(
                 processingTimeMs = System.currentTimeMillis() - startTime,
                 objects = emptyList(),
                 imageWidth = width,
-                imageHeight = height
+                imageHeight = height,
+                processedBitmap = bitmap
             )
         )
     }
