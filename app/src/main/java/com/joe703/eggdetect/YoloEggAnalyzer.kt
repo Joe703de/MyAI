@@ -60,7 +60,7 @@ class YoloEggAnalyzer(
                 addDelegate(gpuDelegate)
             }
             interpreter = Interpreter(model, options)
-            inspectModel(interpreter!!)
+            inspectModel(interpreter)
             inspectOutputShape()
             Log.d("YoloEggAnalyzer", "YOLO interpreter initialized")
         } catch (e: Exception) {
@@ -81,17 +81,25 @@ class YoloEggAnalyzer(
         }
     }
 
-    private fun inspectModel(interpreter: Interpreter) {
-        val inputTensor = interpreter.getInputTensor(0)
-        val outputTensor = interpreter.getOutputTensor(0)
-        Log.d(
-            "YoloEggAnalyzer",
-            "Model input: shape=${inputTensor.shape().contentToString()}, dtype=${inputTensor.dataType()}"
-        )
-        Log.d(
-            "YoloEggAnalyzer",
-            "Model output: shape=${outputTensor.shape().contentToString()}, dtype=${outputTensor.dataType()}"
-        )
+    private fun inspectModel(interpreter: Interpreter?) {
+        if (interpreter == null) {
+            Log.w("YoloEggAnalyzer", "inspectModel called with null interpreter")
+            return
+        }
+        try {
+            val inputTensor = interpreter.getInputTensor(0)
+            val outputTensor = interpreter.getOutputTensor(0)
+            Log.d(
+                "YoloEggAnalyzer",
+                "Model input: shape=${inputTensor.shape().contentToString()}, dtype=${inputTensor.dataType()}"
+            )
+            Log.d(
+                "YoloEggAnalyzer",
+                "Model output: shape=${outputTensor.shape().contentToString()}, dtype=${outputTensor.dataType()}"
+            )
+        } catch (e: Exception) {
+            Log.e("YoloEggAnalyzer", "inspectModel failed: ${e.message}", e)
+        }
     }
 
     private fun inspectOutputShape() {
@@ -481,6 +489,9 @@ class YoloEggAnalyzer(
             val bitmap = this.toBitmap()
             Log.d("YoloEggAnalyzer", "CameraX toBitmap success: ${bitmap.width}x${bitmap.height}")
             bitmap
+        } catch (e: NoSuchMethodError) {
+            Log.e("YoloEggAnalyzer", "CameraX toBitmap not available in this version", e)
+            null
         } catch (e: Exception) {
             Log.e("YoloEggAnalyzer", "CameraX toBitmap failed: ${e.message}", e)
             null
