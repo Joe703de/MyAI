@@ -390,10 +390,11 @@ class YoloEggAnalyzer(
             val uSize = uBuffer.remaining()
             val vSize = vBuffer.remaining()
 
+            // NV21 erwartet Y, gefolgt von interleaved VU (nicht UV)
             val nv21 = ByteArray(ySize + uSize + vSize)
             yBuffer.get(nv21, 0, ySize)
-            uBuffer.get(nv21, ySize, uSize)
-            vBuffer.get(nv21, ySize + uSize, vSize)
+            vBuffer.get(nv21, ySize, vSize)
+            uBuffer.get(nv21, ySize + vSize, uSize)
 
             val yuvImage = YuvImage(nv21, ImageFormat.NV21, width, height, null)
             val output = ByteArrayOutputStream()

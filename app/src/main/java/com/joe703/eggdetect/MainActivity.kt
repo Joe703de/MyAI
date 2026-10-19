@@ -143,6 +143,7 @@ fun CameraScreen() {
     }
     var previewViewSize by remember { mutableStateOf(android.util.Size(0, 0)) }
     var showProcessedImage by remember { mutableStateOf(false) }
+    var frameCount by remember { mutableStateOf(0) }
 
     val imageAnalyzer = remember(context) {
         ImageAnalysis.Builder()
@@ -163,6 +164,7 @@ fun CameraScreen() {
                     Executors.newSingleThreadExecutor(),
                     YoloEggAnalyzer(context) { result ->
                         detectionResult = result
+                        frameCount++
                     }
                 )
             }
@@ -229,14 +231,29 @@ fun CameraScreen() {
                                 color = Color.Yellow,
                                 style = MaterialTheme.typography.bodySmall
                             )
+                            Text(
+                                text = "Frames: $frameCount",
+                                color = Color.Gray,
+                                style = MaterialTheme.typography.bodySmall
+                            )
                         }
                     } else {
-                        Text(
-                            text = "YOLO Input: kein Bild verfügbar",
-                            color = Color.Red,
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.align(Alignment.Center)
-                        )
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = "YOLO Input: kein Bild verfügbar",
+                                color = Color.Red,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                text = "Frames: $frameCount",
+                                color = Color.Gray,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
                     }
                 } else {
                     AndroidView(
