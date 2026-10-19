@@ -18,7 +18,9 @@ data class DetectionResult(
     val maxScore: Float = 0f,
     val topClassId: Int = -1,
     val inputMode: Int = 0,
-    val topCarScore: Float = 0f
+    val topCarScore: Float = 0f,
+    val maxGlobalScore: Float = 0f,
+    val maxGlobalClassId: Int = -1
 )
 
 /**

@@ -334,7 +334,7 @@ fun StatusBar(result: DetectionResult) {
                 " no box"
             }
             Text(
-                text = "AutoScore: ${"%.3f".format(result.topCarScore)} (need >0.3)$boxText",
+                text = "TargetScore: ${"%.3f".format(result.topCarScore)} (need >0.3) | Global: ${"%.3f".format(result.maxGlobalScore)} class=${result.maxGlobalClassId}$boxText",
                 color = Color.Cyan,
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier

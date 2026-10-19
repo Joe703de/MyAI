@@ -142,7 +142,7 @@ class YoloEggAnalyzer(
             val bitmap = if (rotationDegrees != 0) rotateBitmap(rawBitmap, rotationDegrees) else rawBitmap
 
             val detections = interpreter?.let { detect(it, bitmap, imageProxy.width, imageProxy.height, inputModeProvider()) }
-                ?: DetectedFrame(emptyList(), scaleToModelInput(bitmap), 0f, -1, 0f)
+                ?: DetectedFrame(emptyList(), scaleToModelInput(bitmap), 0f, -1, 0f, 0f, -1)
 
             Log.i("YoloEggAnalyzer", "Frame OK: mode=${inputModeProvider()} raw=${rawBitmap.width}x${rawBitmap.height}, rotated=${bitmap.width}x${bitmap.height}, scaled=${detections.scaled.width}x${detections.scaled.height}, detections=${detections.objects.size}, maxScore=${detections.maxScore}, topClass=${detections.topClassId}, topCarScore=${detections.topCarScore}")
 
@@ -160,7 +160,9 @@ class YoloEggAnalyzer(
                     maxScore = detections.maxScore,
                     topClassId = detections.topClassId,
                     inputMode = inputModeProvider(),
-                    topCarScore = detections.topCarScore
+                    topCarScore = detections.topCarScore,
+                    maxGlobalScore = detections.maxGlobalScore,
+                    maxGlobalClassId = detections.maxGlobalClassId
                 )
             )
         } catch (e: Exception) {
@@ -193,7 +195,9 @@ class YoloEggAnalyzer(
         val scaled: Bitmap,
         val maxScore: Float,
         val topClassId: Int,
-        val topCarScore: Float
+        val topCarScore: Float,
+        val maxGlobalScore: Float,
+        val maxGlobalClassId: Int
     )
 
     private fun detect(
@@ -223,7 +227,7 @@ class YoloEggAnalyzer(
         outputBuffer.rewind()
 
         val valuesPerBox = outputValuesDim
-        if (valuesPerBox <= 0) return DetectedFrame(emptyList(), scaled, 0f, -1, 0f)
+        if (valuesPerBox <= 0) return DetectedFrame(emptyList(), scaled, 0f, -1, 0f, 0f, -1)
 
         val hasObjectness = valuesPerBox == 85
         val classCount = if (hasObjectness) valuesPerBox - 5 else valuesPerBox - 4
@@ -237,6 +241,8 @@ class YoloEggAnalyzer(
         var topConfidence = 0f
         var topCarScore = 0f
         var candidateCount = 0
+        var maxGlobalScore = 0f
+        var maxGlobalClassId = -1
 
         for (i in 0 until outputBoxesDim) {
             val cx = readOutputValue(outputBuffer, i, 0)
@@ -251,6 +257,12 @@ class YoloEggAnalyzer(
             val classId = classScores.indices.maxByOrNull { classScores[it] } ?: 0
             val classScore = classScores.getOrElse(classId) { 0f }
             val carScore = classScores.getOrElse(targetClassId) { 0f }
+
+            // Globale Top-Klasse unabhängig vom Ziel-Filter merken
+            if (classScore > maxGlobalScore) {
+                maxGlobalScore = classScore
+                maxGlobalClassId = classId
+            }
 
             if (classScore > maxSeenScore) {
                 maxSeenScore = classScore
@@ -331,7 +343,9 @@ class YoloEggAnalyzer(
             scaled = scaled,
             maxScore = maxSeenScore,
             topClassId = topClassId,
-            topCarScore = topCarScore
+            topCarScore = topCarScore,
+            maxGlobalScore = maxGlobalScore,
+            maxGlobalClassId = maxGlobalClassId
         )
     }
 
