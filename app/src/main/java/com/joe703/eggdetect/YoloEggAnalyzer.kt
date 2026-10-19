@@ -178,16 +178,17 @@ class YoloEggAnalyzer(
         val scaled = scaleToModelInput(bitmap)
 
         // YOLOv8-TFLite erwartet typischerweise [0,1] normalisierte Floats im NHWC-Layout.
-        // Wir testen zusätzlich [0,255] als Float, falls /255.0 nicht passt.
-        val inputBuffer01 = bitmapToFloatBuffer(scaled, normalize255 = false)
-        val inputBuffer255 = bitmapToFloatBuffer(scaled, normalize255 = true)
+        // Wir testen RGB vs. BGR und [0,1] vs [0,255].
+        val inputBuffer = bitmapToFloatBuffer(scaled, normalize255 = false, bgr = false)
+        val inputBufferBgr = bitmapToFloatBuffer(scaled, normalize255 = false, bgr = true)
+        val inputBuffer255 = bitmapToFloatBuffer(scaled, normalize255 = true, bgr = false)
 
         val outputShape = interpreter.getOutputTensor(0).shape()
         val outputSize = outputShape.fold(1) { acc, value -> acc * value }
         val outputBuffer = ByteBuffer.allocateDirect(outputSize * 4)
             .order(ByteOrder.nativeOrder())
 
-        interpreter.run(inputBuffer01, outputBuffer)
+        interpreter.run(inputBuffer, outputBuffer)
         outputBuffer.rewind()
 
         val valuesPerBox = outputValuesDim
@@ -404,7 +405,7 @@ class YoloEggAnalyzer(
         val classId: Int
     )
 
-    private fun bitmapToFloatBuffer(bitmap: Bitmap, normalize255: Boolean): ByteBuffer {
+    private fun bitmapToFloatBuffer(bitmap: Bitmap, normalize255: Boolean, bgr: Boolean = false): ByteBuffer {
         val size = modelInputSize * modelInputSize * 3 * 4
         val buffer = ByteBuffer.allocateDirect(size).order(ByteOrder.nativeOrder())
         for (y in 0 until modelInputSize) {
@@ -414,9 +415,15 @@ class YoloEggAnalyzer(
                 val g = ((pixel shr 8) and 0xFF).toFloat()
                 val b = (pixel and 0xFF).toFloat()
                 val scale = if (normalize255) 255f else 1f
-                buffer.putFloat(r / scale)
-                buffer.putFloat(g / scale)
-                buffer.putFloat(b / scale)
+                if (bgr) {
+                    buffer.putFloat(b / scale)
+                    buffer.putFloat(g / scale)
+                    buffer.putFloat(r / scale)
+                } else {
+                    buffer.putFloat(r / scale)
+                    buffer.putFloat(g / scale)
+                    buffer.putFloat(b / scale)
+                }
             }
         }
         buffer.rewind()
