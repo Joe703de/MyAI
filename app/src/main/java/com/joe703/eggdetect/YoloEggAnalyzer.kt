@@ -220,6 +220,9 @@ class YoloEggAnalyzer(
                 maxSeenBox = i
             }
 
+            // Für Tests: Nur Klasse 2 (car) berücksichtigen
+            if (classId != 2) continue
+
             // YOLOv8: confidence ist direkt der maximale Klassen-Score
             val finalScore = if (hasObjectness) {
                 val objectness = readOutputValue(outputBuffer, i, 4)
