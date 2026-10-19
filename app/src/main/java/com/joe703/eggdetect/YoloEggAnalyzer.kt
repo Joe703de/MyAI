@@ -177,16 +177,13 @@ class YoloEggAnalyzer(
         }
 
         // Eingabe: [1, 640, 640, 3]
-        val inputArray = arrayOf(inputBuffer)
-
         // Ausgabe: Shape dynamisch aus Tensor-Metadaten
         val outputShape = interpreter.getOutputTensor(0).shape()
         val outputSize = outputShape.fold(1) { acc, value -> acc * value }
         val outputBuffer = ByteBuffer.allocateDirect(outputSize * 4)
             .order(ByteOrder.nativeOrder())
-        val outputArray = arrayOf(outputBuffer)
 
-        interpreter.runForMultipleInputsOutputs(inputArray, mapOf(0 to outputArray))
+        interpreter.run(inputBuffer, outputBuffer)
 
         outputBuffer.rewind()
         val valuesPerBox = outputValuesDim
