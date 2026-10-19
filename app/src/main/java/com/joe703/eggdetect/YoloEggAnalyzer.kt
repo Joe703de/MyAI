@@ -179,7 +179,8 @@ class YoloEggAnalyzer(
                     topCarScore = detections.topCarScore,
                     maxGlobalScore = detections.maxGlobalScore,
                     maxGlobalClassId = detections.maxGlobalClassId,
-                    timingMs = detections.timing
+                    timingMs = detections.timing,
+                    zoomedObject = detections.zoomedObject
                 )
             )
         } catch (e: Exception) {
@@ -220,7 +221,8 @@ class YoloEggAnalyzer(
         val topCarScore: Float,
         val maxGlobalScore: Float,
         val maxGlobalClassId: Int,
-        val timing: TimingBreakdown
+        val timing: TimingBreakdown,
+        val zoomedObject: ZoomedObject? = null
     )
 
     private fun detect(
@@ -355,6 +357,7 @@ class YoloEggAnalyzer(
 
         Log.i("YoloEggAnalyzer", "NMS kept ${nmsBoxes.size} detections from ${candidates.size} candidates")
         val colorStart = System.currentTimeMillis()
+        var zoomedObject: ZoomedObject? = null
         nmsBoxes.forEachIndexed { index, raw ->
             Log.i("YoloEggAnalyzer", "NMS result $index: score=${raw.score} box=[${raw.x1}, ${raw.y1}, ${raw.x2}, ${raw.y2}]")
         }
@@ -378,6 +381,10 @@ class YoloEggAnalyzer(
                 if (width <= 0 || height <= 0) return@mapNotNull null
 
                 val color = classifyColor(bitmap, x, y, width, height)
+
+                if (zoomedObject == null && color.r == 255 && color.g == 255 && color.b == 0) {
+                    zoomedObject = createZoomedObject(bitmap, x, y, width, height, "Gelb", raw.score)
+                }
 
                 DetectedObject(
                     x = x,
@@ -409,7 +416,8 @@ class YoloEggAnalyzer(
                 postColorMs = postColorMs,
                 totalMs = preprocessMs + inferenceMs + postprocessMs,
                 delegateName = if (gpuDelegate != null) "GPU" else "CPU"
-            )
+            ),
+            zoomedObject = zoomedObject
         )
     }
 
@@ -451,6 +459,17 @@ class YoloEggAnalyzer(
         val areaB = (b.x2 - b.x1) * (b.y2 - b.y1)
         val union = areaA + areaB - interArea
         return if (union > 0f) interArea / union else 0f
+    }
+
+
+    private fun createZoomedObject(bitmap: Bitmap, x: Int, y: Int, width: Int, height: Int, colorName: String, score: Float): ZoomedObject? {
+        val left = x.coerceIn(0, bitmap.width)
+        val top = y.coerceIn(0, bitmap.height)
+        val right = (x + width).coerceIn(0, bitmap.width)
+        val bottom = (y + height).coerceIn(0, bitmap.height)
+        if (right <= left || bottom <= top) return null
+        val cropped = Bitmap.createBitmap(bitmap, left, top, right - left, bottom - top)
+        return ZoomedObject(cropped, colorName, score)
     }
 
     private fun classifyColor(bitmap: Bitmap, x: Int, y: Int, width: Int, height: Int): RGB {

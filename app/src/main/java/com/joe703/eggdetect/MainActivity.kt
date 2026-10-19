@@ -17,6 +17,7 @@ import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -292,49 +293,58 @@ fun CameraScreen() {
                     .border(1.dp, Color.White),
                 contentAlignment = Alignment.Center
             ) {
-                AndroidView(
-                    factory = { ctx ->
-                        val previewView = PreviewView(ctx)
-                        previewView.scaleType = PreviewView.ScaleType.FILL_CENTER
-                        previewView.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-
-                        previewView.post {
-                            previewViewSize = android.util.Size(previewView.width, previewView.height)
-                        }
-
-                        val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
-                        cameraProviderFuture.addListener({
-                            try {
-                                val cameraProvider = cameraProviderFuture.get()
-                                val preview = CameraPreview.Builder()
-                                    .build()
-                                    .also { it.setSurfaceProvider(previewView.surfaceProvider) }
-
-                                cameraProvider.unbindAll()
-                                cameraProvider.bindToLifecycle(
-                                    lifecycleOwner,
-                                    CameraSelector.DEFAULT_BACK_CAMERA,
-                                    preview,
-                                    imageAnalyzer
-                                )
-                            } catch (e: Exception) {
-                                Log.e("EggDetect", "Camera binding failed", e)
-                            }
-                        }, ContextCompat.getMainExecutor(ctx))
-
-                        previewView
-                    },
-                    modifier = Modifier.fillMaxSize().clipToBounds()
-                )
-
-                if (previewViewSize.width > 0 && detectionResult.imageWidth > 0) {
-                    DetectionOverlay(
-                        objects = detectionResult.objects,
-                        previewWidth = previewViewSize.width.toFloat(),
-                        previewHeight = previewViewSize.height.toFloat(),
-                        imageWidth = detectionResult.imageWidth.toFloat(),
-                        imageHeight = detectionResult.imageHeight.toFloat()
+                val zoomedBitmap = detectionResult.zoomedObject?.bitmap
+                if (zoomedBitmap != null) {
+                    Image(
+                        bitmap = zoomedBitmap.asImageBitmap(),
+                        contentDescription = "Zoomed yellow car",
+                        modifier = Modifier.fillMaxSize()
                     )
+                } else {
+                    AndroidView(
+                        factory = { ctx ->
+                            val previewView = PreviewView(ctx)
+                            previewView.scaleType = PreviewView.ScaleType.FILL_CENTER
+                            previewView.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+
+                            previewView.post {
+                                previewViewSize = android.util.Size(previewView.width, previewView.height)
+                            }
+
+                            val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
+                            cameraProviderFuture.addListener({
+                                try {
+                                    val cameraProvider = cameraProviderFuture.get()
+                                    val preview = CameraPreview.Builder()
+                                        .build()
+                                        .also { it.setSurfaceProvider(previewView.surfaceProvider) }
+
+                                    cameraProvider.unbindAll()
+                                    cameraProvider.bindToLifecycle(
+                                        lifecycleOwner,
+                                        CameraSelector.DEFAULT_BACK_CAMERA,
+                                        preview,
+                                        imageAnalyzer
+                                    )
+                                } catch (e: Exception) {
+                                    Log.e("EggDetect", "Camera binding failed", e)
+                                }
+                            }, ContextCompat.getMainExecutor(ctx))
+
+                            previewView
+                        },
+                        modifier = Modifier.fillMaxSize().clipToBounds()
+                    )
+
+                    if (previewViewSize.width > 0 && detectionResult.imageWidth > 0) {
+                        DetectionOverlay(
+                            objects = detectionResult.objects,
+                            previewWidth = previewViewSize.width.toFloat(),
+                            previewHeight = previewViewSize.height.toFloat(),
+                            imageWidth = detectionResult.imageWidth.toFloat(),
+                            imageHeight = detectionResult.imageHeight.toFloat()
+                        )
+                    }
                 }
             }
 

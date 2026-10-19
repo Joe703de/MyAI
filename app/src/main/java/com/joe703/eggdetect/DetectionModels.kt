@@ -21,7 +21,17 @@ data class DetectionResult(
     val topCarScore: Float = 0f,
     val maxGlobalScore: Float = 0f,
     val maxGlobalClassId: Int = -1,
-    val timingMs: TimingBreakdown = TimingBreakdown()
+    val timingMs: TimingBreakdown = TimingBreakdown(),
+    val zoomedObject: ZoomedObject? = null
+)
+
+/**
+ * Ein erkanntes Objekt, das groß angezeigt werden soll.
+ */
+data class ZoomedObject(
+    val bitmap: android.graphics.Bitmap,
+    val colorName: String,
+    val score: Float
 )
 
 /**
