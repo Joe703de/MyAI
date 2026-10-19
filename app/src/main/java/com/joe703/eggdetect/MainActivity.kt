@@ -155,6 +155,7 @@ fun CameraScreen() {
         )
     }
     var previewViewSize by remember { mutableStateOf(android.util.Size(0, 0)) }
+    var inputMode by remember { mutableStateOf(2) } // 0=RGB[0,1], 1=BGR[0,1], 2=RGB[0,255], 3=BGR[0,255]
     var frameCount by remember { mutableStateOf(0) }
 
     val imageAnalyzer = remember(context) {
@@ -174,7 +175,7 @@ fun CameraScreen() {
             .also {
                 it.setAnalyzer(
                     Executors.newSingleThreadExecutor(),
-                    YoloEggAnalyzer(context, inputModeProvider = { 0 }) { result ->
+                    YoloEggAnalyzer(context, inputModeProvider = { inputMode }) { result ->
                         val activity = context as? ComponentActivity
                         activity?.runOnUiThread {
                             detectionResult = result
@@ -257,6 +258,35 @@ fun CameraScreen() {
                 objects = detectionResult.objects,
                 modifier = Modifier.weight(0.15f)
             )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = when (inputMode) {
+                        0 -> "RGB 0-1"
+                        1 -> "BGR 0-1"
+                        2 -> "RGB 0-255"
+                        3 -> "BGR 0-255"
+                        else -> "?"
+                    },
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Button(
+                    onClick = { inputMode = (inputMode + 1) % 4 },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Cyan)
+                ) {
+                    Text(
+                        text = "Input",
+                        color = Color.Black
+                    )
+                }
+            }
 
             Box(modifier = Modifier.weight(0.05f))
         }
