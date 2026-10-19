@@ -114,17 +114,18 @@ class YoloEggAnalyzer(
             }
 
             val detections = interpreter?.let { detect(it, bitmap, imageProxy.width, imageProxy.height) }
-                ?: emptyList()
+                ?: (emptyList<DetectedObject>() to bitmap)
 
             onResult(
                 DetectionResult(
-                    eggCount = detections.size,
+                    eggCount = detections.first.size,
                     candidateCount = 0,
                     s2Count = 0,
                     processingTimeMs = System.currentTimeMillis() - startTime,
-                    objects = detections,
+                    objects = detections.first,
                     imageWidth = imageProxy.width,
-                    imageHeight = imageProxy.height
+                    imageHeight = imageProxy.height,
+                    processedBitmap = detections.second
                 )
             )
         } catch (e: Exception) {
@@ -154,7 +155,7 @@ class YoloEggAnalyzer(
         bitmap: Bitmap,
         originalWidth: Int,
         originalHeight: Int
-    ): List<DetectedObject> {
+    ): Pair<List<DetectedObject>, Bitmap> {
         val scaled = Bitmap.createScaledBitmap(bitmap, modelInputSize, modelInputSize, true)
         val inputBuffer = ByteBuffer.allocateDirect(1 * modelInputSize * modelInputSize * 3 * 4)
             .order(ByteOrder.nativeOrder())
@@ -182,7 +183,7 @@ class YoloEggAnalyzer(
 
         outputBuffer.rewind()
         val valuesPerBox = outputValuesDim
-        if (valuesPerBox <= 0) return emptyList()
+        if (valuesPerBox <= 0) return emptyList<DetectedObject>() to scaled
 
         // YOLOv8: 84 Werte = 4 Box-Koordinaten + 80 Klassen-Scores (keine objectness)
         // YOLOv5/v7: 85 Werte = 4 Box-Koordinaten + objectness + 80 Klassen-Scores
@@ -273,7 +274,7 @@ class YoloEggAnalyzer(
                 colorG = color.g,
                 colorB = color.b
             )
-        }.take(maxDetections)
+        }.take(maxDetections) to scaled
     }
 
     private fun readOutputValue(buffer: ByteBuffer, boxIndex: Int, valueIndex: Int): Float {

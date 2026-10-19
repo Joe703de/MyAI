@@ -17,6 +17,7 @@ import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -30,8 +31,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -45,6 +50,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -134,6 +140,7 @@ fun CameraScreen() {
         )
     }
     var previewViewSize by remember { mutableStateOf(android.util.Size(0, 0)) }
+    var showProcessedImage by remember { mutableStateOf(false) }
 
     val imageAnalyzer = remember(context) {
         ImageAnalysis.Builder()
@@ -179,6 +186,14 @@ fun CameraScreen() {
                 contentAlignment = Alignment.Center
             ) {
                 Box(modifier = Modifier.fillMaxSize()) {
+                val processedBitmap = detectionResult.processedBitmap
+                if (showProcessedImage && processedBitmap != null) {
+                    Image(
+                        bitmap = processedBitmap.asImageBitmap(),
+                        contentDescription = "YOLO processed image",
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
                     AndroidView(
                         factory = { ctx ->
                             val previewView = PreviewView(ctx)
@@ -213,16 +228,17 @@ fun CameraScreen() {
                         },
                         modifier = Modifier.fillMaxSize().clipToBounds()
                     )
+                }
 
-                    if (previewViewSize.width > 0 && detectionResult.imageWidth > 0) {
-                        DetectionOverlay(
-                            objects = detectionResult.objects,
-                            previewWidth = previewViewSize.width.toFloat(),
-                            previewHeight = previewViewSize.height.toFloat(),
-                            imageWidth = detectionResult.imageWidth.toFloat(),
-                            imageHeight = detectionResult.imageHeight.toFloat()
-                        )
-                    }
+                if (!showProcessedImage && previewViewSize.width > 0 && detectionResult.imageWidth > 0) {
+                    DetectionOverlay(
+                        objects = detectionResult.objects,
+                        previewWidth = previewViewSize.width.toFloat(),
+                        previewHeight = previewViewSize.height.toFloat(),
+                        imageWidth = detectionResult.imageWidth.toFloat(),
+                        imageHeight = detectionResult.imageHeight.toFloat()
+                    )
+                }
                 }
             }
 
@@ -230,6 +246,31 @@ fun CameraScreen() {
                 objects = detectionResult.objects,
                 modifier = Modifier.weight(0.15f)
             )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (showProcessedImage) "YOLO Input" else "Kamera",
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Switch(
+                    checked = showProcessedImage,
+                    onCheckedChange = { showProcessedImage = it },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.Yellow,
+                        checkedTrackColor = Color.Yellow.copy(alpha = 0.5f),
+                        uncheckedThumbColor = Color.White,
+                        uncheckedTrackColor = Color.White.copy(alpha = 0.5f)
+                    )
+                )
+            }
+
             Box(modifier = Modifier.weight(0.05f))
         }
     }

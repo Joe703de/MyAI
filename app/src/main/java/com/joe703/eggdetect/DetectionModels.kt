@@ -1,5 +1,7 @@
 package com.joe703.eggdetect
 
+import android.graphics.Bitmap
+
 /**
  * Ergebnis einer Objekterkennungs-Analyse.
  */
@@ -10,7 +12,8 @@ data class DetectionResult(
     val processingTimeMs: Long,
     val objects: List<DetectedObject>,
     val imageWidth: Int,
-    val imageHeight: Int
+    val imageHeight: Int,
+    val processedBitmap: Bitmap? = null
 )
 
 /**
