@@ -268,8 +268,6 @@ fun CameraScreen() {
             ) {
                 Text(
                     text = when (inputMode) {
-                        0 -> "RGB 0-1"
-                        1 -> "BGR 0-1"
                         2 -> "RGB 0-255"
                         3 -> "BGR 0-255"
                         else -> "?"
@@ -278,7 +276,7 @@ fun CameraScreen() {
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Button(
-                    onClick = { inputMode = (inputMode + 1) % 4 },
+                    onClick = { inputMode = if (inputMode == 2) 3 else 2 },
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Cyan)
                 ) {
                     Text(

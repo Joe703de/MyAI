@@ -43,7 +43,7 @@ class YoloEggAnalyzer(
     private val confThreshold = 0.3f
     private val nmsThreshold = 0.45f
     private val maxDetections = 12
-    private val targetClassId = 2  // Nur COCO-Klasse 2 = Auto erkennen
+    private val targetClassId = 12  // COCO-Klasse 12 = Stoppschild
 
     private var interpreter: Interpreter? = null
     private var gpuDelegate: GpuDelegate? = null
