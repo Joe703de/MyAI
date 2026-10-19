@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.util.Log
 import androidx.camera.core.ImageAnalysis
@@ -106,18 +107,20 @@ class YoloEggAnalyzer(
     override fun analyze(imageProxy: ImageProxy) {
         val startTime = System.currentTimeMillis()
         try {
-            val bitmap = imageProxy.toBitmapSafe()
-                ?: createFallbackBitmap(imageProxy.width, imageProxy.height)
-            if (bitmap == null) {
-                Log.w("YoloEggAnalyzer", "imageProxy.toBitmapSafe() returned null")
-                onEmptyResult(startTime, imageProxy.width, imageProxy.height, null)
+            val rawBitmap = imageProxy.toBitmap()
+            if (rawBitmap == null) {
+                Log.w("YoloEggAnalyzer", "imageProxy.toBitmap() returned null")
+                onEmptyResult(startTime, imageProxy.width, imageProxy.height, createFallbackBitmap(imageProxy.width, imageProxy.height))
                 return
             }
 
-            val detections = interpreter?.let { detect(it, bitmap, imageProxy.width, imageProxy.height) }
-                ?: (emptyList<DetectedObject>() to bitmap)
+            val rotationDegrees = imageProxy.imageInfo.rotationDegrees
+            val bitmap = if (rotationDegrees != 0) rotateBitmap(rawBitmap, rotationDegrees) else rawBitmap
 
-            Log.d("YoloEggAnalyzer", "Frame OK: raw=${bitmap.width}x${bitmap.height}, scaled=${detections.second.width}x${detections.second.height}, detections=${detections.first.size}")
+            val detections = interpreter?.let { detect(it, bitmap, imageProxy.width, imageProxy.height) }
+                ?: (emptyList<DetectedObject>() to scaleToModelInput(bitmap))
+
+            Log.d("YoloEggAnalyzer", "Frame OK: raw=${rawBitmap.width}x${rawBitmap.height}, rotated=${bitmap.width}x${bitmap.height}, scaled=${detections.second.width}x${detections.second.height}, detections=${detections.first.size}")
 
             onResult(
                 DetectionResult(
@@ -163,7 +166,7 @@ class YoloEggAnalyzer(
         originalWidth: Int,
         originalHeight: Int
     ): Pair<List<DetectedObject>, Bitmap> {
-        val scaled = Bitmap.createScaledBitmap(bitmap, modelInputSize, modelInputSize, true)
+        val scaled = scaleToModelInput(bitmap)
         val inputBuffer = ByteBuffer.allocateDirect(1 * modelInputSize * modelInputSize * 3 * 4)
             .order(ByteOrder.nativeOrder())
 
@@ -388,6 +391,23 @@ class YoloEggAnalyzer(
         val score: Float,
         val classId: Int
     )
+
+    private fun rotateBitmap(bitmap: Bitmap, degrees: Int): Bitmap {
+        val matrix = Matrix().apply { postRotate(degrees.toFloat()) }
+        return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+    }
+
+    private fun cropToCenterSquare(bitmap: Bitmap): Bitmap {
+        val size = min(bitmap.width, bitmap.height)
+        val x = (bitmap.width - size) / 2
+        val y = (bitmap.height - size) / 2
+        return Bitmap.createBitmap(bitmap, x, y, size, size)
+    }
+
+    private fun scaleToModelInput(bitmap: Bitmap): Bitmap {
+        val square = cropToCenterSquare(bitmap)
+        return Bitmap.createScaledBitmap(square, modelInputSize, modelInputSize, true)
+    }
 
     private fun createFallbackBitmap(width: Int, height: Int): Bitmap {
         val w = max(width, 640)
