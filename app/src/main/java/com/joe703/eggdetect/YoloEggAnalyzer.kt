@@ -141,7 +141,7 @@ class YoloEggAnalyzer(
             val rotationDegrees = imageProxy.imageInfo.rotationDegrees
             val bitmap = if (rotationDegrees != 0) rotateBitmap(rawBitmap, rotationDegrees) else rawBitmap
 
-            val detections = interpreter?.let { detect(it, bitmap, imageProxy.width, imageProxy.height, inputModeProvider()) }
+            val detections = interpreter?.let { detect(it, bitmap, bitmap.width, bitmap.height, inputModeProvider()) }
                 ?: DetectedFrame(emptyList(), scaleToModelInput(bitmap), 0f, -1, 0f, 0f, -1)
 
             Log.i("YoloEggAnalyzer", "Frame OK: mode=${inputModeProvider()} raw=${rawBitmap.width}x${rawBitmap.height}, rotated=${bitmap.width}x${bitmap.height}, scaled=${detections.scaled.width}x${detections.scaled.height}, detections=${detections.objects.size}, maxScore=${detections.maxScore}, topClass=${detections.topClassId}, topCarScore=${detections.topCarScore}")
@@ -153,8 +153,8 @@ class YoloEggAnalyzer(
                     s2Count = 0,
                     processingTimeMs = System.currentTimeMillis() - startTime,
                     objects = detections.objects,
-                    imageWidth = imageProxy.width,
-                    imageHeight = imageProxy.height,
+                    imageWidth = bitmap.width,
+                    imageHeight = bitmap.height,
                     processedBitmap = detections.scaled,
                     rawBitmap = bitmap,
                     maxScore = detections.maxScore,
