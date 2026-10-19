@@ -375,10 +375,7 @@ fun DetectionOverlay(
         objects.forEach { obj ->
             val color = Color(obj.colorR, obj.colorG, obj.colorB)
 
-            // Spiegelung für Back-Kamera, keine zusätzliche Rotation
-            val mirroredX = imageWidth - obj.x.toFloat() - obj.width.toFloat()
-
-            val finalX = (mirroredX * scale) + offsetX
+            val finalX = (obj.x.toFloat() * scale) + offsetX
             val finalY = (obj.y.toFloat() * scale) + offsetY
             val finalW = obj.width.toFloat() * scale
             val finalH = obj.height.toFloat() * scale
