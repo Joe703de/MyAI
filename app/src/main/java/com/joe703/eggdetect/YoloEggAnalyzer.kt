@@ -138,9 +138,8 @@ class YoloEggAnalyzer(
                 return
             }
 
-            // Keine zusätzliche Rotation: PreviewView zeigt das Bild bereits korrekt an,
-            // und YOLO soll das Bild im Kamera-Stream-Koordinatensystem sehen.
-            val bitmap = rawBitmap
+            val rotationDegrees = imageProxy.imageInfo.rotationDegrees
+            val bitmap = if (rotationDegrees != 0) rotateBitmap(rawBitmap, rotationDegrees) else rawBitmap
 
             val detections = interpreter?.let { detect(it, bitmap, imageProxy.width, imageProxy.height, inputModeProvider()) }
                 ?: DetectedFrame(emptyList(), scaleToModelInput(bitmap), 0f, -1, 0f, 0f, -1)
