@@ -62,9 +62,9 @@ class YoloEggAnalyzer(
             interpreter = Interpreter(model, options)
             inspectModel(interpreter)
             inspectOutputShape()
-            Log.d("YoloEggAnalyzer", "YOLO interpreter initialized")
+            Log.i("YoloEggAnalyzer", "YOLO interpreter initialized")
         } catch (e: Exception) {
-            Log.e("YoloEggAnalyzer", "Failed to load model: ${e.message}", e)
+            Log.i("YoloEggAnalyzer", "Failed to load model: ${e.message}", e)
         }
     }
 
@@ -83,7 +83,7 @@ class YoloEggAnalyzer(
 
     private fun inspectModel(interpreter: Interpreter?) {
         if (interpreter == null) {
-            Log.w("YoloEggAnalyzer", "inspectModel called with null interpreter")
+            Log.i("YoloEggAnalyzer", "inspectModel called with null interpreter")
             return
         }
         try {
@@ -98,14 +98,14 @@ class YoloEggAnalyzer(
                 "Model output: shape=${outputTensor.shape().contentToString()}, dtype=${outputTensor.dataType()}"
             )
         } catch (e: Exception) {
-            Log.e("YoloEggAnalyzer", "inspectModel failed: ${e.message}", e)
+            Log.i("YoloEggAnalyzer", "inspectModel failed: ${e.message}", e)
         }
     }
 
     private fun inspectOutputShape() {
         val shape = interpreter?.getOutputTensor(0)?.shape() ?: return
         if (shape.size != 3) {
-            Log.w("YoloEggAnalyzer", "Unexpected output shape: ${shape.contentToString()}")
+            Log.i("YoloEggAnalyzer", "Unexpected output shape: ${shape.contentToString()}")
             return
         }
         // Entscheide, ob die Boxen in Dim 1 oder Dim 2 liegen
@@ -123,7 +123,7 @@ class YoloEggAnalyzer(
                 true
             }
         }
-        Log.d("YoloEggAnalyzer", "Output shape ${shape.contentToString()}, boxes=$outputBoxesDim, values=$outputValuesDim, transposed=$transposedOutput")
+        Log.i("YoloEggAnalyzer", "Output shape ${shape.contentToString()}, boxes=$outputBoxesDim, values=$outputValuesDim, transposed=$transposedOutput")
     }
 
     override fun analyze(imageProxy: ImageProxy) {
@@ -131,7 +131,7 @@ class YoloEggAnalyzer(
         try {
             val rawBitmap = imageProxy.toBitmap()
             if (rawBitmap == null) {
-                Log.w("YoloEggAnalyzer", "imageProxy.toBitmap() returned null")
+                Log.i("YoloEggAnalyzer", "imageProxy.toBitmap() returned null")
                 onEmptyResult(startTime, imageProxy.width, imageProxy.height, createFallbackBitmap(imageProxy.width, imageProxy.height))
                 return
             }
@@ -142,7 +142,7 @@ class YoloEggAnalyzer(
             val detections = interpreter?.let { detect(it, bitmap, imageProxy.width, imageProxy.height) }
                 ?: DetectedFrame(emptyList(), scaleToModelInput(bitmap), 0f, -1)
 
-            Log.d("YoloEggAnalyzer", "Frame OK: raw=${rawBitmap.width}x${rawBitmap.height}, rotated=${bitmap.width}x${bitmap.height}, scaled=${detections.scaled.width}x${detections.scaled.height}, detections=${detections.objects.size}, maxScore=${detections.maxScore}, topClass=${detections.topClassId}")
+            Log.i("YoloEggAnalyzer", "Frame OK: raw=${rawBitmap.width}x${rawBitmap.height}, rotated=${bitmap.width}x${bitmap.height}, scaled=${detections.scaled.width}x${detections.scaled.height}, detections=${detections.objects.size}, maxScore=${detections.maxScore}, topClass=${detections.topClassId}")
 
             onResult(
                 DetectionResult(
@@ -160,7 +160,7 @@ class YoloEggAnalyzer(
                 )
             )
         } catch (e: Exception) {
-            Log.e("YoloEggAnalyzer", "Error during analysis: ${e.message}", e)
+            Log.i("YoloEggAnalyzer", "Error during analysis: ${e.message}", e)
             onEmptyResult(startTime, imageProxy.width, imageProxy.height, createFallbackBitmap(imageProxy.width, imageProxy.height))
         } finally {
             imageProxy.close()
@@ -168,7 +168,7 @@ class YoloEggAnalyzer(
     }
 
     private fun onEmptyResult(startTime: Long, width: Int, height: Int, bitmap: Bitmap?) {
-        Log.w("YoloEggAnalyzer", "Empty result: ${width}x${height}, bitmap=${bitmap?.let { "${it.width}x${it.height}" } ?: "null"}")
+        Log.i("YoloEggAnalyzer", "Empty result: ${width}x${height}, bitmap=${bitmap?.let { "${it.width}x${it.height}" } ?: "null"}")
         onResult(
             DetectionResult(
                 eggCount = 0,
@@ -219,7 +219,7 @@ class YoloEggAnalyzer(
         val hasObjectness = valuesPerBox == 85
         val classCount = if (hasObjectness) valuesPerBox - 5 else valuesPerBox - 4
 
-        Log.d("YoloEggAnalyzer", "Processing output: boxes=$outputBoxesDim, valuesPerBox=$valuesPerBox, classCount=$classCount, hasObjectness=$hasObjectness, transposed=$transposedOutput")
+        Log.i("YoloEggAnalyzer", "Processing output: boxes=$outputBoxesDim, valuesPerBox=$valuesPerBox, classCount=$classCount, hasObjectness=$hasObjectness, transposed=$transposedOutput")
 
         val candidates = mutableListOf<RawDetection>()
         var maxSeenScore = 0f
@@ -260,7 +260,7 @@ class YoloEggAnalyzer(
             if (finalScore < confThreshold) continue
 
             if (candidates.size < 5) {
-                Log.d("YoloEggAnalyzer", "Detection candidate box=$i class=$classId score=$finalScore box=[$cx, $cy, $w, $h]")
+                Log.i("YoloEggAnalyzer", "Detection candidate box=$i class=$classId score=$finalScore box=[$cx, $cy, $w, $h]")
             }
 
             val x1 = cx - w / 2f
@@ -280,12 +280,12 @@ class YoloEggAnalyzer(
             )
         }
 
-        Log.d("YoloEggAnalyzer", "Top score: class=$topClassId confidence=$topConfidence maxClassScore=$maxSeenScore at box=$maxSeenBox")
+        Log.i("YoloEggAnalyzer", "Top score: class=$topClassId confidence=$topConfidence maxClassScore=$maxSeenScore at box=$maxSeenBox")
 
         val nmsBoxes = nms(candidates)
 
-        Log.d("YoloEggAnalyzer", "NMS kept ${nmsBoxes.size} detections from ${candidates.size} candidates")
-        Log.d("YoloEggAnalyzer", "Max seen score was $maxSeenScore at box $maxSeenBox")
+        Log.i("YoloEggAnalyzer", "NMS kept ${nmsBoxes.size} detections from ${candidates.size} candidates")
+        Log.i("YoloEggAnalyzer", "Max seen score was $maxSeenScore at box $maxSeenBox")
 
         // Skalierung auf Originalgröße
         val scaleX = originalWidth.toFloat() / modelInputSize
@@ -410,7 +410,7 @@ class YoloEggAnalyzer(
             val json = context.assets.open("egg_colors.json").bufferedReader().use { it.readText() }
             Json.decodeFromString<EggColorsConfig>(json).colors
         } catch (e: Exception) {
-            Log.e("YoloEggAnalyzer", "Failed to load color config: ${e.message}")
+            Log.i("YoloEggAnalyzer", "Failed to load color config: ${e.message}")
             listOf(
                 EggColor("Gelb", RGB(255, 255, 0)),
                 EggColor("Rot", RGB(255, 0, 0))
@@ -480,20 +480,20 @@ class YoloEggAnalyzer(
             textSize = 48f
         }
         canvas.drawText("FALLBACK", 20f, h / 2f, paint)
-        Log.w("YoloEggAnalyzer", "Created fallback bitmap: ${w}x${h}")
+        Log.i("YoloEggAnalyzer", "Created fallback bitmap: ${w}x${h}")
         return bitmap
     }
 
     private fun ImageProxy.toBitmapSafe(): Bitmap? {
         return try {
             val bitmap = this.toBitmap()
-            Log.d("YoloEggAnalyzer", "CameraX toBitmap success: ${bitmap.width}x${bitmap.height}")
+            Log.i("YoloEggAnalyzer", "CameraX toBitmap success: ${bitmap.width}x${bitmap.height}")
             bitmap
         } catch (e: NoSuchMethodError) {
-            Log.e("YoloEggAnalyzer", "CameraX toBitmap not available in this version", e)
+            Log.i("YoloEggAnalyzer", "CameraX toBitmap not available in this version", e)
             null
         } catch (e: Exception) {
-            Log.e("YoloEggAnalyzer", "CameraX toBitmap failed: ${e.message}", e)
+            Log.i("YoloEggAnalyzer", "CameraX toBitmap failed: ${e.message}", e)
             null
         }
     }
