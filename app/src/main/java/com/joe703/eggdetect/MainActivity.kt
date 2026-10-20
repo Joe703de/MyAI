@@ -347,15 +347,14 @@ fun CameraScreen() {
                     )
                 }
 
-                    if (previewViewSize.width > 0 && detectionResult.imageWidth > 0) {
-                        DetectionOverlay(
-                            objects = detectionResult.objects,
-                            previewWidth = previewViewSize.width.toFloat(),
-                            previewHeight = previewViewSize.height.toFloat(),
-                            imageWidth = detectionResult.imageWidth.toFloat(),
-                            imageHeight = detectionResult.imageHeight.toFloat()
-                        )
-                    }
+                if (previewViewSize.width > 0 && detectionResult.imageWidth > 0) {
+                    DetectionOverlay(
+                        objects = detectionResult.objects,
+                        previewWidth = previewViewSize.width.toFloat(),
+                        previewHeight = previewViewSize.height.toFloat(),
+                        imageWidth = detectionResult.imageWidth.toFloat(),
+                        imageHeight = detectionResult.imageHeight.toFloat()
+                    )
                 }
             }
 
