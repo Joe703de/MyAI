@@ -57,6 +57,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -539,13 +540,17 @@ fun RecognizedTextBar(text: String, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .background(Color.Black.copy(alpha = 0.7f))
-            .padding(horizontal = 8.dp, vertical = 4.dp)
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        contentAlignment = Alignment.CenterStart
     ) {
         Text(
             text = if (text.isBlank()) "Kein Text erkannt" else "OCR: $text",
             color = Color.Green,
             style = MaterialTheme.typography.bodyMedium,
-            maxLines = 2
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            softWrap = false,
+            modifier = Modifier.fillMaxWidth()
         )
     }
 }
