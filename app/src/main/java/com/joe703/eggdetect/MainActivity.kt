@@ -30,7 +30,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenuItem
@@ -241,9 +242,10 @@ fun CameraScreen() {
     }
     var previewViewSize by remember { mutableStateOf(android.util.Size(0, 0)) }
     var targetClassIndex by remember { mutableStateOf(2) } // COCO-Klasse 2 = Auto
+    var confidenceThreshold by remember { mutableStateOf(0.3f) } // Default Threshold
     var frameCount by remember { mutableStateOf(0) }
 
-    val imageAnalyzer = remember(context) {
+    val imageAnalyzer = remember(context, targetClassIndex, confidenceThreshold) {
         ImageAnalysis.Builder()
             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
             .setResolutionSelector(
@@ -260,7 +262,11 @@ fun CameraScreen() {
             .also {
                 it.setAnalyzer(
                     Executors.newSingleThreadExecutor(),
-                    YoloEggAnalyzer(context, targetClassProvider = { targetClassIndex }) { result ->
+                    YoloEggAnalyzer(
+                        context,
+                        targetClassProvider = { targetClassIndex },
+                        confThresholdProvider = { confidenceThreshold }
+                    ) { result ->
                         val activity = context as? ComponentActivity
                         activity?.runOnUiThread {
                             detectionResult = result
@@ -348,14 +354,17 @@ fun CameraScreen() {
                 }
             }
 
-            EggIndicatorRow(
-                objects = detectionResult.objects,
-                modifier = Modifier.weight(0.15f)
-            )
-
             ClassDropdown(
                 selectedIndex = targetClassIndex,
                 onSelectionChanged = { targetClassIndex = it },
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .padding(vertical = 4.dp)
+            )
+
+            ThresholdSlider(
+                value = confidenceThreshold,
+                onValueChange = { confidenceThreshold = it },
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
                     .padding(vertical = 4.dp)
@@ -512,37 +521,56 @@ fun DetectionOverlay(
 }
 
 @Composable
+fun ThresholdSlider(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Confidence",
+                color = Color.White,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(horizontal = 4.dp)
+            )
+            Text(
+                text = "%.2f".format(value),
+                color = Color.Yellow,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(horizontal = 4.dp)
+            )
+        }
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            valueRange = 0f..1f,
+            steps = 99,
+            modifier = Modifier.fillMaxWidth(),
+            colors = SliderDefaults.colors(
+                thumbColor = Color.Yellow,
+                activeTrackColor = Color.Yellow,
+                inactiveTrackColor = Color.DarkGray
+            )
+        )
+    }
+}
+
+@Composable
 fun EggIndicatorRow(objects: List<DetectedObject>, modifier: Modifier = Modifier) {
+    // Replaced by ThresholdSlider
     Box(
         modifier = modifier.fillMaxWidth(),
         contentAlignment = Alignment.Center
     ) {
-        Row(
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth(0.8f)
-        ) {
-            repeat(6) { index ->
-                val isActive = index < objects.size
-                val eggColor = if (isActive) {
-                    Color(objects[index].colorR, objects[index].colorG, objects[index].colorB)
-                } else {
-                    Color.DarkGray
-                }
-
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(
-                            color = eggColor,
-                            shape = CircleShape
-                        )
-                        .then(
-                            if (isActive) Modifier.border(2.dp, eggColor.copy(alpha = 0.5f), CircleShape)
-                            else Modifier
-                        )
-                )
-            }
-        }
+        Text(
+            text = "${objects.size} detected",
+            color = Color.Gray,
+            style = MaterialTheme.typography.bodySmall
+        )
     }
 }
