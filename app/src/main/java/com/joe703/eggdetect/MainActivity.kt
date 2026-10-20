@@ -425,8 +425,9 @@ fun StatusBar(result: DetectionResult, previewWidth: Float, previewHeight: Float
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Box(modifier = Modifier.width(120.dp), contentAlignment = Alignment.CenterStart) {
+                    val className = CocoClassNames.getOrElse(targetClassIndex) { "Objekt" }
                     Text(
-                        text = "Eier: ${result.eggCount}",
+                        text = "$className: ${result.eggCount}",
                         color = Color.Yellow,
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier
