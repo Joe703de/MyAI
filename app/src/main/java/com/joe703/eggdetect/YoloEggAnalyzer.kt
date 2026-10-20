@@ -50,6 +50,9 @@ class YoloEggAnalyzer(
     private var outputBoxesDim: Int = -1
     private var outputValuesDim: Int = -1
     private var transposedOutput: Boolean = false
+    private var lastZoomedObject: ZoomedObject? = null
+    private var yellowMissFrames: Int = 0
+    private val yellowMissThreshold: Int = 2
 
     private val colorConfigs: List<EggColor> = loadColorConfig(context)
 
@@ -399,6 +402,23 @@ class YoloEggAnalyzer(
             }.take(maxDetections)
         val postColorMs = System.currentTimeMillis() - colorStart
 
+        // Entprellen: Gelbes Auto bleibt erhalten, bis 2 Frames hintereinander keins erkannt wird.
+        val finalZoomedObject = when {
+            zoomedObject != null -> {
+                yellowMissFrames = 0
+                lastZoomedObject = zoomedObject
+                zoomedObject
+            }
+            yellowMissFrames < yellowMissThreshold -> {
+                yellowMissFrames++
+                lastZoomedObject
+            }
+            else -> {
+                lastZoomedObject = null
+                null
+            }
+        }
+
         return DetectedFrame(
             objects = objects,
             scaled = scaled,
@@ -417,7 +437,7 @@ class YoloEggAnalyzer(
                 totalMs = preprocessMs + inferenceMs + postprocessMs,
                 delegateName = if (gpuDelegate != null) "GPU" else "CPU"
             ),
-            zoomedObject = zoomedObject
+            zoomedObject = finalZoomedObject
         )
     }
 
