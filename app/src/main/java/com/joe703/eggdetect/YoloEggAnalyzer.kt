@@ -231,7 +231,7 @@ class YoloEggAnalyzer(
         originalWidth: Int,
         originalHeight: Int,
         targetClassId: Int,
-        preprocessMs: Long
+        confThreshold: Float
     ): DetectedFrame {
         val scaled = scaleToModelInput(bitmap)
 
