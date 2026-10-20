@@ -145,12 +145,15 @@ class YoloObjectAnalyzer(
             if (rawBitmap == null) {
                 Log.i("YoloObjectAnalyzer", "imageProxy.toBitmap() returned null")
                 onEmptyResult(startTime, imageProxy.width, imageProxy.height, createFallbackBitmap(imageProxy.width, imageProxy.height))
+                imageProxy.close()
                 return
             }
 
             val rotationDegrees = imageProxy.imageInfo.rotationDegrees
             val bitmap = if (rotationDegrees != 0) rotateBitmap(rawBitmap, rotationDegrees) else rawBitmap
 
+            // OCR runs asynchronously on the same bitmap and closes the ImageProxy when done.
+            // Do not call imageProxy.close() elsewhere in this path.
             runOcr(imageProxy, bitmap)
 
             val preprocessTime = System.currentTimeMillis() - startTime
@@ -199,7 +202,6 @@ class YoloObjectAnalyzer(
         } catch (e: Exception) {
             Log.i("YoloObjectAnalyzer", "Error during analysis: ${e.message}", e)
             onEmptyResult(startTime, imageProxy.width, imageProxy.height, createFallbackBitmap(imageProxy.width, imageProxy.height))
-        } finally {
             imageProxy.close()
         }
     }
@@ -661,8 +663,8 @@ class YoloObjectAnalyzer(
     }
 
     private fun runOcr(imageProxy: ImageProxy, bitmap: Bitmap) {
-        val mediaImage = imageProxy.image ?: return
-        val inputImage = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
+        // Use the already-rotated bitmap. Do not touch imageProxy.image after analyze() returns.
+        val inputImage = InputImage.fromBitmap(bitmap, 0)
         textRecognizer.process(inputImage)
             .addOnSuccessListener { visionText ->
                 val text = visionText.text
@@ -670,9 +672,11 @@ class YoloObjectAnalyzer(
                     lastRecognizedText = text
                     Log.i("YoloObjectAnalyzer", "OCR: $text")
                 }
+                imageProxy.close()
             }
             .addOnFailureListener { e ->
                 Log.e("YoloObjectAnalyzer", "OCR failed: ${e.message}", e)
+                imageProxy.close()
             }
     }
 
