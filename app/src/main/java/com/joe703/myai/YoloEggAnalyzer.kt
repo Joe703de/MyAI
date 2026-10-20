@@ -52,7 +52,7 @@ class YoloEggAnalyzer(
     private var transposedOutput: Boolean = false
     private var lastZoomedObject: ZoomedObject? = null
     private var yellowMissFrames: Int = 0
-    private val yellowMissThreshold: Int = 2
+    private val yellowMissThreshold: Int = 1
 
     private val colorConfigs: List<EggColor> = loadColorConfig(context)
 
