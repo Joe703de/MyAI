@@ -40,7 +40,31 @@ Das YOLO-Modell liegt unter:
 app/src/main/assets/yolo_eggs.tflite
 ```
 
-> Das Repository enthält ein Modell im YOLOv8-Format mit 640×640 Pixel Eingabe. Es wird sowohl das Standardformat `[1, N, 5 + C]` als auch das transponierte Format `[1, 5 + C, N]` unterstützt.
+### Herkunft
+
+Das Modell wurde am **10.10.2026** aus dem offiziellen Ultralytics **YOLOv8n** COCO-Modell exportiert.
+
+- **Basismodell:** Die trainierten Gewichte kommen von Ultralytics und wurden auf dem **COCO-Datenset** (Common Objects in Context) vortrainiert. Das Modell erkennt 80 COCO-Klassen; die App filtert auf die ausgewählte Klasse.
+- **Eigenes Modell:** Für eine spezialisierte Erkennung (z. B. nur Autos, nur gelbe Autos oder Eier) benötigst du eigene Trainingsdaten. Diese müssen gesammelt und annotiert werden, zum Beispiel mit:
+  - [Roboflow](https://roboflow.com) (online, annotieren + exportieren)
+  - [LabelImg](https://github.com/tzutalin/labelImg) (lokal)
+  - [CVAT](https://www.cvat.ai) (online/lokal)
+
+### Modell selbst exportieren
+
+Falls du das Modell neu erzeugen möchtest:
+
+```bash
+pip install torch ultralytics
+# Optional, falls Ultralytics danach fragt:
+pip install litert-torch ai-edge-litert
+
+yolo export model=yolov8n.pt format=tflite
+```
+
+Die exportierte Datei `yolov8n.tflite` wird anschließend in `app/src/main/assets/yolo_eggs.tflite` umbenannt.
+
+> Das Modell wird im YOLOv8-Format mit 640×640 Pixel Eingabe erwartet. Die App unterstützt sowohl das Standardformat `[1, N, 5 + C]` als auch das transponierte Format `[1, 5 + C, N]`.
 
 ## Farbkonfiguration
 
