@@ -142,7 +142,7 @@ class YoloEggAnalyzer(
             val bitmap = if (rotationDegrees != 0) rotateBitmap(rawBitmap, rotationDegrees) else rawBitmap
 
             val preprocessTime = System.currentTimeMillis() - startTime
-            val detections = interpreter?.let { detect(it, bitmap, bitmap.width, bitmap.height, targetClassProvider(), preprocessTime) }
+            val detections = interpreter?.let { detect(it, bitmap, bitmap.width, bitmap.height, targetClassProvider(), confThresholdProvider()) }
                 ?: DetectedFrame(
                     emptyList(),
                     scaleToModelInput(bitmap),
@@ -233,6 +233,7 @@ class YoloEggAnalyzer(
         targetClassId: Int,
         confThreshold: Float
     ): DetectedFrame {
+        val detectStartTime = System.currentTimeMillis()
         val scaled = scaleToModelInput(bitmap)
 
         val inputBuffer = bitmapToFloatBuffer(scaled, normalize255 = true, bgr = false)
@@ -249,6 +250,7 @@ class YoloEggAnalyzer(
         interpreter.run(inputBuffer, outputBuffer)
 
         val inferenceMs = System.currentTimeMillis() - inferenceStart
+        val preprocessMs = inferenceStart - detectStartTime
         outputBuffer.rewind()
 
         val postprocessStart = System.currentTimeMillis()
