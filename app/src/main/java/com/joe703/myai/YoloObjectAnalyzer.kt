@@ -17,6 +17,10 @@ import java.io.FileInputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.channels.FileChannel
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.TextRecognizer
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import kotlin.math.max
 import kotlin.math.min
 
@@ -33,7 +37,7 @@ import kotlin.math.min
  * Die Farbklassifikation erfolgt im erkannten Bereich per HSV-Pixelabstimmung,
  * ohne OpenCV.
  */
-class YoloEggAnalyzer(
+class YoloObjectAnalyzer(
     context: Context,
     private val targetClassProvider: () -> Int,
     private val confThresholdProvider: () -> Float,
@@ -53,6 +57,9 @@ class YoloEggAnalyzer(
     private var lastZoomedObject: ZoomedObject? = null
     private var yellowMissFrames: Int = 0
     private val yellowMissThreshold: Int = 1
+    private var lastRecognizedText: String = ""
+
+    private val textRecognizer: TextRecognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
     private val colorConfigs: List<EggColor> = loadColorConfig(context)
 
@@ -67,9 +74,9 @@ class YoloEggAnalyzer(
             interpreter = Interpreter(model, options)
             inspectModel(interpreter)
             inspectOutputShape()
-            Log.i("YoloEggAnalyzer", "YOLO interpreter initialized")
+            Log.i("YoloObjectAnalyzer", "YOLO interpreter initialized")
         } catch (e: Exception) {
-            Log.i("YoloEggAnalyzer", "Failed to load model: ${e.message}", e)
+            Log.i("YoloObjectAnalyzer", "Failed to load model: ${e.message}", e)
         }
     }
 
@@ -88,29 +95,29 @@ class YoloEggAnalyzer(
 
     private fun inspectModel(interpreter: Interpreter?) {
         if (interpreter == null) {
-            Log.i("YoloEggAnalyzer", "inspectModel called with null interpreter")
+            Log.i("YoloObjectAnalyzer", "inspectModel called with null interpreter")
             return
         }
         try {
             val inputTensor = interpreter.getInputTensor(0)
             val outputTensor = interpreter.getOutputTensor(0)
             Log.d(
-                "YoloEggAnalyzer",
+                "YoloObjectAnalyzer",
                 "Model input: shape=${inputTensor.shape().contentToString()}, dtype=${inputTensor.dataType()}"
             )
             Log.d(
-                "YoloEggAnalyzer",
+                "YoloObjectAnalyzer",
                 "Model output: shape=${outputTensor.shape().contentToString()}, dtype=${outputTensor.dataType()}"
             )
         } catch (e: Exception) {
-            Log.i("YoloEggAnalyzer", "inspectModel failed: ${e.message}", e)
+            Log.i("YoloObjectAnalyzer", "inspectModel failed: ${e.message}", e)
         }
     }
 
     private fun inspectOutputShape() {
         val shape = interpreter?.getOutputTensor(0)?.shape() ?: return
         if (shape.size != 3) {
-            Log.i("YoloEggAnalyzer", "Unexpected output shape: ${shape.contentToString()}")
+            Log.i("YoloObjectAnalyzer", "Unexpected output shape: ${shape.contentToString()}")
             return
         }
         // Entscheide, ob die Boxen in Dim 1 oder Dim 2 liegen
@@ -128,7 +135,7 @@ class YoloEggAnalyzer(
                 true
             }
         }
-        Log.i("YoloEggAnalyzer", "Output shape ${shape.contentToString()}, boxes=$outputBoxesDim, values=$outputValuesDim, transposed=$transposedOutput")
+        Log.i("YoloObjectAnalyzer", "Output shape ${shape.contentToString()}, boxes=$outputBoxesDim, values=$outputValuesDim, transposed=$transposedOutput")
     }
 
     override fun analyze(imageProxy: ImageProxy) {
@@ -136,13 +143,15 @@ class YoloEggAnalyzer(
         try {
             val rawBitmap = imageProxy.toBitmap()
             if (rawBitmap == null) {
-                Log.i("YoloEggAnalyzer", "imageProxy.toBitmap() returned null")
+                Log.i("YoloObjectAnalyzer", "imageProxy.toBitmap() returned null")
                 onEmptyResult(startTime, imageProxy.width, imageProxy.height, createFallbackBitmap(imageProxy.width, imageProxy.height))
                 return
             }
 
             val rotationDegrees = imageProxy.imageInfo.rotationDegrees
             val bitmap = if (rotationDegrees != 0) rotateBitmap(rawBitmap, rotationDegrees) else rawBitmap
+
+            runOcr(imageProxy, bitmap)
 
             val preprocessTime = System.currentTimeMillis() - startTime
             val detections = interpreter?.let { detect(it, bitmap, bitmap.width, bitmap.height, targetClassProvider(), preprocessTime, confThresholdProvider()) }
@@ -158,7 +167,7 @@ class YoloEggAnalyzer(
                 )
 
             Log.i(
-                "YoloEggAnalyzer",
+                "YoloObjectAnalyzer",
                 "Frame OK: class=${targetClassProvider()} raw=${rawBitmap.width}x${rawBitmap.height}, rotated=${bitmap.width}x${bitmap.height}, " +
                 "scaled=${detections.scaled.width}x${detections.scaled.height}, detections=${detections.objects.size}, " +
                 "maxScore=${detections.maxScore}, topClass=${detections.topClassId}, topCarScore=${detections.topCarScore} " +
@@ -183,11 +192,12 @@ class YoloEggAnalyzer(
                     maxGlobalScore = detections.maxGlobalScore,
                     maxGlobalClassId = detections.maxGlobalClassId,
                     timingMs = detections.timing,
-                    zoomedObject = detections.zoomedObject
+                    zoomedObject = detections.zoomedObject,
+                    recognizedText = lastRecognizedText
                 )
             )
         } catch (e: Exception) {
-            Log.i("YoloEggAnalyzer", "Error during analysis: ${e.message}", e)
+            Log.i("YoloObjectAnalyzer", "Error during analysis: ${e.message}", e)
             onEmptyResult(startTime, imageProxy.width, imageProxy.height, createFallbackBitmap(imageProxy.width, imageProxy.height))
         } finally {
             imageProxy.close()
@@ -195,7 +205,7 @@ class YoloEggAnalyzer(
     }
 
     private fun onEmptyResult(startTime: Long, width: Int, height: Int, bitmap: Bitmap?) {
-        Log.i("YoloEggAnalyzer", "Empty result: ${width}x${height}, bitmap=${bitmap?.let { "${it.width}x${it.height}" } ?: "null"}")
+        Log.i("YoloObjectAnalyzer", "Empty result: ${width}x${height}, bitmap=${bitmap?.let { "${it.width}x${it.height}" } ?: "null"}")
         onResult(
             DetectionResult(
                 eggCount = 0,
@@ -240,7 +250,7 @@ class YoloEggAnalyzer(
         val scaled = scaleToModelInput(bitmap)
         val inputBuffer = bitmapToFloatBuffer(scaled, normalize255 = true, bgr = false)
 
-        Log.i("YoloEggAnalyzer", "Running inference for targetClass=$targetClassId")
+        Log.i("YoloObjectAnalyzer", "Running inference for targetClass=$targetClassId")
 
         val inferenceStart = System.currentTimeMillis()
 
@@ -270,7 +280,7 @@ class YoloEggAnalyzer(
         val hasObjectness = valuesPerBox == 85
         val classCount = if (hasObjectness) valuesPerBox - 5 else valuesPerBox - 4
 
-        Log.i("YoloEggAnalyzer", "Processing output: boxes=$outputBoxesDim, valuesPerBox=$valuesPerBox, classCount=$classCount, hasObjectness=$hasObjectness, transposed=$transposedOutput")
+        Log.i("YoloObjectAnalyzer", "Processing output: boxes=$outputBoxesDim, valuesPerBox=$valuesPerBox, classCount=$classCount, hasObjectness=$hasObjectness, transposed=$transposedOutput")
 
         val candidates = mutableListOf<RawDetection>()
         var maxSeenScore = 0f
@@ -328,7 +338,7 @@ class YoloEggAnalyzer(
             candidateCount++
 
             if (candidateCount <= 5) {
-                Log.i("YoloEggAnalyzer", "Detection candidate box=$i class=$classId targetScore=$targetScore box=[$cx, $cy, $w, $h]")
+                Log.i("YoloObjectAnalyzer", "Detection candidate box=$i class=$classId targetScore=$targetScore box=[$cx, $cy, $w, $h]")
             }
 
             val finalScore = targetScore
@@ -352,19 +362,19 @@ class YoloEggAnalyzer(
 
         val postReadMs = System.currentTimeMillis() - outputReadStart
 
-        Log.i("YoloEggAnalyzer", "Top score: class=$topClassId confidence=$topConfidence maxClassScore=$maxSeenScore topTargetScore=$topCarScore candidateCount=$candidateCount at box=$maxSeenBox")
+        Log.i("YoloObjectAnalyzer", "Top score: class=$topClassId confidence=$topConfidence maxClassScore=$maxSeenScore topTargetScore=$topCarScore candidateCount=$candidateCount at box=$maxSeenBox")
 
         val nmsStart = System.currentTimeMillis()
         val nmsBoxes = nms(candidates)
         val postNmsMs = System.currentTimeMillis() - nmsStart
 
-        Log.i("YoloEggAnalyzer", "NMS kept ${nmsBoxes.size} detections from ${candidates.size} candidates")
+        Log.i("YoloObjectAnalyzer", "NMS kept ${nmsBoxes.size} detections from ${candidates.size} candidates")
         val colorStart = System.currentTimeMillis()
         var zoomedObject: ZoomedObject? = null
         nmsBoxes.forEachIndexed { index, raw ->
-            Log.i("YoloEggAnalyzer", "NMS result $index: score=${raw.score} box=[${raw.x1}, ${raw.y1}, ${raw.x2}, ${raw.y2}]")
+            Log.i("YoloObjectAnalyzer", "NMS result $index: score=${raw.score} box=[${raw.x1}, ${raw.y1}, ${raw.x2}, ${raw.y2}]")
         }
-        Log.i("YoloEggAnalyzer", "Max seen score was $maxSeenScore at box $maxSeenBox")
+        Log.i("YoloObjectAnalyzer", "Max seen score was $maxSeenScore at box $maxSeenBox")
 
         val postprocessMs = System.currentTimeMillis() - postprocessStart
 
@@ -578,7 +588,7 @@ class YoloEggAnalyzer(
             val json = context.assets.open("egg_colors.json").bufferedReader().use { it.readText() }
             Json.decodeFromString<EggColorsConfig>(json).colors
         } catch (e: Exception) {
-            Log.i("YoloEggAnalyzer", "Failed to load color config: ${e.message}")
+            Log.i("YoloObjectAnalyzer", "Failed to load color config: ${e.message}")
             listOf(
                 EggColor("Gelb", RGB(255, 255, 0)),
                 EggColor("Rot", RGB(255, 0, 0)),
@@ -650,6 +660,22 @@ class YoloEggAnalyzer(
         return Bitmap.createScaledBitmap(square, modelInputSize, modelInputSize, true)
     }
 
+    private fun runOcr(imageProxy: ImageProxy, bitmap: Bitmap) {
+        val mediaImage = imageProxy.image ?: return
+        val inputImage = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
+        textRecognizer.process(inputImage)
+            .addOnSuccessListener { visionText ->
+                val text = visionText.text
+                if (text.isNotBlank()) {
+                    lastRecognizedText = text
+                    Log.i("YoloObjectAnalyzer", "OCR: $text")
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.e("YoloObjectAnalyzer", "OCR failed: ${e.message}", e)
+            }
+    }
+
     private fun createFallbackBitmap(width: Int, height: Int): Bitmap {
         val w = max(width, 640)
         val h = max(height, 640)
@@ -661,20 +687,20 @@ class YoloEggAnalyzer(
             textSize = 48f
         }
         canvas.drawText("FALLBACK", 20f, h / 2f, paint)
-        Log.i("YoloEggAnalyzer", "Created fallback bitmap: ${w}x${h}")
+        Log.i("YoloObjectAnalyzer", "Created fallback bitmap: ${w}x${h}")
         return bitmap
     }
 
     private fun ImageProxy.toBitmapSafe(): Bitmap? {
         return try {
             val bitmap = this.toBitmap()
-            Log.i("YoloEggAnalyzer", "CameraX toBitmap success: ${bitmap.width}x${bitmap.height}")
+            Log.i("YoloObjectAnalyzer", "CameraX toBitmap success: ${bitmap.width}x${bitmap.height}")
             bitmap
         } catch (e: NoSuchMethodError) {
-            Log.i("YoloEggAnalyzer", "CameraX toBitmap not available in this version", e)
+            Log.i("YoloObjectAnalyzer", "CameraX toBitmap not available in this version", e)
             null
         } catch (e: Exception) {
-            Log.i("YoloEggAnalyzer", "CameraX toBitmap failed: ${e.message}", e)
+            Log.i("YoloObjectAnalyzer", "CameraX toBitmap failed: ${e.message}", e)
             null
         }
     }

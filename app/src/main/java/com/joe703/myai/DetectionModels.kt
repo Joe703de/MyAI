@@ -22,7 +22,8 @@ data class DetectionResult(
     val maxGlobalScore: Float = 0f,
     val maxGlobalClassId: Int = -1,
     val timingMs: TimingBreakdown = TimingBreakdown(),
-    val zoomedObject: ZoomedObject? = null
+    val zoomedObject: ZoomedObject? = null,
+    val recognizedText: String = ""
 )
 
 /**

@@ -73,6 +73,9 @@ dependencies {
     // Lifecycle für Compose
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
 
+    // ML Kit Text Recognition (OCR)
+    implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.0")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

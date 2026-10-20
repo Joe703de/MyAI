@@ -265,7 +265,7 @@ fun CameraScreen() {
             .also {
                 it.setAnalyzer(
                     Executors.newSingleThreadExecutor(),
-                    YoloEggAnalyzer(
+                    YoloObjectAnalyzer(
                         context,
                         targetClassProvider = { targetClassIndex },
                         confThresholdProvider = { confidenceThresholdRef.get() }
@@ -372,6 +372,13 @@ fun CameraScreen() {
                     confidenceThreshold = it
                     confidenceThresholdRef.set(it)
                 },
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .padding(vertical = 4.dp)
+            )
+
+            RecognizedTextBar(
+                text = detectionResult.recognizedText,
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
                     .padding(vertical = 4.dp)
@@ -524,6 +531,22 @@ fun DetectionOverlay(
                 style = Stroke(width = 3f)
             )
         }
+    }
+}
+
+@Composable
+fun RecognizedTextBar(text: String, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .background(Color.Black.copy(alpha = 0.7f))
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+    ) {
+        Text(
+            text = if (text.isBlank()) "Kein Text erkannt" else "OCR: $text",
+            color = Color.Green,
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 2
+        )
     }
 }
 
