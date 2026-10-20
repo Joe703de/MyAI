@@ -50,7 +50,37 @@ Das Modell wurde am **10.10.2026** aus dem offiziellen Ultralytics **YOLOv8n** C
   - [LabelImg](https://github.com/tzutalin/labelImg) (lokal)
   - [CVAT](https://www.cvat.ai) (online/lokal)
 
-### Modell selbst exportieren
+### Eigenes Modell trainieren (Fine-Tuning)
+
+Du kannst das vortrainierte YOLOv8n COCO-Modell mit eigenen Daten weitertrainieren, z. B. um Eier zu erkennen. Das nennt man **Transfer Learning** – das Modell behält die allgemeinen Bildmerkmale aus COCO und lernt dazu, deine neuen Objekte zu erkennen.
+
+**Voraussetzungen:**
+- Eigene Bilder des Objekts (z. B. Eier in verschiedenen Positionen, Lichtverhältnissen und Hintergründen)
+- Annotationen im YOLO-Format (`*.txt` pro Bild mit relativen Bounding-Box-Koordinaten)
+- Eine `data.yaml`, die Pfade zu Trainings-/Validierungsbildern und Klassennamen enthält
+
+**Empfohlene Anzahl Bilder:**
+- Minimum: ~50–100 Bilder pro Klasse
+- Besser: mehrere Hundert für robuste Ergebnisse
+
+**Tools zum Annotieren:**
+- [Roboflow](https://roboflow.com) – online, einfach zu teilen, exportiert direkt ins YOLO-Format
+- [LabelImg](https://github.com/tzutalin/labelImg) – lokales Tool, klassisch
+- [CVAT](https://www.cvat.ai) – online oder selbst gehostet
+
+**Beispiel: Training und Export nach TFLite:**
+
+```bash
+pip install torch ultralytics
+
+# data.yaml muss die Klassen und Pfade definieren
+yolo detect train model=yolov8n.pt data=pfad/zu/data.yaml epochs=50 imgsz=640
+
+# Bestes Modell exportieren
+yolo export model=runs/detect/train/weights/best.pt format=tflite
+```
+
+Die exportierte `best.tflite` kann dann in `app/src/main/assets/yolo_eggs.tflite` umbenannt und in die App eingebunden werden.
 
 Falls du das Modell neu erzeugen möchtest:
 
