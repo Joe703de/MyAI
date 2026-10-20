@@ -42,7 +42,7 @@ class YoloEggAnalyzer(
     private val modelInputSize = 640
     private val confThreshold = 0.3f
     private val nmsThreshold = 0.45f
-    private val maxDetections = 12
+    private val maxDetections = 25
     private val inputMode = 2 // fest RGB 0-255
 
     private var interpreter: Interpreter? = null
