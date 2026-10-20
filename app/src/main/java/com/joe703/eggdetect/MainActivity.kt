@@ -245,7 +245,7 @@ fun CameraScreen() {
     var confidenceThreshold by remember { mutableStateOf(0.3f) } // Default Threshold
     var frameCount by remember { mutableStateOf(0) }
 
-    val imageAnalyzer = remember(context, targetClassIndex, confidenceThreshold) {
+    val imageAnalyzer = remember(context) {
         ImageAnalysis.Builder()
             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
             .setResolutionSelector(
