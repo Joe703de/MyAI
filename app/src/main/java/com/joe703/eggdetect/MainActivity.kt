@@ -67,6 +67,8 @@ import java.util.concurrent.Executors
 import kotlin.math.max
 
 
+import java.util.concurrent.atomic.AtomicReference
+
 val CocoClassNames = listOf(
     "Person",
     "Fahrrad",
@@ -242,6 +244,7 @@ fun CameraScreen() {
     }
     var previewViewSize by remember { mutableStateOf(android.util.Size(0, 0)) }
     var targetClassIndex by remember { mutableStateOf(2) } // COCO-Klasse 2 = Auto
+    val confidenceThresholdRef = remember { AtomicReference(0.3f) } // thread-safe threshold
     var confidenceThreshold by remember { mutableStateOf(0.3f) } // Default Threshold
     var frameCount by remember { mutableStateOf(0) }
 
@@ -265,7 +268,7 @@ fun CameraScreen() {
                     YoloEggAnalyzer(
                         context,
                         targetClassProvider = { targetClassIndex },
-                        confThresholdProvider = { confidenceThreshold }
+                        confThresholdProvider = { confidenceThresholdRef.get() }
                     ) { result ->
                         val activity = context as? ComponentActivity
                         activity?.runOnUiThread {
@@ -364,7 +367,10 @@ fun CameraScreen() {
 
             ThresholdSlider(
                 value = confidenceThreshold,
-                onValueChange = { confidenceThreshold = it },
+                onValueChange = {
+                    confidenceThreshold = it
+                    confidenceThresholdRef.set(it)
+                },
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
                     .padding(vertical = 4.dp)
