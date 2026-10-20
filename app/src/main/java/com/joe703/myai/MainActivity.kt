@@ -353,7 +353,9 @@ fun CameraScreen() {
                     Image(
                         bitmap = zoomedBitmap.asImageBitmap(),
                         contentDescription = "Zoomed yellow car",
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .border(2.dp, Color.Yellow)
                     )
                 }
             }
