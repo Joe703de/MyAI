@@ -284,7 +284,7 @@ fun CameraScreen() {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Box(modifier = Modifier.weight(0.1f))
-            StatusBar(detectionResult, previewViewSize.width.toFloat(), previewViewSize.height.toFloat())
+            StatusBar(detectionResult, targetClassIndex, previewViewSize.width.toFloat(), previewViewSize.height.toFloat())
 
             Box(
                 modifier = Modifier
@@ -411,7 +411,7 @@ fun ClassDropdown(
     }
 }
 @Composable
-fun StatusBar(result: DetectionResult, previewWidth: Float, previewHeight: Float) {
+fun StatusBar(result: DetectionResult, targetClassIndex: Int, previewWidth: Float, previewHeight: Float) {
     Box(
         modifier = Modifier
             .fillMaxWidth(0.9f)
