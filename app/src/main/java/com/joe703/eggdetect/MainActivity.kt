@@ -303,47 +303,49 @@ fun CameraScreen() {
                 contentAlignment = Alignment.Center
             ) {
                 val zoomedBitmap = detectionResult.zoomedObject?.bitmap
+
+                AndroidView(
+                    factory = { ctx ->
+                        val previewView = PreviewView(ctx)
+                        previewView.scaleType = PreviewView.ScaleType.FILL_CENTER
+                        previewView.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+
+                        previewView.post {
+                            previewViewSize = android.util.Size(previewView.width, previewView.height)
+                        }
+
+                        val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
+                        cameraProviderFuture.addListener({
+                            try {
+                                val cameraProvider = cameraProviderFuture.get()
+                                val preview = CameraPreview.Builder()
+                                    .build()
+                                    .also { it.setSurfaceProvider(previewView.surfaceProvider) }
+
+                                cameraProvider.unbindAll()
+                                cameraProvider.bindToLifecycle(
+                                    lifecycleOwner,
+                                    CameraSelector.DEFAULT_BACK_CAMERA,
+                                    preview,
+                                    imageAnalyzer
+                                )
+                            } catch (e: Exception) {
+                                Log.e("EggDetect", "Camera binding failed", e)
+                            }
+                        }, ContextCompat.getMainExecutor(ctx))
+
+                        previewView
+                    },
+                    modifier = Modifier.fillMaxSize().clipToBounds()
+                )
+
                 if (zoomedBitmap != null) {
                     Image(
                         bitmap = zoomedBitmap.asImageBitmap(),
                         contentDescription = "Zoomed yellow car",
                         modifier = Modifier.fillMaxSize()
                     )
-                } else {
-                    AndroidView(
-                        factory = { ctx ->
-                            val previewView = PreviewView(ctx)
-                            previewView.scaleType = PreviewView.ScaleType.FILL_CENTER
-                            previewView.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-
-                            previewView.post {
-                                previewViewSize = android.util.Size(previewView.width, previewView.height)
-                            }
-
-                            val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
-                            cameraProviderFuture.addListener({
-                                try {
-                                    val cameraProvider = cameraProviderFuture.get()
-                                    val preview = CameraPreview.Builder()
-                                        .build()
-                                        .also { it.setSurfaceProvider(previewView.surfaceProvider) }
-
-                                    cameraProvider.unbindAll()
-                                    cameraProvider.bindToLifecycle(
-                                        lifecycleOwner,
-                                        CameraSelector.DEFAULT_BACK_CAMERA,
-                                        preview,
-                                        imageAnalyzer
-                                    )
-                                } catch (e: Exception) {
-                                    Log.e("EggDetect", "Camera binding failed", e)
-                                }
-                            }, ContextCompat.getMainExecutor(ctx))
-
-                            previewView
-                        },
-                        modifier = Modifier.fillMaxSize().clipToBounds()
-                    )
+                }
 
                     if (previewViewSize.width > 0 && detectionResult.imageWidth > 0) {
                         DetectionOverlay(
