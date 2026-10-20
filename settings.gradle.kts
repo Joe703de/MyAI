@@ -23,6 +23,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "eggdetect"
+rootProject.name = "MyAI"
 include(":app")
  

@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.joe703.eggdetect"
+    namespace = "com.joe703.myai"
     compileSdk {
         version = release(36) {
             minorApiLevel = 1
@@ -13,7 +13,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.joe703.eggdetect"
+        applicationId = "com.joe703.myai"
         minSdk = 24
         targetSdk = 36
         versionCode = 1

@@ -1,4 +1,4 @@
-package com.joe703.eggdetect
+package com.joe703.myai
 
 import android.graphics.Bitmap
 

@@ -1,4 +1,4 @@
-package com.joe703.eggdetect.ui.theme
+package com.joe703.myai.ui.theme
 
 import android.app.Activity
 import android.os.Build
@@ -34,7 +34,7 @@ private val LightColorScheme = lightColorScheme(
 )
 
 @Composable
-fun EggdetectTheme(
+fun MyAITheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     // Dynamic color is available on Android 12+
     dynamicColor: Boolean = true,

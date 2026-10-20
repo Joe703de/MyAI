@@ -1,4 +1,4 @@
-package com.joe703.eggdetect
+package com.joe703.myai
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -19,6 +19,6 @@ class ExampleInstrumentedTest {
     fun useAppContext() {
         // Context of the app under test.
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("com.joe703.eggdetect", appContext.packageName)
+        assertEquals("com.joe703.myai", appContext.packageName)
     }
 }

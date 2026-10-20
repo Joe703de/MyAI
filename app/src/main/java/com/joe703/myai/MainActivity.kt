@@ -1,4 +1,4 @@
-package com.joe703.eggdetect
+package com.joe703.myai
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -61,7 +61,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.joe703.eggdetect.ui.theme.EggdetectTheme
+import com.joe703.myai.ui.theme.MyAITheme
 import java.util.concurrent.Executors
 
 import kotlin.math.max
@@ -159,12 +159,12 @@ class MainActivity : ComponentActivity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         setContent {
-            EggdetectTheme {
+            MyAITheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = Color.Black
                 ) {
-                    EggDetectApp()
+                    MyAIApp()
                 }
             }
         }
@@ -172,7 +172,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun EggDetectApp() {
+fun MyAIApp() {
     val context = LocalContext.current
     var hasCameraPermission by remember {
         mutableStateOf(
@@ -330,7 +330,7 @@ fun CameraScreen() {
                                     imageAnalyzer
                                 )
                             } catch (e: Exception) {
-                                Log.e("EggDetect", "Camera binding failed", e)
+                                Log.e("MyAI", "Camera binding failed", e)
                             }
                         }, ContextCompat.getMainExecutor(ctx))
 

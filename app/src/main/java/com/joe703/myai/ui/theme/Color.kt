@@ -1,4 +1,4 @@
-package com.joe703.eggdetect.ui.theme
+package com.joe703.myai.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
