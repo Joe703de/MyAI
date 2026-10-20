@@ -489,7 +489,27 @@ class YoloEggAnalyzer(
         val bottom = (y + height).coerceIn(0, bitmap.height)
         if (right <= left || bottom <= top) return null
         val cropped = Bitmap.createBitmap(bitmap, left, top, right - left, bottom - top)
-        return ZoomedObject(cropped, colorName, score)
+        val bordered = drawBorder(cropped, 0xFFFFFF00.toInt(), borderWidth = 4)
+        return ZoomedObject(bordered, colorName, score)
+    }
+
+    private fun drawBorder(bitmap: Bitmap, color: Int, borderWidth: Int): Bitmap {
+        val result = bitmap.copy(Bitmap.Config.ARGB_8888, true)
+        val canvas = android.graphics.Canvas(result)
+        val paint = android.graphics.Paint().apply {
+            this.color = color
+            style = android.graphics.Paint.Style.STROKE
+            strokeWidth = borderWidth.toFloat()
+            isAntiAlias = false
+        }
+        canvas.drawRect(
+            borderWidth / 2f,
+            borderWidth / 2f,
+            result.width - borderWidth / 2f,
+            result.height - borderWidth / 2f,
+            paint
+        )
+        return result
     }
 
     private fun classifyColor(bitmap: Bitmap, x: Int, y: Int, width: Int, height: Int): RGB {
