@@ -339,14 +339,6 @@ fun CameraScreen() {
                     modifier = Modifier.fillMaxSize().clipToBounds()
                 )
 
-                if (zoomedBitmap != null) {
-                    Image(
-                        bitmap = zoomedBitmap.asImageBitmap(),
-                        contentDescription = "Zoomed yellow car",
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-
                 if (previewViewSize.width > 0 && detectionResult.imageWidth > 0) {
                     DetectionOverlay(
                         objects = detectionResult.objects,
@@ -354,6 +346,14 @@ fun CameraScreen() {
                         previewHeight = previewViewSize.height.toFloat(),
                         imageWidth = detectionResult.imageWidth.toFloat(),
                         imageHeight = detectionResult.imageHeight.toFloat()
+                    )
+                }
+
+                if (zoomedBitmap != null) {
+                    Image(
+                        bitmap = zoomedBitmap.asImageBitmap(),
+                        contentDescription = "Zoomed yellow car",
+                        modifier = Modifier.fillMaxSize()
                     )
                 }
             }
