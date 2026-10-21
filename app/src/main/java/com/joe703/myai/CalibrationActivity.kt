@@ -167,53 +167,29 @@ fun CalibrationScreen() {
                 0f
             }
 
-            // Auto, das das Fenster am knappsten verfehlt: am nächsten an 1.0, aber außerhalb 1.1..1.3
-            val borderCandidate = objects
+            // 5 Autos, die das Fenster am knappsten verfehlen (am nächsten an 1.0, aber außerhalb 1.1..1.3)
+            val imageWidth = detectionResult?.imageWidth ?: 0
+            val imageHeight = detectionResult?.imageHeight ?: 0
+            val rawBitmap = detectionResult?.rawBitmap
+            val missCandidates = objects
                 .filter { obj ->
                     val ratio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
                     ratio > 0f && (ratio < 1.1f || ratio > 1.3f)
                 }
-                .minByOrNull { obj ->
+                .sortedBy { obj ->
                     val ratio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
                     kotlin.math.abs(ratio - 1f)
                 }
+                .take(5)
 
-            Row(
-                modifier = Modifier.fillMaxWidth(0.9f),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                CalibrationStatusBar(
-                    result = detectionResult,
-                    targetClassIndex = app.targetClassIndex,
-                    modifier = Modifier.weight(1f)
-                )
-
-                borderCandidate?.let { obj ->
-                    val imageWidth = detectionResult?.imageWidth ?: 0
-                    val imageHeight = detectionResult?.imageHeight ?: 0
-                    val rawBitmap = detectionResult?.rawBitmap
-                    val left = obj.x.coerceIn(0, imageWidth)
-                    val top = obj.y.coerceIn(0, imageHeight)
-                    val right = (obj.x + obj.width).coerceIn(0, imageWidth)
-                    val bottom = (obj.y + obj.height).coerceIn(0, imageHeight)
-                    val cropped = if (right > left && bottom > top && rawBitmap != null) {
-                        Bitmap.createBitmap(rawBitmap, left, top, right - left, bottom - top)
-                    } else null
-
-                    cropped?.let { bitmap ->
-                        Image(
-                            bitmap = bitmap.asImageBitmap(),
-                            contentDescription = "Knappstes Auto",
-                            modifier = Modifier
-                                .padding(start = 8.dp)
-                                .height(40.dp)
-                                .width(60.dp)
-                                .border(1.dp, Color.Yellow)
-                        )
-                    }
-                }
-            }
+            // Obere Status-Zeile
+            CalibrationStatusBar(
+                result = detectionResult,
+                targetClassIndex = app.targetClassIndex,
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .padding(bottom = 4.dp)
+            )
 
             Column(
                 modifier = Modifier
@@ -232,15 +208,42 @@ fun CalibrationScreen() {
                     objects.forEachIndexed { index, obj ->
                         val aspectRatio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
                         val outOfRange = aspectRatio < 1.1f || aspectRatio > 1.3f
-                        Text(
-                            text = "${index + 1}: ${obj.width}×${obj.height}px, SV ${"%.2f".format(aspectRatio)}:1",
-                            color = if (outOfRange) Color.Red else Color.Cyan,
-                            style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp),
+                        val thumbnail = missCandidates.firstOrNull { it === obj }?.let { candidate ->
+                            val left = candidate.x.coerceIn(0, imageWidth)
+                            val top = candidate.y.coerceIn(0, imageHeight)
+                            val right = (candidate.x + candidate.width).coerceIn(0, imageWidth)
+                            val bottom = (candidate.y + candidate.height).coerceIn(0, imageHeight)
+                            if (right > left && bottom > top && rawBitmap != null) {
+                                Bitmap.createBitmap(rawBitmap, left, top, right - left, bottom - top)
+                            } else null
+                        }
+
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .background(Color.Black.copy(alpha = 0.7f))
-                                .padding(horizontal = 4.dp, vertical = 1.dp)
-                        )
+                                .padding(horizontal = 4.dp, vertical = 1.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "${index + 1}: ${obj.width}×${obj.height}px, SV ${"%.2f".format(aspectRatio)}:1",
+                                color = if (outOfRange) Color.Red else Color.Cyan,
+                                style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp),
+                                modifier = Modifier.weight(1f)
+                            )
+                            thumbnail?.let { bitmap ->
+                                Image(
+                                    bitmap = bitmap.asImageBitmap(),
+                                    contentDescription = "Knappes Auto",
+                                    modifier = Modifier
+                                        .padding(start = 4.dp)
+                                        .height(28.dp)
+                                        .width(42.dp)
+                                        .border(1.dp, Color.Yellow)
+                                )
+                            }
+                        }
                     }
                 }
             }
