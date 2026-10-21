@@ -508,7 +508,7 @@ fun StatusBar(result: DetectionResult, targetClassIndex: Int, previewWidth: Floa
                     .padding(horizontal = 4.dp, vertical = 2.dp)
             )
             Text(
-                text = "post: read=${result.timingMs.postReadMs} nms=${result.timingMs.postNmsMs} color=${result.timingMs.postColorMs}",
+                text = "OCR=${result.timingMs.ocrMs}ms",
                 color = Color.Cyan,
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier

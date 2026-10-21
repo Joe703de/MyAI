@@ -60,6 +60,7 @@ class YoloObjectAnalyzer(
     private val yellowMissThreshold: Int = 1
     private var lastRecognizedText: String = ""
     private var lastRecognizedTextLines: List<String> = emptyList()
+    private var lastOcrMs: Long = 0L
 
     private val textRecognizer: TextRecognizer? = if (enableOcr) {
         TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
@@ -156,9 +157,10 @@ class YoloObjectAnalyzer(
             val rotationDegrees = imageProxy.imageInfo.rotationDegrees
             val bitmap = if (rotationDegrees != 0) rotateBitmap(rawBitmap, rotationDegrees) else rawBitmap
 
+            val ocrStart = if (enableOcr) System.currentTimeMillis() else 0L
             // OCR nur wenn explizit aktiviert; ansonsten ImageProxy direkt schließen.
             if (enableOcr) {
-                runOcr(imageProxy, bitmap)
+                runOcr(imageProxy, bitmap, ocrStart)
             } else {
                 imageProxy.close()
             }
@@ -173,8 +175,11 @@ class YoloObjectAnalyzer(
                     0f,
                     0f,
                     -1,
-                    TimingBreakdown(preprocessMs = preprocessTime, totalMs = System.currentTimeMillis() - startTime, delegateName = "no-model")
+                    TimingBreakdown(preprocessMs = preprocessTime, totalMs = System.currentTimeMillis() - startTime, ocrMs = lastOcrMs, delegateName = "no-model")
                 )
+
+            // OCR-Zeit in das Ergebnis übernehmen, falls YOLO gelaufen ist
+            val finalTiming = detections.timing.copy(ocrMs = lastOcrMs)
 
             Log.i(
                 "YoloObjectAnalyzer",
@@ -201,7 +206,7 @@ class YoloObjectAnalyzer(
                     topCarScore = detections.topCarScore,
                     maxGlobalScore = detections.maxGlobalScore,
                     maxGlobalClassId = detections.maxGlobalClassId,
-                    timingMs = detections.timing,
+                    timingMs = finalTiming,
                     zoomedObject = detections.zoomedObject,
                     recognizedText = lastRecognizedText,
                     recognizedTextLines = lastRecognizedTextLines
@@ -672,12 +677,13 @@ class YoloObjectAnalyzer(
         return Bitmap.createScaledBitmap(square, modelInputSize, modelInputSize, true)
     }
 
-    private fun runOcr(imageProxy: ImageProxy, bitmap: Bitmap) {
+    private fun runOcr(imageProxy: ImageProxy, bitmap: Bitmap, startMs: Long) {
         val recognizer = textRecognizer ?: return
         // Use the already-rotated bitmap. Do not touch imageProxy.image after analyze() returns.
         val inputImage = InputImage.fromBitmap(bitmap, 0)
         recognizer.process(inputImage)
             .addOnSuccessListener { visionText ->
+                lastOcrMs = System.currentTimeMillis() - startMs
                 val lines = visionText.textBlocks.flatMap { block ->
                     block.lines.map { line -> line.text }
                 }.filter { it.isNotBlank() }
@@ -685,12 +691,13 @@ class YoloObjectAnalyzer(
                 if (text.isNotBlank()) {
                     lastRecognizedText = text
                     lastRecognizedTextLines = lines
-                    Log.i("YoloObjectAnalyzer", "OCR lines: $lines")
+                    Log.i("YoloObjectAnalyzer", "OCR lines: $lines (${lastOcrMs}ms)")
                 }
                 imageProxy.close()
             }
             .addOnFailureListener { e ->
-                Log.e("YoloObjectAnalyzer", "OCR failed: ${e.message}", e)
+                lastOcrMs = System.currentTimeMillis() - startMs
+                Log.e("YoloObjectAnalyzer", "OCR failed after ${lastOcrMs}ms: ${e.message}", e)
                 imageProxy.close()
             }
     }
