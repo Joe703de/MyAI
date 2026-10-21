@@ -198,7 +198,7 @@ fun DebugApp() {
             .background(Color.Black)
     ) {
         if (hasCameraPermission) {
-            CameraScreen()
+            DebugCameraScreen()
         } else {
             Text(
                 text = "Kamera-Berechtigung wird benötigt",
