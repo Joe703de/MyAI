@@ -67,7 +67,7 @@ import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 import kotlin.math.max
 
-private suspend fun <T> com.google.common.util.concurrent.ListenableFuture<T>.await(): T =
+private suspend fun <T> com.google.common.util.concurrent.ListenableFuture<T>.await(executor: java.util.concurrent.Executor): T =
     suspendCoroutine { cont ->
         addListener({
             try {
@@ -75,7 +75,7 @@ private suspend fun <T> com.google.common.util.concurrent.ListenableFuture<T>.aw
             } catch (e: Throwable) {
                 cont.resumeWithException(e)
             }
-        }, com.google.common.util.concurrent.MoreExecutors.directExecutor())
+        }, executor)
     }
 
 class MainActivity : ComponentActivity() {
@@ -237,7 +237,7 @@ fun MainCameraScreen() {
 
                 LaunchedEffect(lifecycleOwner) {
                     lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-                        val cameraProvider = ProcessCameraProvider.getInstance(context).await()
+                        val cameraProvider = ProcessCameraProvider.getInstance(context).await(ContextCompat.getMainExecutor(context))
                         val preview = CameraPreview.Builder()
                             .build()
                             .also { it.setSurfaceProvider(previewView.surfaceProvider) }
