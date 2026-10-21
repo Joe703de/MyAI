@@ -135,6 +135,15 @@ class MyAIApplication : Application() {
         return minD + (maxD - minD) * (minW - widthPx).toFloat() / (minW - maxW).toFloat()
     }
 
+    /**
+     * Berechnet die Entfernung für ein aktuelles Objekt anhand eines einzelnen
+     * gespeicherten Kalibrierpunkts über Dreisatz (Breite ist umgekehrt proportional zur Entfernung).
+     */
+    fun estimateDistanceFromSavedPoint(savedWidthPx: Int, savedDistanceM: Float, currentWidthPx: Int): Float {
+        if (savedWidthPx <= 0 || savedDistanceM <= 0f || currentWidthPx <= 0) return -1f
+        return savedDistanceM * savedWidthPx.toFloat() / currentWidthPx.toFloat()
+    }
+
     fun addListener(listener: () -> Unit) {
         listeners.add(listener)
     }

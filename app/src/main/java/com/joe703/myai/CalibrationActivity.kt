@@ -280,8 +280,19 @@ fun CalibrationScreen() {
                         )
                     } else {
                         frozenItems.forEach { item ->
-                            val initialDistance = app.estimateDistance(item.obj.width)
-                                .coerceIn(10f, 300f)
+                            val initialDistance = when (item.label) {
+                                "Min" -> app.estimateDistanceFromSavedPoint(
+                                    app.calibrationMinWidthPx,
+                                    app.calibrationMinDistanceM,
+                                    item.obj.width
+                                )
+                                "Max" -> app.estimateDistanceFromSavedPoint(
+                                    app.calibrationMaxWidthPx,
+                                    app.calibrationMaxDistanceM,
+                                    item.obj.width
+                                )
+                                else -> -1f
+                            }.coerceIn(10f, 300f)
                                 .takeIf { it >= 0f }
                                 ?: if (item.label == "Min") 10f else 300f
                             CalibrationItemCard(
