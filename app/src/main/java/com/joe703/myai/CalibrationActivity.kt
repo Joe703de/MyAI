@@ -248,7 +248,7 @@ fun CalibrationScreen() {
                 }
             }
 
-            // Durchschnittliches Seitenverhältnis unten links, oberhalb der Navigationsleiste
+            // Durchschnittliches Seitenverhältnis unten, oberhalb der Navigationsleiste
             Row(
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
@@ -263,12 +263,12 @@ fun CalibrationScreen() {
                         "Ø SV: -"
                     },
                     color = Color.White,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.headlineMedium,
                     modifier = Modifier.background(Color.Black.copy(alpha = 0.7f))
                 )
 
                 Text(
-                    text = "KL=${app.confidenceThreshold}, Z=${app.targetClassIndex}",
+                    text = "rot wenn SV < 1,1 oder > 1,3",
                     color = Color.White,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.background(Color.Black.copy(alpha = 0.7f))
