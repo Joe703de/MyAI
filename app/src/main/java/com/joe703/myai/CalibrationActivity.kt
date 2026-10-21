@@ -184,6 +184,10 @@ fun CalibrationScreen() {
 
             var inCalibrationMode by remember { mutableStateOf(false) }
 
+            // Lokale Slider-Werte, werden erst beim Verlassen gespeichert
+            var pendingMinDistanceM by remember { mutableFloatStateOf(app.calibrationMinDistanceM) }
+            var pendingMaxDistanceM by remember { mutableFloatStateOf(app.calibrationMaxDistanceM) }
+
             // Eingefrorene Kalibrierungsobjekte mit Bitmap-Kopien.
             // Bleiben erhalten, solange der Kalibrierungsmodus aktiv ist.
             var frozenItems by remember { mutableStateOf<List<FrozenCalibrationItem>>(emptyList()) }
@@ -216,9 +220,8 @@ fun CalibrationScreen() {
                 }
                 .take(5)
 
-            // Beim Einschalten einfrieren (inkl. Bitmap-Kopie) und Slider-Werte aus den
-            // bereits gespeicherten Kalibrierwerten ermitteln. Beim Ausschalten die neuen
-            // Kalibrierpunkte speichern und in SharedPreferences persistieren.
+            // Beim Einschalten einfrieren (inkl. Bitmap-Kopie).
+            // Beim Ausschalten die aktuellen eingefrorenen Objekte + Slider-Werte speichern.
             LaunchedEffect(inCalibrationMode) {
                 if (inCalibrationMode) {
                     val nearest = nearestObject
@@ -234,21 +237,27 @@ fun CalibrationScreen() {
                         ).distinctBy { it.obj }
 
                         // Slider initial über die GESPEICHERTEN Kalibrierwerte vorbelegen.
-                        // Max = weit = Default 300m, Min = nah = Default 10m.
-                        val maxD = app.estimateDistanceFromSavedPoint(
-                            app.calibrationMaxWidthPx,
-                            app.calibrationMaxDistanceM,
-                            farthest.width
-                        ).coerceIn(10f, 300f).takeIf { it >= 0f } ?: 300f
                         val minD = app.estimateDistanceFromSavedPoint(
                             app.calibrationMinWidthPx,
                             app.calibrationMinDistanceM,
                             nearest.width
                         ).coerceIn(10f, 300f).takeIf { it >= 0f } ?: 10f
-                        app.updateCalibrationDistances(minM = minD, maxM = maxD)
+                        val maxD = app.estimateDistanceFromSavedPoint(
+                            app.calibrationMaxWidthPx,
+                            app.calibrationMaxDistanceM,
+                            farthest.width
+                        ).coerceIn(10f, 300f).takeIf { it >= 0f } ?: 300f
+
+                        // Sicherstellen, dass Max > Min bleibt
+                        pendingMinDistanceM = minD
+                        pendingMaxDistanceM = if (maxD > minD) maxD else minD + 1f
+                        if (pendingMaxDistanceM > 300f) {
+                            pendingMaxDistanceM = 300f
+                            pendingMinDistanceM = 299f
+                        }
                     }
                 } else {
-                    // Kalibrierung beendet -> aktuelle eingefrorene Objekte als neue Kalibrierpunkte speichern
+                    // Kalibrierung beendet -> aktuelle eingefrorene Objekte + Slider-Werte speichern
                     val currentMin = frozenItems.find { it.label == "Min" }?.obj
                     val currentMax = frozenItems.find { it.label == "Max" }?.obj
                     if (currentMin != null && currentMax != null) {
@@ -259,6 +268,7 @@ fun CalibrationScreen() {
                             maxHeight = currentMax.height
                         )
                     }
+                    app.updateCalibrationDistances(minM = pendingMinDistanceM, maxM = pendingMaxDistanceM)
                     app.saveCalibration()
                     frozenItems = emptyList()
                 }
@@ -292,30 +302,30 @@ fun CalibrationScreen() {
                         val currentMinWidth = frozenItems.find { it.label == "Min" }?.obj?.width ?: 0
                         val currentMaxWidth = frozenItems.find { it.label == "Max" }?.obj?.width ?: 0
                         frozenItems.forEach { item ->
-                            val initialDistance = when (item.label) {
-                                "Min" -> app.estimateDistanceFromSavedPoint(
-                                    app.calibrationMinWidthPx,
-                                    app.calibrationMinDistanceM,
-                                    item.obj.width
+                            when (item.label) {
+                                "Max" -> CalibrationItemCard(
+                                    label = item.label,
+                                    obj = item.obj,
+                                    thumbnail = item.thumbnail,
+                                    app = app,
+                                    initialDistanceM = pendingMaxDistanceM,
+                                    currentMinWidth = currentMinWidth,
+                                    currentMaxWidth = currentMaxWidth,
+                                    otherProvider = { pendingMinDistanceM },
+                                    onDistanceChange = { pendingMaxDistanceM = it }
                                 )
-                                "Max" -> app.estimateDistanceFromSavedPoint(
-                                    app.calibrationMaxWidthPx,
-                                    app.calibrationMaxDistanceM,
-                                    item.obj.width
+                                else -> CalibrationItemCard(
+                                    label = item.label,
+                                    obj = item.obj,
+                                    thumbnail = item.thumbnail,
+                                    app = app,
+                                    initialDistanceM = pendingMinDistanceM,
+                                    currentMinWidth = currentMinWidth,
+                                    currentMaxWidth = currentMaxWidth,
+                                    otherProvider = { pendingMaxDistanceM },
+                                    onDistanceChange = { pendingMinDistanceM = it }
                                 )
-                                else -> -1f
-                            }.coerceIn(10f, 300f)
-                                .takeIf { it >= 0f }
-                                ?: if (item.label == "Min") 10f else 300f
-                            CalibrationItemCard(
-                                label = item.label,
-                                obj = item.obj,
-                                thumbnail = item.thumbnail,
-                                app = app,
-                                initialDistanceM = initialDistance,
-                                currentMinWidth = currentMinWidth,
-                                currentMaxWidth = currentMaxWidth
-                            )
+                            }
                         }
                     }
                 } else if (objects.isEmpty()) {
@@ -466,7 +476,9 @@ private fun CalibrationItemCard(
     app: MyAIApplication,
     initialDistanceM: Float,
     currentMinWidth: Int,
-    currentMaxWidth: Int
+    currentMaxWidth: Int,
+    otherProvider: () -> Float,
+    onDistanceChange: (Float) -> Unit
 ) {
     val aspectRatio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
 
@@ -527,22 +539,14 @@ private fun CalibrationItemCard(
             Slider(
                 value = distanceM,
                 onValueChange = { newValue ->
-                    val clampedMin = 10f
-                    val clampedMax = 300f
-                    val newValueClamped = newValue.coerceIn(clampedMin, clampedMax)
-                    val otherM = if (label == "Min") app.calibrationMaxDistanceM else app.calibrationMinDistanceM
+                    val clamped = newValue.coerceIn(10f, 300f)
+                    val other = otherProvider()
                     distanceM = if (label == "Min") {
-                        // Min darf Max nicht erreichen/überschreiten
-                        newValueClamped.coerceAtMost(otherM - 1f)
+                        clamped.coerceAtMost(other - 1f)
                     } else {
-                        // Max darf Min nicht erreichen/unterschreiten
-                        newValueClamped.coerceAtLeast(otherM + 1f)
+                        clamped.coerceAtLeast(other + 1f)
                     }
-                    if (label == "Min") {
-                        app.updateCalibrationDistances(minM = distanceM, maxM = app.calibrationMaxDistanceM)
-                    } else {
-                        app.updateCalibrationDistances(minM = app.calibrationMinDistanceM, maxM = distanceM)
-                    }
+                    onDistanceChange(distanceM)
                 },
                 valueRange = 10f..300f,
                 modifier = Modifier.weight(1f)
@@ -556,6 +560,7 @@ private fun CalibrationItemCard(
             val savedMaxD = app.calibrationMaxDistanceM
             val calcMinD = if (savedMinW > 0 && currentMinWidth > 0) savedMinD * savedMinW / currentMinWidth else -1f
             val calcMaxD = if (savedMaxW > 0 && currentMaxWidth > 0) savedMaxD * savedMaxW / currentMaxWidth else -1f
+            val willSaveMaxD = otherProvider()
 
             Column(modifier = Modifier.padding(top = 2.dp)) {
                 Text(
@@ -590,7 +595,7 @@ private fun CalibrationItemCard(
                     style = MaterialTheme.typography.bodySmall
                 )
                 Text(
-                    text = "Max: ${currentMaxWidth}px @ ${app.calibrationMaxDistanceM.toInt()}m",
+                    text = "Max: ${currentMaxWidth}px @ ${willSaveMaxD.toInt()}m",
                     color = Color.Cyan,
                     style = MaterialTheme.typography.bodySmall
                 )
