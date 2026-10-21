@@ -159,6 +159,14 @@ fun CalibrationScreen() {
             // Leerer Abstand oben wie in DebugActivity
             Box(modifier = Modifier.weight(0.1f))
 
+            // Meta-Daten für alle erkannten Objekte
+            val objects = detectionResult?.objects ?: emptyList()
+            val averageAspectRatio = if (objects.isNotEmpty()) {
+                objects.map { it.width.toFloat() / it.height.toFloat() }.average().toFloat()
+            } else {
+                0f
+            }
+
             // Auto, das das Fenster am knappsten verfehlt: am nächsten an 1.0, aber außerhalb 1.1..1.3
             val borderCandidate = objects
                 .filter { obj ->
@@ -182,12 +190,15 @@ fun CalibrationScreen() {
                 )
 
                 borderCandidate?.let { obj ->
-                    val left = obj.x.coerceIn(0, detectionResult?.imageWidth ?: 0)
-                    val top = obj.y.coerceIn(0, detectionResult?.imageHeight ?: 0)
-                    val right = (obj.x + obj.width).coerceIn(0, detectionResult?.imageWidth ?: 0)
-                    val bottom = (obj.y + obj.height).coerceIn(0, detectionResult?.imageHeight ?: 0)
-                    val cropped = if (right > left && bottom > top && detectionResult?.rawBitmap != null) {
-                        Bitmap.createBitmap(detectionResult.rawBitmap, left, top, right - left, bottom - top)
+                    val imageWidth = detectionResult?.imageWidth ?: 0
+                    val imageHeight = detectionResult?.imageHeight ?: 0
+                    val rawBitmap = detectionResult?.rawBitmap
+                    val left = obj.x.coerceIn(0, imageWidth)
+                    val top = obj.y.coerceIn(0, imageHeight)
+                    val right = (obj.x + obj.width).coerceIn(0, imageWidth)
+                    val bottom = (obj.y + obj.height).coerceIn(0, imageHeight)
+                    val cropped = if (right > left && bottom > top && rawBitmap != null) {
+                        Bitmap.createBitmap(rawBitmap, left, top, right - left, bottom - top)
                     } else null
 
                     cropped?.let { bitmap ->
@@ -202,14 +213,6 @@ fun CalibrationScreen() {
                         )
                     }
                 }
-            }
-
-            // Meta-Daten für alle erkannten Objekte
-            val objects = detectionResult?.objects ?: emptyList()
-            val averageAspectRatio = if (objects.isNotEmpty()) {
-                objects.map { it.width.toFloat() / it.height.toFloat() }.average().toFloat()
-            } else {
-                0f
             }
 
             Column(

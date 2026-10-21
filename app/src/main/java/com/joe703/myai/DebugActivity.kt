@@ -251,7 +251,7 @@ fun DebugCameraScreen() {
     var targetClassIndex by remember { mutableStateOf(app.targetClassIndex) }
     var frameCount by remember { mutableStateOf(0) }
 
-    LaunchedEffect(app) {
+    DisposableEffect(app) {
         val listener = {
             targetClassIndex = app.targetClassIndex
             confidenceThreshold = app.confidenceThreshold
