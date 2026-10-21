@@ -55,6 +55,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -370,10 +371,9 @@ fun ObjectBadges(
 
             Box(
                 modifier = Modifier
-                    .offset(
-                        x = finalX.dp,
-                        y = (finalY + finalH).dp
-                    )
+                    .offset {
+                        IntOffset(finalX.toInt(), (finalY + finalH).toInt())
+                    }
                     .background(
                         color = Color(0xFF1A1A1A).copy(alpha = 0.85f),
                         shape = MaterialTheme.shapes.small
