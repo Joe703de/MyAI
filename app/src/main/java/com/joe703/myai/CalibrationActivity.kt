@@ -58,6 +58,12 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
+private data class FrozenCalibrationItem(
+    val label: String,
+    val obj: DetectedObject,
+    val thumbnail: Bitmap?
+)
+
 private suspend fun <T> com.google.common.util.concurrent.ListenableFuture<T>.await(executor: java.util.concurrent.Executor): T =
     suspendCoroutine { cont ->
         addListener({
@@ -178,10 +184,9 @@ fun CalibrationScreen() {
 
             var inCalibrationMode by remember { mutableStateOf(false) }
 
-            // Eingefrorene Objekte für den Kalibrierungsmodus.
-            // Wird einmalig beim Einschalten des Schalters aus den aktuellen gültigen Objekten gespeichert.
-            var frozenMin by remember { mutableStateOf<DetectedObject?>(null) }
-            var frozenMax by remember { mutableStateOf<DetectedObject?>(null) }
+            // Eingefrorene Kalibrierungsobjekte mit Bitmap-Kopien.
+            // Bleiben erhalten, solange der Kalibrierungsmodus aktiv ist.
+            var frozenItems by remember { mutableStateOf<List<FrozenCalibrationItem>>(emptyList()) }
 
             // Gültige Objekte innerhalb des Seitenverhältnis-Fensters 1.1..1.35
             val validObjects = remember(objects) {
@@ -205,14 +210,21 @@ fun CalibrationScreen() {
                 }
                 .take(5)
 
-            // Beim Einschalten einfrieren, beim Ausschalten wieder live
+            // Beim Einschalten einfrieren (inkl. Bitmap-Kopie), beim Ausschalten löschen
             LaunchedEffect(inCalibrationMode) {
                 if (inCalibrationMode) {
                     val min = liveMin
                     val max = liveMax
-                    frozenMin = min
-                    frozenMax = max
                     if (min != null && max != null) {
+                        val minThumb = cropBitmap(rawBitmap, imageWidth, imageHeight, min)?.copy(Bitmap.Config.ARGB_8888, false)
+                        val maxThumb = cropBitmap(rawBitmap, imageWidth, imageHeight, max)?.copy(Bitmap.Config.ARGB_8888, false)
+                        frozenItems = listOfNotNull(
+                            minThumb?.let { FrozenCalibrationItem("Min", min, it) }
+                                ?: FrozenCalibrationItem("Min", min, null),
+                            maxThumb?.let { FrozenCalibrationItem("Max", max, it) }
+                                ?: FrozenCalibrationItem("Max", max, null)
+                        ).distinctBy { it.obj }
+
                         app.updateCalibrationObjects(
                             minWidth = min.width,
                             minHeight = min.height,
@@ -221,15 +233,10 @@ fun CalibrationScreen() {
                         )
                     }
                 } else {
-                    frozenMin = null
-                    frozenMax = null
+                    frozenItems = emptyList()
                     app.clearCalibrationObjects()
                 }
             }
-
-            // Aktive Min-/Max-Objekte: im Kalibrierungsmodus die eingefrorenen, sonst die live Werte
-            val activeMin = if (inCalibrationMode) frozenMin else liveMin
-            val activeMax = if (inCalibrationMode) frozenMax else liveMax
 
             // Obere Status-Zeile
             CalibrationStatusBar(
@@ -247,37 +254,30 @@ fun CalibrationScreen() {
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(0.dp)
             ) {
-                if (objects.isEmpty()) {
-                    Text(
-                        text = "Keine Objekte erkannt",
-                        color = Color.Gray,
-                        style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp)
-                    )
-                } else if (inCalibrationMode) {
-                    val calibrationItems = listOfNotNull(
-                        activeMin?.let { "Min" to it },
-                        activeMax?.let { "Max" to it }
-                    ).distinctBy { it.second }
-
-                    if (calibrationItems.isEmpty()) {
+                if (inCalibrationMode) {
+                    // Kalibrierungsansicht bleibt auch bei "Keine Objekte erkannt" sichtbar
+                    if (frozenItems.isEmpty()) {
                         Text(
                             text = "Keine Objekte im Bereich 1,1..1,35",
                             color = Color.Gray,
                             style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp)
                         )
                     } else {
-                        calibrationItems.forEach { (label, obj) ->
+                        frozenItems.forEach { item ->
                             CalibrationItemCard(
-                                label = label,
-                                obj = obj,
-                                imageWidth = imageWidth,
-                                imageHeight = imageHeight,
-                                rawBitmap = rawBitmap,
-                                app = app,
-                                isFrozen = true
+                                label = item.label,
+                                obj = item.obj,
+                                thumbnail = item.thumbnail,
+                                app = app
                             )
                         }
                     }
+                } else if (objects.isEmpty()) {
+                    Text(
+                        text = "Keine Objekte erkannt",
+                        color = Color.Gray,
+                        style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp)
+                    )
                 } else {
                     objects.forEachIndexed { index, obj ->
                         val aspectRatio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
@@ -416,14 +416,10 @@ private fun cropBitmap(rawBitmap: Bitmap?, imageWidth: Int, imageHeight: Int, ob
 private fun CalibrationItemCard(
     label: String,
     obj: DetectedObject,
-    imageWidth: Int,
-    imageHeight: Int,
-    rawBitmap: Bitmap?,
-    app: MyAIApplication,
-    isFrozen: Boolean
+    thumbnail: Bitmap?,
+    app: MyAIApplication
 ) {
     val aspectRatio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
-    val thumbnail = cropBitmap(rawBitmap, imageWidth, imageHeight, obj)
 
     // Startwerte aus Application oder Standard 10..200 m
     val initialMin = app.calibrationMinDistanceM
@@ -445,7 +441,7 @@ private fun CalibrationItemCard(
         ) {
             Text(
                 text = "$label: ${obj.width}×${obj.height}px, SV ${"%.2f".format(aspectRatio)}:1",
-                color = if (isFrozen) Color.Green else Color.Cyan,
+                color = Color.Green,
                 style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp),
                 modifier = Modifier.weight(1f)
             )
@@ -462,15 +458,22 @@ private fun CalibrationItemCard(
             }
         }
 
+        Text(
+            text = "Entfernung",
+            color = Color.White,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(top = 2.dp)
+        )
+
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(
-                text = "Entfernung",
+                text = "${distanceM.toInt()}m",
                 color = Color.White,
                 style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.width(70.dp)
+                modifier = Modifier.width(64.dp)
             )
             Slider(
                 value = distanceM,
@@ -484,12 +487,6 @@ private fun CalibrationItemCard(
                 },
                 valueRange = 10f..200f,
                 modifier = Modifier.weight(1f)
-            )
-            Text(
-                text = "${distanceM.toInt()}m",
-                color = Color.White,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.width(48.dp)
             )
         }
     }
