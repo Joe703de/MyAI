@@ -9,7 +9,9 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.view.WindowCompat
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview as CameraPreview
@@ -29,6 +31,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
@@ -64,6 +67,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        enableEdgeToEdge()
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         setContent {
@@ -182,24 +187,25 @@ fun MainCameraScreen() {
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
+            .safeDrawingPadding()
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Status-Zeile oben
+            // Status-Zeile oben mit Abstand zur Android-Statusleiste
             MainStatusBar(
                 result = detectionResult,
                 targetClassIndex = app.targetClassIndex,
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
-                    .padding(horizontal = 3.dp, vertical = 4.dp)
+                    .padding(top = 8.dp, bottom = 4.dp)
             )
 
-            // Kamera-Preview nimmt den verfügbaren Platz nach oben
+            // Kamera-Preview genau wie in DebugActivity
             Box(
                 modifier = Modifier
-                    .weight(1f)
+                    .weight(0.7f)
                     .fillMaxWidth(0.9f)
                     .border(1.dp, Color.White),
                 contentAlignment = Alignment.Center
@@ -263,11 +269,18 @@ fun MainCameraScreen() {
                 }
             }
 
-            // Unten Platz für zukünftige Elemente
+            // Freier Platz für zukünftige Anzeigen
+            Box(
+                modifier = Modifier
+                    .weight(0.15f)
+                    .fillMaxWidth(0.9f)
+            )
+
+            // Buttons oberhalb der Android-Navigationsleiste
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
-                    .padding(vertical = 8.dp)
+                    .padding(top = 8.dp, bottom = 16.dp)
             ) {
                 // Debug-Button unten rechts
                 Button(
