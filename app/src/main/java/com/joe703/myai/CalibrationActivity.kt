@@ -45,6 +45,17 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
+private suspend fun <T> com.google.common.util.concurrent.ListenableFuture<T>.await(): T =
+    suspendCoroutine { cont ->
+        addListener({
+            try {
+                cont.resume(get())
+            } catch (e: Throwable) {
+                cont.resumeWithException(e)
+            }
+        }, com.google.common.util.concurrent.MoreExecutors.directExecutor())
+    }
+
 class CalibrationActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -109,16 +120,7 @@ fun CalibrationScreen() {
 
     LaunchedEffect(lifecycleOwner) {
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            val cameraProvider = suspendCoroutine { cont: Continuation<ProcessCameraProvider> ->
-                val future = ProcessCameraProvider.getInstance(context)
-                future.addListener({
-                    try {
-                        cont.resume(future.get())
-                    } catch (e: Throwable) {
-                        cont.resumeWithException(e)
-                    }
-                }, ContextCompat.getMainExecutor(context))
-            }
+            val cameraProvider = ProcessCameraProvider.getInstance(context).await()
             try {
                 cameraProvider.unbindAll()
                 cameraProvider.bindToLifecycle(
