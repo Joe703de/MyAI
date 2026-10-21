@@ -164,7 +164,7 @@ fun MainCameraScreen() {
                         targetClassProvider = { app.targetClassIndex },
                         confThresholdProvider = { app.confidenceThreshold }
                     ) { result ->
-                        app.setCurrentDetectionResult(result)
+                        app.updateCurrentDetectionResult(result)
                         val activity = context as? ComponentActivity
                         activity?.runOnUiThread {
                             detectionResult = result

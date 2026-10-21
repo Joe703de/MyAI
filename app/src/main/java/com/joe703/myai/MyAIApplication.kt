@@ -29,17 +29,17 @@ class MyAIApplication : Application() {
 
     private val listeners = mutableListOf<() -> Unit>()
 
-    fun setTargetClass(index: Int) {
+    fun updateTargetClass(index: Int) {
         targetClassIndex = index
         notifyListeners()
     }
 
-    fun setConfidenceThreshold(value: Float) {
+    fun updateConfidenceThreshold(value: Float) {
         confidenceThreshold = value
         notifyListeners()
     }
 
-    fun setCurrentDetectionResult(result: DetectionResult) {
+    fun updateCurrentDetectionResult(result: DetectionResult) {
         currentDetectionResult = result
         notifyListeners()
     }

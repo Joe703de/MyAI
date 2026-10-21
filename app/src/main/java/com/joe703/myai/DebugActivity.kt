@@ -280,7 +280,7 @@ fun DebugCameraScreen() {
                         targetClassProvider = { app.targetClassIndex },
                         confThresholdProvider = { app.confidenceThreshold }
                     ) { result ->
-                        app.setCurrentDetectionResult(result)
+                        app.updateCurrentDetectionResult(result)
                         val activity = context as? ComponentActivity
                         activity?.runOnUiThread {
                             detectionResult = result
@@ -373,7 +373,7 @@ fun DebugCameraScreen() {
                 selectedIndex = targetClassIndex,
                 onSelectionChanged = {
                     targetClassIndex = it
-                    app.setTargetClass(it)
+                    app.updateTargetClass(it)
                 },
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
@@ -385,7 +385,7 @@ fun DebugCameraScreen() {
                 onValueChange = {
                     confidenceThreshold = it
                     confidenceThresholdRef.set(it)
-                    app.setConfidenceThreshold(it)
+                    app.updateConfidenceThreshold(it)
                 },
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
