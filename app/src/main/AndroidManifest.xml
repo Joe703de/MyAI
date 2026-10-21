@@ -44,6 +44,14 @@
             android:screenOrientation="portrait"
             android:configChanges="orientation|screenSize|keyboardHidden" />
 
+        <activity
+            android:name=".OcrActivity"
+            android:exported="false"
+            android:label="OCR"
+            android:theme="@style/Theme.MyAI"
+            android:screenOrientation="portrait"
+            android:configChanges="orientation|screenSize|keyboardHidden" />
+
     </application>
 
 </manifest>

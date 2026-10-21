@@ -323,6 +323,19 @@ fun MainCameraScreen() {
                 ) {
                     Text("Kalibrierung")
                 }
+
+                Button(
+                    onClick = {
+                        val intent = Intent(context, OcrActivity::class.java)
+                        context.startActivity(intent)
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.DarkGray,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("OCR")
+                }
             }
         }
     }

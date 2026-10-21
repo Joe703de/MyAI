@@ -58,6 +58,7 @@ class YoloObjectAnalyzer(
     private var yellowMissFrames: Int = 0
     private val yellowMissThreshold: Int = 1
     private var lastRecognizedText: String = ""
+    private var lastRecognizedTextLines: List<String> = emptyList()
 
     private val textRecognizer: TextRecognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
@@ -196,7 +197,8 @@ class YoloObjectAnalyzer(
                     maxGlobalClassId = detections.maxGlobalClassId,
                     timingMs = detections.timing,
                     zoomedObject = detections.zoomedObject,
-                    recognizedText = lastRecognizedText
+                    recognizedText = lastRecognizedText,
+                    recognizedTextLines = lastRecognizedTextLines
                 )
             )
         } catch (e: Exception) {
@@ -669,10 +671,14 @@ class YoloObjectAnalyzer(
         val inputImage = InputImage.fromBitmap(bitmap, 0)
         textRecognizer.process(inputImage)
             .addOnSuccessListener { visionText ->
-                val text = visionText.text
+                val lines = visionText.textBlocks.flatMap { block ->
+                    block.lines.map { line -> line.text }
+                }.filter { it.isNotBlank() }
+                val text = lines.joinToString("\n")
                 if (text.isNotBlank()) {
                     lastRecognizedText = text
-                    Log.i("YoloObjectAnalyzer", "OCR: $text")
+                    lastRecognizedTextLines = lines
+                    Log.i("YoloObjectAnalyzer", "OCR lines: $lines")
                 }
                 imageProxy.close()
             }

@@ -23,7 +23,8 @@ data class DetectionResult(
     val maxGlobalClassId: Int = -1,
     val timingMs: TimingBreakdown = TimingBreakdown(),
     val zoomedObject: ZoomedObject? = null,
-    val recognizedText: String = ""
+    val recognizedText: String = "",
+    val recognizedTextLines: List<String> = emptyList()
 )
 
 /**
