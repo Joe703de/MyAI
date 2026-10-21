@@ -280,11 +280,16 @@ fun CalibrationScreen() {
                         )
                     } else {
                         frozenItems.forEach { item ->
+                            val initialDistance = app.estimateDistance(item.obj.width)
+                                .coerceIn(10f, 300f)
+                                .takeIf { it >= 0f }
+                                ?: if (item.label == "Min") 10f else 300f
                             CalibrationItemCard(
                                 label = item.label,
                                 obj = item.obj,
                                 thumbnail = item.thumbnail,
-                                app = app
+                                app = app,
+                                initialDistanceM = initialDistance
                             )
                         }
                     }
@@ -433,15 +438,13 @@ private fun CalibrationItemCard(
     label: String,
     obj: DetectedObject,
     thumbnail: Bitmap?,
-    app: MyAIApplication
+    app: MyAIApplication,
+    initialDistanceM: Float
 ) {
     val aspectRatio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
 
-    // Startwerte aus Application oder Standard 10..200 m
-    val initialMin = app.calibrationMinDistanceM
-    val initialMax = app.calibrationMaxDistanceM
-    var distanceM by remember(label, initialMin, initialMax) {
-        mutableFloatStateOf(if (label == "Min") initialMin else initialMax)
+    var distanceM by remember(label, initialDistanceM) {
+        mutableFloatStateOf(initialDistanceM)
     }
 
     Column(
