@@ -9,9 +9,7 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.view.WindowCompat
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview as CameraPreview
@@ -31,7 +29,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
@@ -58,17 +55,20 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import com.joe703.myai.ui.theme.MyAITheme
 import java.util.concurrent.Executors
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlin.coroutines.suspendCoroutine
 import kotlin.math.max
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        enableEdgeToEdge()
-        WindowCompat.setDecorFitsSystemWindows(window, false)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         setContent {
@@ -187,19 +187,21 @@ fun MainCameraScreen() {
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
-            .safeDrawingPadding()
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Status-Zeile oben mit Abstand zur Android-Statusleiste
+            // Leerer Abstand oben wie in DebugActivity
+            Box(modifier = Modifier.weight(0.1f))
+
+            // Status-Zeile oben
             MainStatusBar(
                 result = detectionResult,
                 targetClassIndex = app.targetClassIndex,
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
-                    .padding(top = 8.dp, bottom = 4.dp)
+                    .padding(bottom = 4.dp)
             )
 
             // Kamera-Preview genau wie in DebugActivity
@@ -212,38 +214,46 @@ fun MainCameraScreen() {
             ) {
                 val zoomedBitmap = detectionResult.zoomedObject?.bitmap
 
-                AndroidView(
-                    factory = { ctx ->
-                        val previewView = PreviewView(ctx)
-                        previewView.scaleType = PreviewView.ScaleType.FILL_CENTER
-                        previewView.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+                val previewView = remember { PreviewView(context) }
+                previewView.scaleType = PreviewView.ScaleType.FILL_CENTER
+                previewView.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
 
-                        previewView.post {
-                            previewViewSize = android.util.Size(previewView.width, previewView.height)
+                previewView.post {
+                    previewViewSize = android.util.Size(previewView.width, previewView.height)
+                }
+
+                LaunchedEffect(lifecycleOwner) {
+                    lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                        val cameraProvider = suspendCoroutine { cont: Continuation<ProcessCameraProvider> ->
+                            val future = ProcessCameraProvider.getInstance(context)
+                            future.addListener({
+                                try {
+                                    cont.resume(future.get())
+                                } catch (e: Throwable) {
+                                    cont.resumeWithException(e)
+                                }
+                            }, ContextCompat.getMainExecutor(context))
                         }
+                        val preview = CameraPreview.Builder()
+                            .build()
+                            .also { it.setSurfaceProvider(previewView.surfaceProvider) }
 
-                        val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
-                        cameraProviderFuture.addListener({
-                            try {
-                                val cameraProvider = cameraProviderFuture.get()
-                                val preview = CameraPreview.Builder()
-                                    .build()
-                                    .also { it.setSurfaceProvider(previewView.surfaceProvider) }
+                        try {
+                            cameraProvider.unbindAll()
+                            cameraProvider.bindToLifecycle(
+                                lifecycleOwner,
+                                CameraSelector.DEFAULT_BACK_CAMERA,
+                                preview,
+                                imageAnalyzer
+                            )
+                        } catch (e: Exception) {
+                            Log.e("MyAI", "Camera binding failed", e)
+                        }
+                    }
+                }
 
-                                cameraProvider.unbindAll()
-                                cameraProvider.bindToLifecycle(
-                                    lifecycleOwner,
-                                    CameraSelector.DEFAULT_BACK_CAMERA,
-                                    preview,
-                                    imageAnalyzer
-                                )
-                            } catch (e: Exception) {
-                                Log.e("MyAI", "Camera binding failed", e)
-                            }
-                        }, ContextCompat.getMainExecutor(ctx))
-
-                        previewView
-                    },
+                AndroidView(
+                    factory = { previewView },
                     modifier = Modifier.fillMaxSize().clipToBounds()
                 )
 
