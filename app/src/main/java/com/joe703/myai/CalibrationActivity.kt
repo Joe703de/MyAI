@@ -453,7 +453,7 @@ private fun CalibrationItemCard(
                         .padding(start = 4.dp)
                         .height(56.dp)
                         .width(84.dp)
-                        .border(1.dp, Color.Yellow)
+                        .border(1.dp, Color.Green)
                 )
             }
         }
