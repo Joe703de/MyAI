@@ -251,7 +251,7 @@ fun MainCameraScreen() {
                     )
                 }
 
-                // Badge über jedem erkannten gelben Auto anzeigen
+                // Badge über jedem erkannten roten Auto anzeigen
                 if (previewViewSize.width > 0 && detectionResult.imageWidth > 0) {
                     ObjectBadges(
                         objects = detectionResult.objects,
@@ -324,7 +324,7 @@ fun ObjectBadges(
 
     Box(modifier = Modifier.fillMaxSize()) {
         objects.forEach { obj ->
-            if (obj.colorName != "Gelb") return@forEach
+            if (obj.colorName != "Rot") return@forEach
 
             val finalX = (obj.x.toFloat() * scale) + offsetX
             val finalY = (obj.y.toFloat() * scale) + offsetY
@@ -352,7 +352,7 @@ fun ObjectBadges(
                         modifier = Modifier.size(28.dp)
                     )
                     Text(
-                        text = "Gelbes Auto erkannt",
+                        text = "Rotes Auto erkannt",
                         color = Color.White,
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 1
