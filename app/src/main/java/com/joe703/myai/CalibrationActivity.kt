@@ -261,7 +261,6 @@ fun CalibrationScreen() {
                     }
                     app.saveCalibration()
                     frozenItems = emptyList()
-                    app.clearCalibrationObjects()
                 }
             }
 
@@ -567,6 +566,12 @@ private fun CalibrationItemCard(
                 Text(
                     text = "aktuell Max: ${currentMaxWidth}px @ ${calcMaxD.toInt()}m",
                     color = Color.Yellow,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "beim Beenden speichern: Min ${currentMinWidth}px @ ${distanceM.toInt()}m, Max ${currentMaxWidth}px @ ${app.calibrationMaxDistanceM.toInt()}m",
+                    color = Color.Cyan,
                     style = MaterialTheme.typography.bodySmall
                 )
             }
