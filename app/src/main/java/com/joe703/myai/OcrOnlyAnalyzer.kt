@@ -13,7 +13,7 @@ import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Leichtgewichtiger Analyzer nur für OCR.
- * Verarbeitet maximal ein Frame pro Sekunde, um Ressourcen zu schonen.
+ * Verarbeitet jeden Kamera-Frame ohne künstliche Verzögerung.
  */
 class OcrOnlyAnalyzer(
     private val context: Context,
@@ -21,16 +21,8 @@ class OcrOnlyAnalyzer(
 ) : ImageAnalysis.Analyzer {
 
     private val textRecognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-    private val lastProcessTime = AtomicLong(0L)
 
     override fun analyze(imageProxy: ImageProxy) {
-        val now = System.currentTimeMillis()
-        if (now - lastProcessTime.get() < 1000L) {
-            imageProxy.close()
-            return
-        }
-        lastProcessTime.set(now)
-
         try {
             val rawBitmap = imageProxy.toBitmap()
             if (rawBitmap == null) {

@@ -86,19 +86,11 @@ fun OcrScreen() {
     val app = context.applicationContext as MyAIApplication
 
     var displayLines by remember { mutableStateOf<List<String>>(emptyList()) }
-    var lastUpdateTime by remember { mutableStateOf(0L) }
-
-    var pendingLines by remember { mutableStateOf<List<String>>(emptyList()) }
 
     DisposableEffect(app) {
         val listener = {
             val lines = app.currentDetectionResult?.recognizedTextLines ?: emptyList()
-            pendingLines = lines
-            val now = System.currentTimeMillis()
-            if (now - lastUpdateTime >= 1000L) {
-                displayLines = lines
-                lastUpdateTime = now
-            }
+            displayLines = lines
         }
         app.addListener(listener)
         onDispose {
@@ -124,12 +116,7 @@ fun OcrScreen() {
                 it.setAnalyzer(
                     Executors.newSingleThreadExecutor(),
                     OcrOnlyAnalyzer(context) { lines ->
-                        pendingLines = lines
-                        val now = System.currentTimeMillis()
-                        if (now - lastUpdateTime >= 1000L) {
-                            displayLines = lines
-                            lastUpdateTime = now
-                        }
+                        displayLines = lines
                     }
                 )
             }
