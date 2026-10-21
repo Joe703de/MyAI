@@ -43,7 +43,7 @@ class MyAIApplication : Application() {
     var calibrationMaxDistanceM: Float by mutableFloatStateOf(200f)
         private set
 
-    private val listeners = mutableListOf<>() -> Unit>()
+    private val listeners = mutableListOf<() -> Unit>()
 
     fun updateTargetClass(index: Int) {
         targetClassIndex = index
