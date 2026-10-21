@@ -27,7 +27,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -49,6 +51,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -248,11 +251,14 @@ fun MainCameraScreen() {
                     )
                 }
 
-                if (zoomedBitmap != null) {
-                    Image(
-                        bitmap = zoomedBitmap.asImageBitmap(),
-                        contentDescription = "Zoomed object",
-                        modifier = Modifier.fillMaxSize(0.96f)
+                // Badge über jedem erkannten gelben Auto anzeigen
+                if (previewViewSize.width > 0 && detectionResult.imageWidth > 0) {
+                    ObjectBadges(
+                        objects = detectionResult.objects,
+                        previewWidth = previewViewSize.width.toFloat(),
+                        previewHeight = previewViewSize.height.toFloat(),
+                        imageWidth = detectionResult.imageWidth.toFloat(),
+                        imageHeight = detectionResult.imageHeight.toFloat()
                     )
                 }
             }
@@ -293,6 +299,64 @@ fun MainCameraScreen() {
                         .padding(end = 80.dp)
                 ) {
                     Text("Kalibrierung")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ObjectBadges(
+    objects: List<DetectedObject>,
+    previewWidth: Float,
+    previewHeight: Float,
+    imageWidth: Float,
+    imageHeight: Float
+) {
+    val scaleX = previewWidth / imageWidth
+    val scaleY = previewHeight / imageHeight
+    val scale = max(scaleX, scaleY)
+
+    val scaledWidth = imageWidth * scale
+    val scaledHeight = imageHeight * scale
+    val offsetX = (previewWidth - scaledWidth) / 2
+    val offsetY = (previewHeight - scaledHeight) / 2
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        objects.forEach { obj ->
+            if (obj.colorName != "Gelb") return@forEach
+
+            val finalX = (obj.x.toFloat() * scale) + offsetX
+            val finalY = (obj.y.toFloat() * scale) + offsetY
+
+            Box(
+                modifier = Modifier
+                    .offset(
+                        x = finalX.dp,
+                        y = (finalY - 40f).coerceAtLeast(0f).dp
+                    )
+                    .background(
+                        color = Color(0xFF1A1A1A).copy(alpha = 0.85f),
+                        shape = MaterialTheme.shapes.small
+                    )
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Image(
+                        painter = painterResource(id = R.mipmap.ic_launcher_foreground),
+                        contentDescription = null,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Text(
+                        text = "Gelbes Auto erkannt",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1
+                    )
                 }
             }
         }

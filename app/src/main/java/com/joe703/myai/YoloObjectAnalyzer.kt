@@ -396,9 +396,10 @@ class YoloObjectAnalyzer(
                 if (width <= 0 || height <= 0) return@mapNotNull null
 
                 val color = classifyColor(bitmap, x, y, width, height)
+                val colorName = colorConfigs.firstOrNull { it.rgb.r == color.r && it.rgb.g == color.g && it.rgb.b == color.b }?.name ?: ""
 
-                if (zoomedObject == null && color.r == 255 && color.g == 255 && color.b == 0) {
-                    zoomedObject = createZoomedObject(bitmap, x, y, width, height, "Gelb", raw.score)
+                if (zoomedObject == null && colorName == "Gelb") {
+                    zoomedObject = createZoomedObject(bitmap, x, y, width, height, colorName, raw.score)
                 }
 
                 DetectedObject(
@@ -409,7 +410,8 @@ class YoloObjectAnalyzer(
                     isValidated = true,
                     colorR = color.r,
                     colorG = color.g,
-                    colorB = color.b
+                    colorB = color.b,
+                    colorName = colorName
                 )
             }.take(maxDetections)
         val postColorMs = System.currentTimeMillis() - colorStart

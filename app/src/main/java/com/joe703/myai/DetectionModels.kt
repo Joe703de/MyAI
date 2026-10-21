@@ -60,5 +60,6 @@ data class DetectedObject(
     val isValidated: Boolean = true,
     val colorR: Int = 255,
     val colorG: Int = 255,
-    val colorB: Int = 0
+    val colorB: Int = 0,
+    val colorName: String = ""
 )
