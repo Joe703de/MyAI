@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -36,6 +37,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -176,6 +178,11 @@ fun CalibrationScreen() {
 
             var inCalibrationMode by remember { mutableStateOf(false) }
 
+            // Eingefrorene Objekte für den Kalibrierungsmodus.
+            // Wird einmalig beim Einschalten des Schalters aus den aktuellen gültigen Objekten gespeichert.
+            var frozenMin by remember { mutableStateOf<DetectedObject?>(null) }
+            var frozenMax by remember { mutableStateOf<DetectedObject?>(null) }
+
             // Gültige Objekte innerhalb des Seitenverhältnis-Fensters 1.1..1.35
             val validObjects = remember(objects) {
                 objects.filter { obj ->
@@ -183,8 +190,8 @@ fun CalibrationScreen() {
                     ratio in 1.1f..1.35f
                 }
             }
-            val minWidthObject = validObjects.minByOrNull { it.width }
-            val maxWidthObject = validObjects.maxByOrNull { it.width }
+            val liveMin = validObjects.minByOrNull { it.width }
+            val liveMax = validObjects.maxByOrNull { it.width }
 
             // 5 Autos, die das Fenster am knappsten verfehlen (am nächsten an 1.0, aber außerhalb 1.1..1.35)
             val missCandidates = objects
@@ -197,6 +204,32 @@ fun CalibrationScreen() {
                     kotlin.math.abs(ratio - 1f)
                 }
                 .take(5)
+
+            // Beim Einschalten einfrieren, beim Ausschalten wieder live
+            LaunchedEffect(inCalibrationMode) {
+                if (inCalibrationMode) {
+                    val min = liveMin
+                    val max = liveMax
+                    frozenMin = min
+                    frozenMax = max
+                    if (min != null && max != null) {
+                        app.updateCalibrationObjects(
+                            minWidth = min.width,
+                            minHeight = min.height,
+                            maxWidth = max.width,
+                            maxHeight = max.height
+                        )
+                    }
+                } else {
+                    frozenMin = null
+                    frozenMax = null
+                    app.clearCalibrationObjects()
+                }
+            }
+
+            // Aktive Min-/Max-Objekte: im Kalibrierungsmodus die eingefrorenen, sonst die live Werte
+            val activeMin = if (inCalibrationMode) frozenMin else liveMin
+            val activeMax = if (inCalibrationMode) frozenMax else liveMax
 
             // Obere Status-Zeile
             CalibrationStatusBar(
@@ -221,10 +254,9 @@ fun CalibrationScreen() {
                         style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp)
                     )
                 } else if (inCalibrationMode) {
-                    // Nur Min-/Max-Breite innerhalb der Grenzen
                     val calibrationItems = listOfNotNull(
-                        minWidthObject?.let { "Min" to it },
-                        maxWidthObject?.let { "Max" to it }
+                        activeMin?.let { "Min" to it },
+                        activeMax?.let { "Max" to it }
                     ).distinctBy { it.second }
 
                     if (calibrationItems.isEmpty()) {
@@ -235,13 +267,14 @@ fun CalibrationScreen() {
                         )
                     } else {
                         calibrationItems.forEach { (label, obj) ->
-                            CalibrationListRow(
+                            CalibrationItemCard(
                                 label = label,
                                 obj = obj,
                                 imageWidth = imageWidth,
                                 imageHeight = imageHeight,
                                 rawBitmap = rawBitmap,
-                                textColor = Color.Green
+                                app = app,
+                                isFrozen = true
                             )
                         }
                     }
@@ -380,40 +413,83 @@ private fun cropBitmap(rawBitmap: Bitmap?, imageWidth: Int, imageHeight: Int, ob
 }
 
 @Composable
-private fun CalibrationListRow(
+private fun CalibrationItemCard(
     label: String,
     obj: DetectedObject,
     imageWidth: Int,
     imageHeight: Int,
     rawBitmap: Bitmap?,
-    textColor: Color
+    app: MyAIApplication,
+    isFrozen: Boolean
 ) {
     val aspectRatio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
     val thumbnail = cropBitmap(rawBitmap, imageWidth, imageHeight, obj)
 
-    Row(
+    // Startwerte aus Application oder Standard 10..200 m
+    val initialMin = app.calibrationMinDistanceM
+    val initialMax = app.calibrationMaxDistanceM
+    var distanceM by remember(label, initialMin, initialMax) {
+        mutableFloatStateOf(if (label == "Min") initialMin else initialMax)
+    }
+
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(Color.Black.copy(alpha = 0.7f))
-            .padding(horizontal = 4.dp, vertical = 1.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+            .padding(horizontal = 4.dp, vertical = 2.dp)
     ) {
-        Text(
-            text = "$label: ${obj.width}×${obj.height}px, SV ${"%.2f".format(aspectRatio)}:1",
-            color = textColor,
-            style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp),
-            modifier = Modifier.weight(1f)
-        )
-        thumbnail?.let { bitmap ->
-            Image(
-                bitmap = bitmap.asImageBitmap(),
-                contentDescription = "$label Objekt",
-                modifier = Modifier
-                    .padding(start = 4.dp)
-                    .height(56.dp)
-                    .width(84.dp)
-                    .border(1.dp, Color.Yellow)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "$label: ${obj.width}×${obj.height}px, SV ${"%.2f".format(aspectRatio)}:1",
+                color = if (isFrozen) Color.Green else Color.Cyan,
+                style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp),
+                modifier = Modifier.weight(1f)
+            )
+            thumbnail?.let { bitmap ->
+                Image(
+                    bitmap = bitmap.asImageBitmap(),
+                    contentDescription = "$label Objekt",
+                    modifier = Modifier
+                        .padding(start = 4.dp)
+                        .height(56.dp)
+                        .width(84.dp)
+                        .border(1.dp, Color.Yellow)
+                )
+            }
+        }
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = "Entfernung",
+                color = Color.White,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.width(70.dp)
+            )
+            Slider(
+                value = distanceM,
+                onValueChange = { newValue ->
+                    distanceM = newValue
+                    if (label == "Min") {
+                        app.updateCalibrationDistances(minM = newValue, maxM = app.calibrationMaxDistanceM)
+                    } else {
+                        app.updateCalibrationDistances(minM = app.calibrationMinDistanceM, maxM = newValue)
+                    }
+                },
+                valueRange = 10f..200f,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = "${distanceM.toInt()}m",
+                color = Color.White,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.width(48.dp)
             )
         }
     }

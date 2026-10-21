@@ -27,7 +27,23 @@ class MyAIApplication : Application() {
     var currentDetectionResult: DetectionResult? by mutableStateOf(null)
         private set
 
-    private val listeners = mutableListOf<() -> Unit>()
+    /** Kalibrierung: eingefrorene Breiten/Höhen des kleinsten/größten gültigen Objekts */
+    var calibrationMinWidthPx: Int by mutableIntStateOf(0)
+        private set
+    var calibrationMinHeightPx: Int by mutableIntStateOf(0)
+        private set
+    var calibrationMaxWidthPx: Int by mutableIntStateOf(0)
+        private set
+    var calibrationMaxHeightPx: Int by mutableIntStateOf(0)
+        private set
+
+    /** Kalibrierung: eingestellte Entfernungen in Metern */
+    var calibrationMinDistanceM: Float by mutableFloatStateOf(10f)
+        private set
+    var calibrationMaxDistanceM: Float by mutableFloatStateOf(200f)
+        private set
+
+    private val listeners = mutableListOf<>() -> Unit>()
 
     fun updateTargetClass(index: Int) {
         targetClassIndex = index
@@ -41,6 +57,33 @@ class MyAIApplication : Application() {
 
     fun updateCurrentDetectionResult(result: DetectionResult) {
         currentDetectionResult = result
+        notifyListeners()
+    }
+
+    fun updateCalibrationObjects(
+        minWidth: Int,
+        minHeight: Int,
+        maxWidth: Int,
+        maxHeight: Int
+    ) {
+        calibrationMinWidthPx = minWidth
+        calibrationMinHeightPx = minHeight
+        calibrationMaxWidthPx = maxWidth
+        calibrationMaxHeightPx = maxHeight
+        notifyListeners()
+    }
+
+    fun updateCalibrationDistances(minM: Float, maxM: Float) {
+        calibrationMinDistanceM = minM
+        calibrationMaxDistanceM = maxM
+        notifyListeners()
+    }
+
+    fun clearCalibrationObjects() {
+        calibrationMinWidthPx = 0
+        calibrationMinHeightPx = 0
+        calibrationMaxWidthPx = 0
+        calibrationMaxHeightPx = 0
         notifyListeners()
     }
 
