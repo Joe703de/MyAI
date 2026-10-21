@@ -279,6 +279,8 @@ fun CalibrationScreen() {
                             style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp)
                         )
                     } else {
+                        val currentMinWidth = frozenItems.find { it.label == "Min" }?.obj?.width ?: 0
+                        val currentMaxWidth = frozenItems.find { it.label == "Max" }?.obj?.width ?: 0
                         frozenItems.forEach { item ->
                             val initialDistance = when (item.label) {
                                 "Min" -> app.estimateDistanceFromSavedPoint(
@@ -300,7 +302,9 @@ fun CalibrationScreen() {
                                 obj = item.obj,
                                 thumbnail = item.thumbnail,
                                 app = app,
-                                initialDistanceM = initialDistance
+                                initialDistanceM = initialDistance,
+                                currentMinWidth = currentMinWidth,
+                                currentMaxWidth = currentMaxWidth
                             )
                         }
                     }
@@ -450,7 +454,9 @@ private fun CalibrationItemCard(
     obj: DetectedObject,
     thumbnail: Bitmap?,
     app: MyAIApplication,
-    initialDistanceM: Float
+    initialDistanceM: Float,
+    currentMinWidth: Int,
+    currentMaxWidth: Int
 ) {
     val aspectRatio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
 
@@ -528,23 +534,27 @@ private fun CalibrationItemCard(
             val savedMinD = app.calibrationMinDistanceM
             val savedMaxW = app.calibrationMaxWidthPx
             val savedMaxD = app.calibrationMaxDistanceM
-            val currentMinW = app.currentDetectionResult?.objects
-                ?.filter { it.width.toFloat() / maxOf(it.height, 1) in 1.1f..1.35f }
-                ?.maxByOrNull { it.width }?.width ?: 0
-            val currentMaxW = app.currentDetectionResult?.objects
-                ?.filter { it.width.toFloat() / maxOf(it.height, 1) in 1.1f..1.35f }
-                ?.minByOrNull { it.width }?.width ?: 0
-            val calcMinD = if (savedMinW > 0 && currentMinW > 0) savedMinD * savedMinW / currentMinW else -1f
-            val calcMaxD = if (savedMaxW > 0 && currentMaxW > 0) savedMaxD * savedMaxW / currentMaxW else -1f
+            val calcMinD = if (savedMinW > 0 && currentMinWidth > 0) savedMinD * savedMinW / currentMinWidth else -1f
+            val calcMaxD = if (savedMaxW > 0 && currentMaxWidth > 0) savedMaxD * savedMaxW / currentMaxWidth else -1f
 
             Column(modifier = Modifier.padding(top = 2.dp)) {
                 Text(
-                    text = "DBG: gespeichert Min ${savedMinW}px@${savedMinD.toInt()}m, Max ${savedMaxW}px@${savedMaxD.toInt()}m",
+                    text = "gespeichert Min: ${savedMinW}px @ ${savedMinD.toInt()}m",
                     color = Color.Yellow,
                     style = MaterialTheme.typography.bodySmall
                 )
                 Text(
-                    text = "DBG: aktuell Min ${currentMinW}px->${calcMinD.toInt()}m, Max ${currentMaxW}px->${calcMaxD.toInt()}m",
+                    text = "gespeichert Max: ${savedMaxW}px @ ${savedMaxD.toInt()}m",
+                    color = Color.Yellow,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    text = "aktuell Min: ${currentMinWidth}px @ ${calcMinD.toInt()}m",
+                    color = Color.Yellow,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    text = "aktuell Max: ${currentMaxWidth}px @ ${calcMaxD.toInt()}m",
                     color = Color.Yellow,
                     style = MaterialTheme.typography.bodySmall
                 )
