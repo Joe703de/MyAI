@@ -458,6 +458,9 @@ private fun CalibrationItemCard(
         mutableFloatStateOf(initialDistanceM)
     }
 
+    // Debug-Infos nur unter dem Min-Slider anzeigen
+    val showDebug = label == "Min"
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -518,6 +521,34 @@ private fun CalibrationItemCard(
                 valueRange = 10f..300f,
                 modifier = Modifier.weight(1f)
             )
+        }
+
+        if (showDebug) {
+            val savedMinW = app.calibrationMinWidthPx
+            val savedMinD = app.calibrationMinDistanceM
+            val savedMaxW = app.calibrationMaxWidthPx
+            val savedMaxD = app.calibrationMaxDistanceM
+            val currentMinW = app.currentDetectionResult?.objects
+                ?.filter { it.width.toFloat() / maxOf(it.height, 1) in 1.1f..1.35f }
+                ?.maxByOrNull { it.width }?.width ?: 0
+            val currentMaxW = app.currentDetectionResult?.objects
+                ?.filter { it.width.toFloat() / maxOf(it.height, 1) in 1.1f..1.35f }
+                ?.minByOrNull { it.width }?.width ?: 0
+            val calcMinD = if (savedMinW > 0 && currentMinW > 0) savedMinD * savedMinW / currentMinW else -1f
+            val calcMaxD = if (savedMaxW > 0 && currentMaxW > 0) savedMaxD * savedMaxW / currentMaxW else -1f
+
+            Column(modifier = Modifier.padding(top = 2.dp)) {
+                Text(
+                    text = "DBG: gespeichert Min ${savedMinW}px@${savedMinD.toInt()}m, Max ${savedMaxW}px@${savedMaxD.toInt()}m",
+                    color = Color.Yellow,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    text = "DBG: aktuell Min ${currentMinW}px->${calcMinD.toInt()}m, Max ${currentMaxW}px->${calcMaxD.toInt()}m",
+                    color = Color.Yellow,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
         }
     }
 }
