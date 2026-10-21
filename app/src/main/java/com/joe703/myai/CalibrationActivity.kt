@@ -527,11 +527,21 @@ private fun CalibrationItemCard(
             Slider(
                 value = distanceM,
                 onValueChange = { newValue ->
-                    distanceM = newValue
-                    if (label == "Min") {
-                        app.updateCalibrationDistances(minM = newValue, maxM = app.calibrationMaxDistanceM)
+                    val clampedMin = 10f
+                    val clampedMax = 300f
+                    val newValueClamped = newValue.coerceIn(clampedMin, clampedMax)
+                    val otherM = if (label == "Min") app.calibrationMaxDistanceM else app.calibrationMinDistanceM
+                    distanceM = if (label == "Min") {
+                        // Min darf Max nicht erreichen/überschreiten
+                        newValueClamped.coerceAtMost(otherM - 1f)
                     } else {
-                        app.updateCalibrationDistances(minM = app.calibrationMinDistanceM, maxM = newValue)
+                        // Max darf Min nicht erreichen/unterschreiten
+                        newValueClamped.coerceAtLeast(otherM + 1f)
+                    }
+                    if (label == "Min") {
+                        app.updateCalibrationDistances(minM = distanceM, maxM = app.calibrationMaxDistanceM)
+                    } else {
+                        app.updateCalibrationDistances(minM = app.calibrationMinDistanceM, maxM = distanceM)
                     }
                 },
                 valueRange = 10f..300f,
