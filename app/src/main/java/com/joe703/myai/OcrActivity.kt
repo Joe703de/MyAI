@@ -117,12 +117,13 @@ fun OcrScreen() {
             .also {
                 it.setAnalyzer(
                     Executors.newSingleThreadExecutor(),
-                    YoloObjectAnalyzer(
-                        context,
-                        targetClassProvider = { app.targetClassIndex },
-                        confThresholdProvider = { app.confidenceThreshold }
-                    ) { result ->
-                        app.updateCurrentDetectionResult(result)
+                    OcrOnlyAnalyzer(context) { lines ->
+                        pendingLines = lines
+                        val now = System.currentTimeMillis()
+                        if (now - lastUpdateTime >= 1000L) {
+                            displayLines = lines
+                            lastUpdateTime = now
+                        }
                     }
                 )
             }
