@@ -238,8 +238,8 @@ fun CalibrationScreen() {
                                     contentDescription = "Knappes Auto",
                                     modifier = Modifier
                                         .padding(start = 4.dp)
-                                        .height(28.dp)
-                                        .width(42.dp)
+                                        .height(56.dp)
+                                        .width(84.dp)
                                         .border(1.dp, Color.Yellow)
                                 )
                             }
@@ -249,11 +249,12 @@ fun CalibrationScreen() {
             }
 
             // Durchschnittliches Seitenverhältnis unten links, oberhalb der Navigationsleiste
-            Box(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
                     .padding(top = 4.dp, bottom = 8.dp),
-                contentAlignment = Alignment.BottomStart
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
                     text = if (averageAspectRatio > 0f) {
@@ -262,7 +263,14 @@ fun CalibrationScreen() {
                         "Ø SV: -"
                     },
                     color = Color.White,
-                    style = MaterialTheme.typography.headlineMedium,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.background(Color.Black.copy(alpha = 0.7f))
+                )
+
+                Text(
+                    text = "KL=${app.confidenceThreshold}, Z=${app.targetClassIndex}",
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.background(Color.Black.copy(alpha = 0.7f))
                 )
             }
