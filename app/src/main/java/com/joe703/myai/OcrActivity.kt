@@ -189,9 +189,9 @@ fun OcrScreen() {
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 2.dp)
+                                .padding(vertical = 0.dp)
                                 .background(Color.Black.copy(alpha = 0.7f))
-                                .padding(horizontal = 4.dp, vertical = 4.dp)
+                                .padding(horizontal = 4.dp, vertical = 2.dp)
                         )
                     }
                 }

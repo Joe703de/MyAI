@@ -187,9 +187,9 @@ fun CalibrationScreen() {
                             style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 2.dp)
+                                .padding(vertical = 0.dp)
                                 .background(Color.Black.copy(alpha = 0.7f))
-                                .padding(horizontal = 4.dp, vertical = 4.dp)
+                                .padding(horizontal = 4.dp, vertical = 2.dp)
                         )
                     }
                 }
@@ -199,7 +199,7 @@ fun CalibrationScreen() {
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
-                    .padding(top = 8.dp, bottom = 16.dp),
+                    .padding(top = 4.dp, bottom = 8.dp),
                 contentAlignment = Alignment.BottomStart
             ) {
                 Text(
