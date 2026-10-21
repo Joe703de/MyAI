@@ -210,7 +210,7 @@ fun CalibrationScreen() {
                 }
                 .take(5)
 
-            // Beim Einschalten einfrieren (inkl. Bitmap-Kopie), beim Ausschalten löschen
+            // Beim Einschalten einfrieren (inkl. Bitmap-Kopie), beim Ausschalten speichern und löschen
             LaunchedEffect(inCalibrationMode) {
                 if (inCalibrationMode) {
                     val min = liveMin
@@ -231,9 +231,15 @@ fun CalibrationScreen() {
                             maxWidth = max.width,
                             maxHeight = max.height
                         )
+
+                        // Slider initial über gespeicherte Kalibrierung (oder Dreisatz aus den vorherigen Werten) vorbelegen
+                        val minD = app.estimateDistance(min.width).coerceIn(10f, 300f)
+                        val maxD = app.estimateDistance(max.width).coerceIn(10f, 300f)
+                        app.updateCalibrationDistances(minM = minD, maxM = maxD)
                     }
                 } else {
                     frozenItems = emptyList()
+                    app.saveCalibration()
                     app.clearCalibrationObjects()
                 }
             }

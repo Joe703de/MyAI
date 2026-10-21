@@ -1,6 +1,7 @@
 package com.joe703.myai
 
 import android.app.Application
+import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -40,10 +41,18 @@ class MyAIApplication : Application() {
     /** Kalibrierung: eingestellte Entfernungen in Metern */
     var calibrationMinDistanceM: Float by mutableFloatStateOf(10f)
         private set
-    var calibrationMaxDistanceM: Float by mutableFloatStateOf(200f)
+    var calibrationMaxDistanceM: Float by mutableFloatStateOf(300f)
         private set
 
     private val listeners = mutableListOf<() -> Unit>()
+
+    private lateinit var prefs: android.content.SharedPreferences
+
+    override fun onCreate() {
+        super.onCreate()
+        prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        loadCalibration()
+    }
 
     fun updateTargetClass(index: Int) {
         targetClassIndex = index
@@ -84,7 +93,46 @@ class MyAIApplication : Application() {
         calibrationMinHeightPx = 0
         calibrationMaxWidthPx = 0
         calibrationMaxHeightPx = 0
+        // Entfernungen bleiben erhalten, falls vom letzten Mal geladen
         notifyListeners()
+    }
+
+    /** Speichert die Kalibrierwerte persistent. Wird beim sauberen Beenden der Kalibrierung aufgerufen. */
+    fun saveCalibration() {
+        prefs.edit().apply {
+            putInt(KEY_MIN_WIDTH_PX, calibrationMinWidthPx)
+            putInt(KEY_MIN_HEIGHT_PX, calibrationMinHeightPx)
+            putInt(KEY_MAX_WIDTH_PX, calibrationMaxWidthPx)
+            putInt(KEY_MAX_HEIGHT_PX, calibrationMaxHeightPx)
+            putFloat(KEY_MIN_DISTANCE_M, calibrationMinDistanceM)
+            putFloat(KEY_MAX_DISTANCE_M, calibrationMaxDistanceM)
+            apply()
+        }
+    }
+
+    /** Lädt die Kalibrierwerte aus SharedPreferences. */
+    private fun loadCalibration() {
+        calibrationMinWidthPx = prefs.getInt(KEY_MIN_WIDTH_PX, 0)
+        calibrationMinHeightPx = prefs.getInt(KEY_MIN_HEIGHT_PX, 0)
+        calibrationMaxWidthPx = prefs.getInt(KEY_MAX_WIDTH_PX, 0)
+        calibrationMaxHeightPx = prefs.getInt(KEY_MAX_HEIGHT_PX, 0)
+        calibrationMinDistanceM = prefs.getFloat(KEY_MIN_DISTANCE_M, 10f)
+        calibrationMaxDistanceM = prefs.getFloat(KEY_MAX_DISTANCE_M, 300f)
+    }
+
+    /**
+     * Schätzt die Entfernung eines Objekts über Dreisatz anhand seiner Pixelbreite.
+     * Wenn [widthPx] außerhalb der Kalibrierwerte liegt, wird extrapoliert.
+     * Gibt -1f zurück, wenn nicht genug Kalibrierdaten vorhanden sind.
+     */
+    fun estimateDistance(widthPx: Int): Float {
+        val minW = calibrationMinWidthPx
+        val maxW = calibrationMaxWidthPx
+        val minD = calibrationMinDistanceM
+        val maxD = calibrationMaxDistanceM
+        if (minW <= 0 || maxW <= 0 || minW == maxW) return -1f
+        // Annahme: kleinere Breite = weiter entfernt, größere Breite = näher
+        return minD + (maxD - minD) * (maxW - widthPx).toFloat() / (maxW - minW).toFloat()
     }
 
     fun addListener(listener: () -> Unit) {
@@ -97,5 +145,15 @@ class MyAIApplication : Application() {
 
     private fun notifyListeners() {
         listeners.toList().forEach { it() }
+    }
+
+    companion object {
+        private const val PREFS_NAME = "myai_calibration"
+        private const val KEY_MIN_WIDTH_PX = "calibration_min_width_px"
+        private const val KEY_MIN_HEIGHT_PX = "calibration_min_height_px"
+        private const val KEY_MAX_WIDTH_PX = "calibration_max_width_px"
+        private const val KEY_MAX_HEIGHT_PX = "calibration_max_height_px"
+        private const val KEY_MIN_DISTANCE_M = "calibration_min_distance_m"
+        private const val KEY_MAX_DISTANCE_M = "calibration_max_distance_m"
     }
 }
