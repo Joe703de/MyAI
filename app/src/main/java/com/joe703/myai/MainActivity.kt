@@ -1,6 +1,7 @@
 package com.joe703.myai
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
@@ -26,22 +27,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -57,101 +49,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.joe703.myai.ui.theme.MyAITheme
 import java.util.concurrent.Executors
-
 import kotlin.math.max
-
-
-import java.util.concurrent.atomic.AtomicReference
-
-val CocoClassNames = listOf(
-    "Person",
-    "Fahrrad",
-    "Auto",
-    "Motorrad",
-    "Flugzeug",
-    "Bus",
-    "Zug",
-    "LKW",
-    "Boot",
-    "Ampel",
-    "Feuerhydrant",
-    "Stoppschild",
-    "Parkuhr",
-    "Bank",
-    "Vogel",
-    "Katze",
-    "Hund",
-    "Pferd",
-    "Schaf",
-    "Kuh",
-    "Elefant",
-    "Bär",
-    "Zebra",
-    "Giraffe",
-    "Rucksack",
-    "Regenschirm",
-    "Handtasche",
-    "Krawatte",
-    "Koffer",
-    "Frisbee",
-    "Ski",
-    "Snowboard",
-    "Sportball",
-    "Drachen",
-    "Baseballschläger",
-    "Baseballhandschuh",
-    "Skateboard",
-    "Surfbrett",
-    "Tennisball",
-    "Flasche",
-    "Weinglas",
-    "Tasse",
-    "Gabel",
-    "Messer",
-    "Löffel",
-    "Schüssel",
-    "Banane",
-    "Apfel",
-    "Sandwich",
-    "Orange",
-    "Brokkoli",
-    "Karotte",
-    "Hot Dog",
-    "Pizza",
-    "Donut",
-    "Kuchen",
-    "Stuhl",
-    "Sofa",
-    "Topfpflanze",
-    "Bett",
-    "Esstisch",
-    "Toilette",
-    "Fernseher",
-    "Laptop",
-    "Maus",
-    "Fernbedienung",
-    "Tastatur",
-    "Handy",
-    "Mikrowelle",
-    "Backofen",
-    "Toaster",
-    "Spülbecken",
-    "Kühlschrank",
-    "Buch",
-    "Uhr",
-    "Vase",
-    "Schere",
-    "Teddybär",
-    "Haartrockner",
-    "Zahnbürste"
-)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -198,7 +102,7 @@ fun MyAIApp() {
             .background(Color.Black)
     ) {
         if (hasCameraPermission) {
-            CameraScreen()
+            MainCameraScreen()
         } else {
             Text(
                 text = "Kamera-Berechtigung wird benötigt",
@@ -212,22 +116,11 @@ fun MyAIApp() {
     }
 }
 
-fun createTestBitmap(): android.graphics.Bitmap {
-    val bitmap = android.graphics.Bitmap.createBitmap(320, 320, android.graphics.Bitmap.Config.ARGB_8888)
-    val canvas = android.graphics.Canvas(bitmap)
-    canvas.drawColor(android.graphics.Color.BLUE)
-    val paint = android.graphics.Paint().apply {
-        color = android.graphics.Color.YELLOW
-        textSize = 32f
-    }
-    canvas.drawText("TEST", 20f, 170f, paint)
-    return bitmap
-}
-
 @Composable
-fun CameraScreen() {
+fun MainCameraScreen() {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val app = context.applicationContext as MyAIApplication
 
     var detectionResult by remember {
         mutableStateOf(
@@ -244,9 +137,6 @@ fun CameraScreen() {
         )
     }
     var previewViewSize by remember { mutableStateOf(android.util.Size(0, 0)) }
-    var targetClassIndex by remember { mutableStateOf(2) } // COCO-Klasse 2 = Auto
-    val confidenceThresholdRef = remember { AtomicReference(0.3f) } // thread-safe threshold
-    var confidenceThreshold by remember { mutableStateOf(0.3f) } // Default Threshold
     var frameCount by remember { mutableStateOf(0) }
 
     val imageAnalyzer = remember(context) {
@@ -268,8 +158,8 @@ fun CameraScreen() {
                     Executors.newSingleThreadExecutor(),
                     YoloObjectAnalyzer(
                         context,
-                        targetClassProvider = { targetClassIndex },
-                        confThresholdProvider = { confidenceThresholdRef.get() }
+                        targetClassProvider = { app.targetClassIndex },
+                        confThresholdProvider = { app.confidenceThreshold }
                     ) { result ->
                         val activity = context as? ComponentActivity
                         activity?.runOnUiThread {
@@ -293,12 +183,19 @@ fun CameraScreen() {
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Box(modifier = Modifier.weight(0.1f))
-            StatusBar(detectionResult, targetClassIndex, previewViewSize.width.toFloat(), previewViewSize.height.toFloat())
+            // Status-Zeile oben
+            MainStatusBar(
+                result = detectionResult,
+                targetClassIndex = app.targetClassIndex,
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .padding(horizontal = 3.dp, vertical = 4.dp)
+            )
 
+            // Kamera-Preview nimmt den verfügbaren Platz nach oben
             Box(
                 modifier = Modifier
-                    .weight(0.7f)
+                    .weight(1f)
                     .fillMaxWidth(0.9f)
                     .border(1.dp, Color.White),
                 contentAlignment = Alignment.Center
@@ -353,259 +250,68 @@ fun CameraScreen() {
                 if (zoomedBitmap != null) {
                     Image(
                         bitmap = zoomedBitmap.asImageBitmap(),
-                        contentDescription = "Zoomed yellow car",
+                        contentDescription = "Zoomed object",
                         modifier = Modifier.fillMaxSize(0.96f)
                     )
                 }
             }
 
-            ClassDropdown(
-                selectedIndex = targetClassIndex,
-                onSelectionChanged = { targetClassIndex = it },
+            // Unten Platz für zukünftige Elemente
+            Box(
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
-                    .padding(vertical = 4.dp)
-            )
-
-            ThresholdSlider(
-                value = confidenceThreshold,
-                onValueChange = {
-                    confidenceThreshold = it
-                    confidenceThresholdRef.set(it)
-                },
-                modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .padding(vertical = 4.dp)
-            )
-
-            RecognizedTextBar(
-                text = detectionResult.recognizedText,
-                modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .padding(vertical = 4.dp)
-            )
-
-            Box(modifier = Modifier.weight(0.05f))
-        }
-    }
-}
-
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ClassDropdown(
-    selectedIndex: Int,
-    onSelectionChanged: (Int) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val selectedName = CocoClassNames.getOrElse(selectedIndex) { "Unbekannt" }
-
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = !expanded },
-        modifier = modifier
-    ) {
-        TextField(
-            value = "COCO #$selectedIndex: $selectedName",
-            onValueChange = {},
-            readOnly = true,
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchor(),
-            colors = ExposedDropdownMenuDefaults.textFieldColors(),
-            textStyle = MaterialTheme.typography.bodyMedium
-        )
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            CocoClassNames.forEachIndexed { index, name ->
-                DropdownMenuItem(
-                    text = { Text("$index: $name") },
-                    onClick = {
-                        onSelectionChanged(index)
-                        expanded = false
-                    },
-                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
-                )
-            }
-        }
-    }
-}
-@Composable
-fun StatusBar(result: DetectionResult, targetClassIndex: Int, previewWidth: Float, previewHeight: Float) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth(0.9f)
-            .padding(horizontal = 3.dp, vertical = 4.dp)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .padding(vertical = 8.dp)
             ) {
-                Box(modifier = Modifier.width(120.dp), contentAlignment = Alignment.CenterStart) {
-                    val className = CocoClassNames.getOrElse(targetClassIndex) { "Objekt" }
-                    Text(
-                        text = "$className: ${result.eggCount}",
-                        color = Color.Yellow,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier
-                            .background(Color.Black.copy(alpha = 0.7f))
-                            .padding(horizontal = 4.dp, vertical = 4.dp)
-                    )
-                }
-
-                Box(modifier = Modifier.width(220.dp), contentAlignment = Alignment.CenterEnd) {
-                    Text(
-                        text = "${result.processingTimeMs}ms@${result.imageWidth}x${result.imageHeight}",
-                        color = Color.Gray,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier
-                            .background(Color.Black.copy(alpha = 0.7f))
-                            .padding(horizontal = 4.dp, vertical = 4.dp)
-                    )
+                // Debug-Button unten rechts
+                Button(
+                    onClick = {
+                        val intent = Intent(context, DebugActivity::class.java)
+                        context.startActivity(intent)
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.DarkGray,
+                        contentColor = Color.White
+                    ),
+                    modifier = Modifier.align(Alignment.BottomEnd)
+                ) {
+                    Text("Debug")
                 }
             }
-            Text(
-                text = "Target: ${"%.3f".format(result.topCarScore)} Global: ${"%.3f".format(result.maxGlobalScore)} class=${result.maxGlobalClassId}",
-                color = Color.Cyan,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier
-                    .background(Color.Black.copy(alpha = 0.7f))
-                    .padding(horizontal = 4.dp, vertical = 2.dp)
-            )
-            Text(
-                text = "prep=${result.timingMs.preprocessMs} inf=${result.timingMs.inferenceMs} post=${result.timingMs.postprocessMs} [${result.timingMs.delegateName}]",
-                color = Color.Cyan,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier
-                    .background(Color.Black.copy(alpha = 0.7f))
-                    .padding(horizontal = 4.dp, vertical = 2.dp)
-            )
-            Text(
-                text = "post: read=${result.timingMs.postReadMs} nms=${result.timingMs.postNmsMs} color=${result.timingMs.postColorMs}",
-                color = Color.Cyan,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier
-                    .background(Color.Black.copy(alpha = 0.7f))
-                    .padding(horizontal = 4.dp, vertical = 2.dp)
-            )
         }
     }
 }
 
 @Composable
-fun DetectionOverlay(
-    objects: List<DetectedObject>,
-    previewWidth: Float,
-    previewHeight: Float,
-    imageWidth: Float,
-    imageHeight: Float
-) {
-    val scaleX = previewWidth / imageWidth
-    val scaleY = previewHeight / imageHeight
-    val scale = max(scaleX, scaleY)
-
-    val scaledWidth = imageWidth * scale
-    val scaledHeight = imageHeight * scale
-    val offsetX = (previewWidth - scaledWidth) / 2
-    val offsetY = (previewHeight - scaledHeight) / 2
-
-    Canvas(modifier = Modifier.fillMaxSize()) {
-        objects.forEach { obj ->
-            val color = Color(obj.colorR, obj.colorG, obj.colorB)
-
-            val finalX = (obj.x.toFloat() * scale) + offsetX
-            val finalY = (obj.y.toFloat() * scale) + offsetY
-            val finalW = obj.width.toFloat() * scale
-            val finalH = obj.height.toFloat() * scale
-
-            drawRect(
-                color = color,
-                topLeft = Offset(finalX, finalY),
-                size = Size(finalW, finalH),
-                style = Stroke(width = 3f)
-            )
-        }
-    }
-}
-
-@Composable
-fun RecognizedTextBar(text: String, modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .background(Color.Black.copy(alpha = 0.7f))
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        contentAlignment = Alignment.CenterStart
-    ) {
-        Text(
-            text = if (text.isBlank()) "Kein Text erkannt" else "OCR: $text",
-            color = Color.Green,
-            style = MaterialTheme.typography.bodyMedium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            softWrap = false,
-            modifier = Modifier.fillMaxWidth()
-        )
-    }
-}
-
-@Composable
-fun ThresholdSlider(
-    value: Float,
-    onValueChange: (Float) -> Unit,
+fun MainStatusBar(
+    result: DetectionResult,
+    targetClassIndex: Int,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Box(modifier = Modifier.width(120.dp), contentAlignment = Alignment.CenterStart) {
+            val className = CocoClassNames.getOrElse(targetClassIndex) { "Objekt" }
             Text(
-                text = "Confidence",
-                color = Color.White,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(horizontal = 4.dp)
-            )
-            Text(
-                text = "%.2f".format(value),
+                text = "$className: ${result.eggCount}",
                 color = Color.Yellow,
                 style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(horizontal = 4.dp)
+                modifier = Modifier
+                    .background(Color.Black.copy(alpha = 0.7f))
+                    .padding(horizontal = 4.dp, vertical = 4.dp)
             )
         }
-        Slider(
-            value = value,
-            onValueChange = onValueChange,
-            valueRange = 0f..1f,
-            steps = 99,
-            modifier = Modifier.fillMaxWidth(),
-            colors = SliderDefaults.colors(
-                thumbColor = Color.Yellow,
-                activeTrackColor = Color.Yellow,
-                inactiveTrackColor = Color.DarkGray
-            )
-        )
-    }
-}
 
-@Composable
-fun EggIndicatorRow(objects: List<DetectedObject>, modifier: Modifier = Modifier) {
-    // Replaced by ThresholdSlider
-    Box(
-        modifier = modifier.fillMaxWidth(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "${objects.size} detected",
-            color = Color.Gray,
-            style = MaterialTheme.typography.bodySmall
-        )
+        Box(modifier = Modifier.width(220.dp), contentAlignment = Alignment.CenterEnd) {
+            Text(
+                text = "${result.processingTimeMs}ms@${result.imageWidth}x${result.imageHeight}",
+                color = Color.Gray,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier
+                    .background(Color.Black.copy(alpha = 0.7f))
+                    .padding(horizontal = 4.dp, vertical = 4.dp)
+            )
+        }
     }
 }
