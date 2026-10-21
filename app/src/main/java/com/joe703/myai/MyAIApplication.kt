@@ -122,7 +122,7 @@ class MyAIApplication : Application() {
 
     /**
      * Schätzt die Entfernung eines Objekts über Dreisatz anhand seiner Pixelbreite.
-     * Wenn [widthPx] außerhalb der Kalibrierwerte liegt, wird extrapoliert.
+     * Kalibrierung: Min = nah (große Breite), Max = weit (kleine Breite).
      * Gibt -1f zurück, wenn nicht genug Kalibrierdaten vorhanden sind.
      */
     fun estimateDistance(widthPx: Int): Float {
@@ -131,8 +131,8 @@ class MyAIApplication : Application() {
         val minD = calibrationMinDistanceM
         val maxD = calibrationMaxDistanceM
         if (minW <= 0 || maxW <= 0 || minW == maxW) return -1f
-        // Annahme: kleinere Breite = weiter entfernt, größere Breite = näher
-        return minD + (maxD - minD) * (maxW - widthPx).toFloat() / (maxW - minW).toFloat()
+        // Große Breite -> nah (minD), kleine Breite -> weit (maxD)
+        return minD + (maxD - minD) * (minW - widthPx).toFloat() / (minW - maxW).toFloat()
     }
 
     fun addListener(listener: () -> Unit) {
