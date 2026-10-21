@@ -570,7 +570,17 @@ private fun CalibrationItemCard(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "beim Beenden speichern: Min ${currentMinWidth}px @ ${distanceM.toInt()}m, Max ${currentMaxWidth}px @ ${app.calibrationMaxDistanceM.toInt()}m",
+                    text = "beim Beenden speichern:",
+                    color = Color.Cyan,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    text = "Min: ${currentMinWidth}px @ ${distanceM.toInt()}m",
+                    color = Color.Cyan,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    text = "Max: ${currentMaxWidth}px @ ${app.calibrationMaxDistanceM.toInt()}m",
                     color = Color.Cyan,
                     style = MaterialTheme.typography.bodySmall
                 )
