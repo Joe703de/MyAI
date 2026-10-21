@@ -161,6 +161,7 @@ fun MainCameraScreen() {
                         targetClassProvider = { app.targetClassIndex },
                         confThresholdProvider = { app.confidenceThreshold }
                     ) { result ->
+                        app.setCurrentDetectionResult(result)
                         val activity = context as? ComponentActivity
                         activity?.runOnUiThread {
                             detectionResult = result
@@ -275,6 +276,23 @@ fun MainCameraScreen() {
                     modifier = Modifier.align(Alignment.BottomEnd)
                 ) {
                     Text("Debug")
+                }
+
+                // Kalibrierung-Button links daneben
+                Button(
+                    onClick = {
+                        val intent = Intent(context, CalibrationActivity::class.java)
+                        context.startActivity(intent)
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.DarkGray,
+                        contentColor = Color.White
+                    ),
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 80.dp)
+                ) {
+                    Text("Kalibrierung")
                 }
             }
         }

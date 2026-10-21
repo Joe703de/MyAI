@@ -280,6 +280,7 @@ fun DebugCameraScreen() {
                         targetClassProvider = { app.targetClassIndex },
                         confThresholdProvider = { app.confidenceThreshold }
                     ) { result ->
+                        app.setCurrentDetectionResult(result)
                         val activity = context as? ComponentActivity
                         activity?.runOnUiThread {
                             detectionResult = result

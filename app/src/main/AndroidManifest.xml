@@ -36,6 +36,14 @@
             android:theme="@style/Theme.MyAI"
             android:screenOrientation="portrait"
             android:configChanges="orientation|screenSize|keyboardHidden" />
+        <activity
+            android:name=".CalibrationActivity"
+            android:exported="false"
+            android:label="Kalibrierung"
+            android:theme="@style/Theme.MyAI"
+            android:screenOrientation="portrait"
+            android:configChanges="orientation|screenSize|keyboardHidden" />
+
     </application>
 
 </manifest>

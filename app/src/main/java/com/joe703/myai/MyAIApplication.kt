@@ -7,10 +7,10 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 
 /**
- * Application-Objekt, das Zustand zwischen MainActivity und DebugActivity teilt.
+ * Application-Objekt, das Zustand zwischen MainActivity, DebugActivity und CalibrationActivity teilt.
  * Weil jede Activity ihren eigenen Camera-Analyzer besitzt, müssen
- * Einstellungen (Confidence, Zielklasse) zentral außerhalb der Composable-State
- * leben, damit sie beide Activities gleichzeitig sehen.
+ * Einstellungen (Confidence, Zielklasse) und aktuelle Erkennungsdaten zentral außerhalb der Composable-State
+ * leben, damit sie alle Activities gleichzeitig sehen.
  */
 class MyAIApplication : Application() {
 
@@ -22,6 +22,10 @@ class MyAIApplication : Application() {
     var confidenceThreshold by mutableFloatStateOf(0.3f)
         private set
 
+    /** zuletzt empfangenes DetectionResult aus MainActivity / DebugActivity */
+    var currentDetectionResult: DetectionResult? by mutableStateOf(null)
+        private set
+
     private val listeners = mutableListOf<() -> Unit>()
 
     fun setTargetClass(index: Int) {
@@ -31,6 +35,11 @@ class MyAIApplication : Application() {
 
     fun setConfidenceThreshold(value: Float) {
         confidenceThreshold = value
+        notifyListeners()
+    }
+
+    fun setCurrentDetectionResult(result: DetectionResult) {
+        currentDetectionResult = result
         notifyListeners()
     }
 
