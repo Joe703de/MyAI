@@ -14,10 +14,12 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -28,6 +30,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -167,11 +170,23 @@ fun CalibrationScreen() {
             } else {
                 0f
             }
-
-            // 5 Autos, die das Fenster am knappsten verfehlen (am nächsten an 1.0, aber außerhalb 1.1..1.3)
             val imageWidth = detectionResult?.imageWidth ?: 0
             val imageHeight = detectionResult?.imageHeight ?: 0
             val rawBitmap = detectionResult?.rawBitmap
+
+            var inCalibrationMode by remember { mutableStateOf(false) }
+
+            // Gültige Objekte innerhalb des Seitenverhältnis-Fensters 1.1..1.35
+            val validObjects = remember(objects) {
+                objects.filter { obj ->
+                    val ratio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
+                    ratio in 1.1f..1.35f
+                }
+            }
+            val minWidthObject = validObjects.minByOrNull { it.width }
+            val maxWidthObject = validObjects.maxByOrNull { it.width }
+
+            // 5 Autos, die das Fenster am knappsten verfehlen (am nächsten an 1.0, aber außerhalb 1.1..1.35)
             val missCandidates = objects
                 .filter { obj ->
                     val ratio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
@@ -205,18 +220,37 @@ fun CalibrationScreen() {
                         color = Color.Gray,
                         style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp)
                     )
+                } else if (inCalibrationMode) {
+                    // Nur Min-/Max-Breite innerhalb der Grenzen
+                    val calibrationItems = listOfNotNull(
+                        minWidthObject?.let { "Min" to it },
+                        maxWidthObject?.let { "Max" to it }
+                    ).distinctBy { it.second }
+
+                    if (calibrationItems.isEmpty()) {
+                        Text(
+                            text = "Keine Objekte im Bereich 1,1..1,35",
+                            color = Color.Gray,
+                            style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp)
+                        )
+                    } else {
+                        calibrationItems.forEach { (label, obj) ->
+                            CalibrationListRow(
+                                label = label,
+                                obj = obj,
+                                imageWidth = imageWidth,
+                                imageHeight = imageHeight,
+                                rawBitmap = rawBitmap,
+                                textColor = Color.Green
+                            )
+                        }
+                    }
                 } else {
                     objects.forEachIndexed { index, obj ->
                         val aspectRatio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
                         val outOfRange = aspectRatio < 1.1f || aspectRatio > 1.35f
                         val thumbnail = missCandidates.firstOrNull { it === obj }?.let { candidate ->
-                            val left = candidate.x.coerceIn(0, imageWidth)
-                            val top = candidate.y.coerceIn(0, imageHeight)
-                            val right = (candidate.x + candidate.width).coerceIn(0, imageWidth)
-                            val bottom = (candidate.y + candidate.height).coerceIn(0, imageHeight)
-                            if (right > left && bottom > top && rawBitmap != null) {
-                                Bitmap.createBitmap(rawBitmap, left, top, right - left, bottom - top)
-                            } else null
+                            cropBitmap(rawBitmap, imageWidth, imageHeight, candidate)
                         }
 
                         Row(
@@ -249,7 +283,7 @@ fun CalibrationScreen() {
                 }
             }
 
-            // Durchschnittliches Seitenverhältnis unten, oberhalb der Navigationsleiste
+            // Fußzeile mit Durchschnitt, Schwellen und Kalibrierung-Schalter
             Row(
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
@@ -257,23 +291,43 @@ fun CalibrationScreen() {
                 verticalAlignment = Alignment.Bottom,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(
-                    text = if (averageAspectRatio > 0f) {
-                        "Ø SV: ${"%.2f".format(averageAspectRatio)}:1"
-                    } else {
-                        "Ø SV: -"
-                    },
-                    color = Color.White,
-                    style = MaterialTheme.typography.headlineMedium,
-                    modifier = Modifier.background(Color.Black.copy(alpha = 0.7f))
-                )
+                Column {
+                    Text(
+                        text = if (averageAspectRatio > 0f) {
+                            "Ø SV: ${"%.2f".format(averageAspectRatio)}:1"
+                        } else {
+                            "Ø SV: -"
+                        },
+                        color = Color.White,
+                        style = MaterialTheme.typography.headlineMedium,
+                        modifier = Modifier.background(Color.Black.copy(alpha = 0.7f))
+                    )
+                    Text(
+                        text = "SV<1,1|>1,35",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.background(Color.Black.copy(alpha = 0.7f))
+                    )
+                }
 
-                Text(
-                    text = "SV<1,1|>1,35",
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.background(Color.Black.copy(alpha = 0.7f))
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .background(Color.Black.copy(alpha = 0.7f))
+                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                        .clickable { inCalibrationMode = !inCalibrationMode }
+                ) {
+                    Text(
+                        text = "Kalibrierung",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Switch(
+                        checked = inCalibrationMode,
+                        onCheckedChange = { inCalibrationMode = it }
+                    )
+                }
             }
         }
     }
@@ -309,6 +363,57 @@ fun CalibrationStatusBar(
                 modifier = Modifier
                     .background(Color.Black.copy(alpha = 0.7f))
                     .padding(horizontal = 4.dp, vertical = 4.dp)
+            )
+        }
+    }
+}
+
+private fun cropBitmap(rawBitmap: Bitmap?, imageWidth: Int, imageHeight: Int, obj: DetectedObject): Bitmap? {
+    if (rawBitmap == null) return null
+    val left = obj.x.coerceIn(0, imageWidth)
+    val top = obj.y.coerceIn(0, imageHeight)
+    val right = (obj.x + obj.width).coerceIn(0, imageWidth)
+    val bottom = (obj.y + obj.height).coerceIn(0, imageHeight)
+    return if (right > left && bottom > top) {
+        Bitmap.createBitmap(rawBitmap, left, top, right - left, bottom - top)
+    } else null
+}
+
+@Composable
+private fun CalibrationListRow(
+    label: String,
+    obj: DetectedObject,
+    imageWidth: Int,
+    imageHeight: Int,
+    rawBitmap: Bitmap?,
+    textColor: Color
+) {
+    val aspectRatio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
+    val thumbnail = cropBitmap(rawBitmap, imageWidth, imageHeight, obj)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.Black.copy(alpha = 0.7f))
+            .padding(horizontal = 4.dp, vertical = 1.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = "$label: ${obj.width}×${obj.height}px, SV ${"%.2f".format(aspectRatio)}:1",
+            color = textColor,
+            style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp),
+            modifier = Modifier.weight(1f)
+        )
+        thumbnail?.let { bitmap ->
+            Image(
+                bitmap = bitmap.asImageBitmap(),
+                contentDescription = "$label Objekt",
+                modifier = Modifier
+                    .padding(start = 4.dp)
+                    .height(56.dp)
+                    .width(84.dp)
+                    .border(1.dp, Color.Yellow)
             )
         }
     }
