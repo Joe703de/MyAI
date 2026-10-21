@@ -37,6 +37,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -171,28 +172,27 @@ fun OcrScreen() {
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(0.9f)
-                    .verticalScroll(rememberScrollState())
-                    .padding(vertical = 8.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(0.dp)
             ) {
                 if (displayLines.isEmpty()) {
                     Text(
                         text = "Keinen Text erkannt",
                         color = Color.Gray,
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp)
                     )
                 } else {
                     displayLines.forEach { line ->
                         Text(
                             text = line,
                             color = Color.Cyan,
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 0.dp)
                                 .background(Color.Black.copy(alpha = 0.7f))
-                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                                .padding(horizontal = 4.dp, vertical = 1.dp)
                         )
                     }
                 }
