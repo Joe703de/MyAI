@@ -619,7 +619,7 @@ class YoloObjectAnalyzer(
 
     private fun loadColorConfig(context: Context): List<EggColor> {
         return try {
-            val json = context.assets.open("egg_colors.json").bufferedReader().use { it.readText() }
+            val json = context.assets.open("object_colors.json").bufferedReader().use { it.readText() }
             Json.decodeFromString<EggColorsConfig>(json).colors
         } catch (e: Exception) {
             Log.i("YoloObjectAnalyzer", "Failed to load color config: ${e.message}")
