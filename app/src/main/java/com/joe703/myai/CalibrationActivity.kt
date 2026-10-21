@@ -269,7 +269,7 @@ fun CalibrationScreen() {
                 )
 
                 Text(
-                    text = "rot wenn SV < 1,1 oder > 1,3",
+                    text = "SV<1,1|>1,3",
                     color = Color.White,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.background(Color.Black.copy(alpha = 0.7f))
