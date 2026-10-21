@@ -27,7 +27,7 @@ import kotlin.math.min
 /**
  * YOLO-basierter Eier-Erkennungs-Analyzer.
  *
- * Erwartet unter assets/yolo_eggs.tflite ein YOLO-Modell.
+ * Erwartet unter assets/yolo_objects.tflite ein YOLO-Modell.
  * Solange kein echtes Modell vorhanden ist, liefert der Analyzer keine Detections.
  *
  * Unterstützt gängige YOLO-TFLite-Output-Formate:
@@ -81,7 +81,7 @@ class YoloObjectAnalyzer(
     }
 
     private fun loadModel(context: Context): ByteBuffer {
-        context.assets.openFd("yolo_eggs.tflite").use { fileDescriptor ->
+        context.assets.openFd("yolo_objects.tflite").use { fileDescriptor ->
             FileInputStream(fileDescriptor.fileDescriptor).use { inputStream ->
                 val channel = inputStream.channel
                 return channel.map(

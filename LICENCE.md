@@ -15,12 +15,12 @@ Dieses Dokument führt die externen Softwarekomponenten, Modelle und Datensätze
 - **Lizenz:** **AGPL-3.0** (GNU Affero General Public License v3.0)
 - **Nutzung in MyAI:**
   - Das YOLOv8n-Modell wurde mit Ultralytics-Tools aus den COCO-vortrainierten Gewichten exportiert.
-  - Die App verwendet die exportierte TensorFlow Lite-Datei (`yolo_eggs.tflite` bzw. spätere Varianten), nicht den Ultralytics-Code selbst.
+  - Die App verwendet die exportierte TensorFlow Lite-Datei (`yolo_objects.tflite` bzw. spätere Varianten), nicht den Ultralytics-Code selbst.
 - **Wichtig:** Wer die Ultralytics-Tools selbst nutzt, trainiert oder das Modell auf einem Server verarbeitet, muss die AGPL-3.0 beachten. Für eine rein lokale On-Device-Nutzung der TFLite-Datei in einer Android-App ist dies in der Regel unkritisch, aber prüfe bei kommerzieller Verwendung mit einem Anwalt.
 
 ### 1.2 Verwendetes YOLO-Modell
 
-- **Datei:** `app/src/main/assets/yolo_eggs.tflite`
+- **Datei:** `app/src/main/assets/yolo_objects.tflite`
 - **Basismodell:** Ultralytics YOLOv8n, vortrainiert auf dem **COCO-Datenset**
 - **Exportiert am:** 10.10.2026
 - **Erkannte Klassen:** 80 COCO-Klassen (die App filtert aktuell auf Klasse 2 = Auto)

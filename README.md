@@ -8,7 +8,7 @@ Android-App zur Echtzeit-Erkennung von Autos mit YOLO und TensorFlow Lite.
 
 ## Funktionen
 
-- **YOLO-Objekterkennung** per TensorFlow Lite (`app/src/main/assets/yolo_eggs.tflite`)
+- **YOLO-Objekterkennung** per TensorFlow Lite (`app/src/main/assets/yolo_objects.tflite`)
 - **Echtzeit-Kamera-Analyse** mit CameraX und Jetpack Compose-UI
 - **Farbklassifikation** der erkannten Autos per HSV-Pixelabstimmung, ohne OpenCV
 - **GPU-Beschleunigung** über den TensorFlow Lite GPU-Delegate
@@ -39,7 +39,7 @@ Die Farben werden über den mittleren Bildbereich der Box per HSV-Voting klassif
 Das YOLO-Modell liegt unter:
 
 ```
-app/src/main/assets/yolo_eggs.tflite
+app/src/main/assets/yolo_objects.tflite
 ```
 
 ### Herkunft
@@ -82,7 +82,7 @@ yolo detect train model=yolov8n.pt data=pfad/zu/data.yaml epochs=50 imgsz=640
 yolo export model=runs/detect/train/weights/best.pt format=tflite
 ```
 
-Die exportierte `best.tflite` kann dann in `app/src/main/assets/yolo_eggs.tflite` umbenannt und in die App eingebunden werden.
+Die exportierte `best.tflite` kann dann in `app/src/main/assets/yolo_objects.tflite` umbenannt und in die App eingebunden werden.
 
 Falls du das Modell neu erzeugen möchtest:
 
@@ -94,7 +94,7 @@ pip install litert-torch ai-edge-litert
 yolo export model=yolov8n.pt format=tflite
 ```
 
-Die exportierte Datei `yolov8n.tflite` wird anschließend in `app/src/main/assets/yolo_eggs.tflite` umbenannt.
+Die exportierte Datei `yolov8n.tflite` wird anschließend in `app/src/main/assets/yolo_objects.tflite` umbenannt.
 
 > Das Modell wird im YOLOv8-Format mit 640×640 Pixel Eingabe erwartet. Die App unterstützt sowohl das Standardformat `[1, N, 5 + C]` als auch das transponierte Format `[1, 5 + C, N]`.
 
@@ -127,7 +127,7 @@ Die anzeigbaren Farben sind in `app/src/main/assets/egg_colors.json` definiert:
 ## Bekannte Limitierungen
 
 - Die UI-Beschriftungen (`Eier`, `EggIndicator`) stammen noch aus der Vorgängerversion und sind nicht mehr semantisch korrekt.
-- Das Modell `yolo_eggs.tflite` ist ein YOLOv8n COCO-Modell, das neben Autos auch andere Klassen erkennen könnte – gefiltert wird aktuell auf Klasse 2 (Auto).
+- Das Modell `yolo_objects.tflite` ist ein YOLOv8n COCO-Modell, das neben Autos auch andere Klassen erkennen könnte – gefiltert wird aktuell auf Klasse 2 (Auto).
 - Der Debug-Overlay zeigt ein festes Magenta-Rechteck in der Bildmitte zur Kalibrierung.
 
 ## Branches
