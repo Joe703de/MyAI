@@ -284,7 +284,7 @@ fun DebugCameraScreen() {
                         context,
                         targetClassProvider = { app.targetClassIndex },
                         confThresholdProvider = { app.confidenceThreshold },
-                        enableOcr = true
+                        enableOcr = false
                     ) { result ->
                         app.updateCurrentDetectionResult(result)
                         val activity = context as? ComponentActivity

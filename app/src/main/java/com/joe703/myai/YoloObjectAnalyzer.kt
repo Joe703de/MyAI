@@ -157,14 +157,6 @@ class YoloObjectAnalyzer(
             val rotationDegrees = imageProxy.imageInfo.rotationDegrees
             val bitmap = if (rotationDegrees != 0) rotateBitmap(rawBitmap, rotationDegrees) else rawBitmap
 
-            val ocrStart = if (enableOcr) System.currentTimeMillis() else 0L
-            // OCR nur wenn explizit aktiviert; ansonsten ImageProxy direkt schließen.
-            if (enableOcr) {
-                runOcr(imageProxy, bitmap, ocrStart)
-            } else {
-                imageProxy.close()
-            }
-
             val preprocessTime = System.currentTimeMillis() - startTime
             val detections = interpreter?.let { detect(it, bitmap, bitmap.width, bitmap.height, targetClassProvider(), preprocessTime, confThresholdProvider()) }
                 ?: DetectedFrame(
@@ -175,11 +167,10 @@ class YoloObjectAnalyzer(
                     0f,
                     0f,
                     -1,
-                    TimingBreakdown(preprocessMs = preprocessTime, totalMs = System.currentTimeMillis() - startTime, ocrMs = lastOcrMs, delegateName = "no-model")
+                    TimingBreakdown(preprocessMs = preprocessTime, totalMs = System.currentTimeMillis() - startTime, ocrMs = 0L, delegateName = "no-model")
                 )
 
-            // OCR-Zeit in das Ergebnis übernehmen, falls YOLO gelaufen ist
-            val finalTiming = detections.timing.copy(ocrMs = lastOcrMs)
+            imageProxy.close()
 
             Log.i(
                 "YoloObjectAnalyzer",
@@ -206,7 +197,7 @@ class YoloObjectAnalyzer(
                     topCarScore = detections.topCarScore,
                     maxGlobalScore = detections.maxGlobalScore,
                     maxGlobalClassId = detections.maxGlobalClassId,
-                    timingMs = finalTiming,
+                    timingMs = detections.timing,
                     zoomedObject = detections.zoomedObject,
                     recognizedText = lastRecognizedText,
                     recognizedTextLines = lastRecognizedTextLines
