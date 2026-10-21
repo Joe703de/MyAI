@@ -219,10 +219,10 @@ fun CalibrationScreen() {
                         val minThumb = cropBitmap(rawBitmap, imageWidth, imageHeight, min)?.copy(Bitmap.Config.ARGB_8888, false)
                         val maxThumb = cropBitmap(rawBitmap, imageWidth, imageHeight, max)?.copy(Bitmap.Config.ARGB_8888, false)
                         frozenItems = listOfNotNull(
-                            minThumb?.let { FrozenCalibrationItem("Min", min, it) }
-                                ?: FrozenCalibrationItem("Min", min, null),
                             maxThumb?.let { FrozenCalibrationItem("Max", max, it) }
-                                ?: FrozenCalibrationItem("Max", max, null)
+                                ?: FrozenCalibrationItem("Max", max, null),
+                            minThumb?.let { FrozenCalibrationItem("Min", min, it) }
+                                ?: FrozenCalibrationItem("Min", min, null)
                         ).distinctBy { it.obj }
 
                         app.updateCalibrationObjects(
@@ -485,7 +485,7 @@ private fun CalibrationItemCard(
                         app.updateCalibrationDistances(minM = app.calibrationMinDistanceM, maxM = newValue)
                     }
                 },
-                valueRange = 10f..200f,
+                valueRange = 10f..300f,
                 modifier = Modifier.weight(1f)
             )
         }
