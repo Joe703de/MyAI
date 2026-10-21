@@ -277,12 +277,13 @@ fun MainCameraScreen() {
             )
 
             // Buttons oberhalb der Android-Navigationsleiste
-            Box(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
-                    .padding(top = 8.dp, bottom = 16.dp)
+                    .padding(top = 8.dp, bottom = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.Start),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Debug-Button unten rechts
                 Button(
                     onClick = {
                         val intent = Intent(context, DebugActivity::class.java)
@@ -291,13 +292,11 @@ fun MainCameraScreen() {
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color.DarkGray,
                         contentColor = Color.White
-                    ),
-                    modifier = Modifier.align(Alignment.BottomEnd)
+                    )
                 ) {
                     Text("Debug")
                 }
 
-                // Kalibrierung-Button links daneben
                 Button(
                     onClick = {
                         val intent = Intent(context, CalibrationActivity::class.java)
@@ -306,10 +305,7 @@ fun MainCameraScreen() {
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color.DarkGray,
                         contentColor = Color.White
-                    ),
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(end = 80.dp)
+                    )
                 ) {
                     Text("Kalibrierung")
                 }

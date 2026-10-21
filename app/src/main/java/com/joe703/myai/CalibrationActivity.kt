@@ -1,9 +1,9 @@
 package com.joe703.myai
 
-import android.os.Bundle
-import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.core.view.WindowCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -35,6 +36,8 @@ class CalibrationActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        enableEdgeToEdge()
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         setContent {
@@ -67,18 +70,19 @@ fun CalibrationScreen() {
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
+            .safeDrawingPadding()
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Obere Status-Zeile wie in den anderen Activities
+            // Obere Status-Zeile mit Abstand zur Android-Statusleiste
             CalibrationStatusBar(
                 result = detectionResult,
                 targetClassIndex = app.targetClassIndex,
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
-                    .padding(horizontal = 3.dp, vertical = 4.dp)
+                    .padding(top = 8.dp, bottom = 4.dp)
             )
 
             // Meta-Daten für alle erkannten Objekte
@@ -106,7 +110,7 @@ fun CalibrationScreen() {
                     objects.forEachIndexed { index, obj ->
                         val aspectRatio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
                         Text(
-                            text = "Objekt ${index + 1}: ${obj.width}×${obj.height}px, Seitenverhältnis ${"%.2f".format(aspectRatio)}:1",
+                            text = "${index + 1}: ${obj.width}×${obj.height}px, SV ${"%.2f".format(aspectRatio)}:1",
                             color = Color.Cyan,
                             style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier
@@ -119,18 +123,18 @@ fun CalibrationScreen() {
                 }
             }
 
-            // Durchschnittliches Seitenverhältnis unten links
+            // Durchschnittliches Seitenverhältnis unten links, oberhalb der Navigationsleiste
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
-                    .padding(vertical = 16.dp),
+                    .padding(top = 8.dp, bottom = 16.dp),
                 contentAlignment = Alignment.BottomStart
             ) {
                 Text(
                     text = if (averageAspectRatio > 0f) {
-                        "Ø Seitenverhältnis: ${"%.2f".format(averageAspectRatio)}:1"
+                        "Ø SV: ${"%.2f".format(averageAspectRatio)}:1"
                     } else {
-                        "Ø Seitenverhältnis: -"
+                        "Ø SV: -"
                     },
                     color = Color.White,
                     style = MaterialTheme.typography.headlineMedium,
