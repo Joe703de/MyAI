@@ -18,13 +18,33 @@ Dieses Dokument führt die externen Softwarekomponenten, Modelle und Datensätze
   - Die App verwendet die exportierte TensorFlow Lite-Datei (`yolo_objects.tflite` bzw. spätere Varianten), nicht den Ultralytics-Code selbst.
 - **Wichtig:** Wer die Ultralytics-Tools selbst nutzt, trainiert oder das Modell auf einem Server verarbeitet, muss die AGPL-3.0 beachten. Für eine rein lokale On-Device-Nutzung der TFLite-Datei in einer Android-App ist dies in der Regel unkritisch, aber prüfe bei kommerzieller Verwendung mit einem Anwalt.
 
-### 1.2 Verwendetes YOLO-Modell
+### 1.2 Verwendetes YOLO-Modell (vortrainiert auf COCO)
 
 - **Datei:** `app/src/main/assets/yolo_objects.tflite`
-- **Basismodell:** Ultralytics YOLOv8n, vortrainiert auf dem **COCO-Datenset**
+- **Basismodell:** Ultralytics YOLOv8n, vortrainiert auf dem **COCO-Datenset** (Common Objects in Context)
 - **Exportiert am:** 10.10.2026
 - **Erkannte Klassen:** 80 COCO-Klassen (die App filtert aktuell auf Klasse 2 = Auto)
 - **Lizenz des Modells:** Fällt unter die Ultralytics-AGPL-3.0-Lizenz für die trainierten Gewichte.
+
+#### COCO-Datenset
+
+- **Name:** Common Objects in Context (COCO)
+- **Quelle:** https://cocodataset.org
+- **Lizenz:**
+  - Die Bilder stammen aus verschiedenen Quellen; jeder Bildersteller kann eigene Lizenzen haben.
+  - Die COCO-Annotationen und das Datenset-Format stehen unter einer eigenen Lizenz (siehe https://cocodataset.org/#termsofuse).
+  - Für die Nutzung der vortrainierten YOLOv8n-COCO-Gewichte über Ultralytics gilt die AGPL-3.0 von Ultralytics.
+- **Nutzung in MyAI:**
+  - Das Modell wurde auf COCO vortrainiert und erkennt daher u. a. Autos, Personen, Fahrräder, Schilder uvm.
+  - Die App filtert die 80 COCO-Klassen auf die gewünschte Klasse herunter.
+
+### 1.3 Eigene YOLO-Modelle (optional)
+
+Für eine spezialisierte Erkennung (z. B. nur Autos, nur gelbe Autos, Eier oder Verkehrszeichen) benötigst du eigene Trainingsdaten. Diese müssen gesammelt und annotiert werden, zum Beispiel mit:
+
+- [Roboflow](https://roboflow.com) (online, annotieren + exportieren)
+- [LabelImg](https://github.com/tzutalin/labelImg) (lokal)
+- [CVAT](https://www.cvat.ai) (online/lokal)
 
 ---
 
@@ -48,23 +68,9 @@ Dieses Dokument führt die externen Softwarekomponenten, Modelle und Datensätze
 
 ---
 
-## 3. COCO-Datenset
+## 3. Weitere eingebundene Bibliotheken
 
-- **Name:** Common Objects in Context (COCO)
-- **Quelle:** https://cocodataset.org
-- **Lizenz:**
-  - Die Bilder stammen aus verschiedenen Quellen; jeder Bildersteller kann eigene Lizenzen haben.
-  - Die COCO-Annotationen und das Datenset-Format stehen unter einer eigenen Lizenz (siehe https://cocodataset.org/#termsofuse).
-  - Für die Nutzung der vortrainierten YOLOv8n-COCO-Gewichte über Ultralytics gilt die AGPL-3.0 von Ultralytics.
-- **Nutzung in MyAI:**
-  - Das Modell wurde auf COCO vortrainiert und erkennt daher u. a. Autos, Personen, Fahrräder, Schilder uvm.
-  - Die App filtert die 80 COCO-Klassen auf die gewünschte Klasse herunter.
-
----
-
-## 4. Weitere eingebundene Bibliotheken
-
-### 4.1 TensorFlow Lite
+### 3.1 TensorFlow Lite
 
 - **Quelle:** https://github.com/tensorflow/tensorflow
 - **Lizenz:** Apache-2.0
@@ -73,24 +79,24 @@ Dieses Dokument führt die externen Softwarekomponenten, Modelle und Datensätze
   - `org.tensorflow:tensorflow-lite-gpu`
   - `org.tensorflow:tensorflow-lite-gpu-api`
 
-### 4.2 CameraX
+### 3.2 CameraX
 
 - **Quelle:** https://developer.android.com/jetpack/androidx/releases/camera
 - **Lizenz:** Apache-2.0
 - **Version:** 1.4.0-alpha05
 
-### 4.3 Jetpack Compose
+### 3.3 Jetpack Compose
 
 - **Quelle:** https://developer.android.com/jetpack/compose
 - **Lizenz:** Apache-2.0
 
-### 4.4 Kotlinx Serialization
+### 3.4 Kotlinx Serialization
 
 - **Quelle:** https://github.com/Kotlin/kotlinx.serialization
 - **Lizenz:** Apache-2.0
 - **Version:** 1.6.3
 
-### 4.5 Accompanist Permissions
+### 3.5 Accompanist Permissions
 
 - **Quelle:** https://github.com/google/accompanist
 - **Lizenz:** Apache-2.0
@@ -98,7 +104,7 @@ Dieses Dokument führt die externen Softwarekomponenten, Modelle und Datensätze
 
 ---
 
-## 5. App-Icon und Medien
+## 4. App-Icon und Medien
 
 - **App-Icon-Quellbild:** `media/myai_icon_source.jpg`
 - **Herkunft:** Eigenes Bild / vom Nutzer bereitgestelltes Bild.
@@ -106,7 +112,7 @@ Dieses Dokument führt die externen Softwarekomponenten, Modelle und Datensätze
 
 ---
 
-## 6. Hinweise zur kommerziellen Nutzung
+## 5. Hinweise zur kommerziellen Nutzung
 
 - MyAI nutzt ein auf COCO vortrainiertes YOLOv8n-Modell, das über Ultralytics exportiert wurde. Für kommerzielle Zwecke sollte die **AGPL-3.0** von Ultralytics geprüft werden.
 - Google ML Kit ist kostenlos, unterliegt aber den Google-Nutzungsbedingungen.
@@ -114,6 +120,6 @@ Dieses Dokument führt die externen Softwarekomponenten, Modelle und Datensätze
 
 ---
 
-## 7. Änderungen
+## 6. Änderungen
 
 Diese Datei sollte bei jedem neuen eingebundenen Modell oder jeder neuen Lizenz-relevanten Dependency aktualisiert werden.
