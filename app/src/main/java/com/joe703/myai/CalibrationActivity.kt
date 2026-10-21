@@ -122,7 +122,8 @@ fun CalibrationScreen() {
                     YoloObjectAnalyzer(
                         context,
                         targetClassProvider = { app.targetClassIndex },
-                        confThresholdProvider = { app.confidenceThreshold }
+                        confThresholdProvider = { app.confidenceThreshold },
+                        enableOcr = false
                     ) { result ->
                         app.updateCurrentDetectionResult(result)
                     }

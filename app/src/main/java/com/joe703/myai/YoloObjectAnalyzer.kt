@@ -41,6 +41,7 @@ class YoloObjectAnalyzer(
     context: Context,
     private val targetClassProvider: () -> Int,
     private val confThresholdProvider: () -> Float,
+    private val enableOcr: Boolean = false,
     private val onResult: (DetectionResult) -> Unit
 ) : ImageAnalysis.Analyzer {
 
@@ -60,7 +61,9 @@ class YoloObjectAnalyzer(
     private var lastRecognizedText: String = ""
     private var lastRecognizedTextLines: List<String> = emptyList()
 
-    private val textRecognizer: TextRecognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+    private val textRecognizer: TextRecognizer? = if (enableOcr) {
+        TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+    } else null
 
     private val colorConfigs: List<EggColor> = loadColorConfig(context)
 
@@ -153,9 +156,12 @@ class YoloObjectAnalyzer(
             val rotationDegrees = imageProxy.imageInfo.rotationDegrees
             val bitmap = if (rotationDegrees != 0) rotateBitmap(rawBitmap, rotationDegrees) else rawBitmap
 
-            // OCR runs asynchronously on the same bitmap and closes the ImageProxy when done.
-            // Do not call imageProxy.close() elsewhere in this path.
-            runOcr(imageProxy, bitmap)
+            // OCR nur wenn explizit aktiviert; ansonsten ImageProxy direkt schließen.
+            if (enableOcr) {
+                runOcr(imageProxy, bitmap)
+            } else {
+                imageProxy.close()
+            }
 
             val preprocessTime = System.currentTimeMillis() - startTime
             val detections = interpreter?.let { detect(it, bitmap, bitmap.width, bitmap.height, targetClassProvider(), preprocessTime, confThresholdProvider()) }
@@ -667,9 +673,10 @@ class YoloObjectAnalyzer(
     }
 
     private fun runOcr(imageProxy: ImageProxy, bitmap: Bitmap) {
+        val recognizer = textRecognizer ?: return
         // Use the already-rotated bitmap. Do not touch imageProxy.image after analyze() returns.
         val inputImage = InputImage.fromBitmap(bitmap, 0)
-        textRecognizer.process(inputImage)
+        recognizer.process(inputImage)
             .addOnSuccessListener { visionText ->
                 val lines = visionText.textBlocks.flatMap { block ->
                     block.lines.map { line -> line.text }

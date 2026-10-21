@@ -283,7 +283,8 @@ fun DebugCameraScreen() {
                     YoloObjectAnalyzer(
                         context,
                         targetClassProvider = { app.targetClassIndex },
-                        confThresholdProvider = { app.confidenceThreshold }
+                        confThresholdProvider = { app.confidenceThreshold },
+                        enableOcr = true
                     ) { result ->
                         app.updateCurrentDetectionResult(result)
                         val activity = context as? ComponentActivity
