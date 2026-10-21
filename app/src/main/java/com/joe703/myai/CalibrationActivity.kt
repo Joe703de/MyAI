@@ -189,14 +189,20 @@ fun CalibrationScreen() {
             var frozenItems by remember { mutableStateOf<List<FrozenCalibrationItem>>(emptyList()) }
 
             // Gültige Objekte innerhalb des Seitenverhältnis-Fensters 1.1..1.35
+            // Max = weiteste Entfernung = kleinste Breite im Bild
+            // Min = nächste Entfernung = größte Breite im Bild
             val validObjects = remember(objects) {
                 objects.filter { obj ->
                     val ratio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
                     ratio in 1.1f..1.35f
                 }
             }
-            val liveMin = validObjects.minByOrNull { it.width }
-            val liveMax = validObjects.maxByOrNull { it.width }
+            val farthestObject = remember(validObjects) {
+                validObjects.minByOrNull { it.width }
+            }
+            val nearestObject = remember(validObjects) {
+                validObjects.maxByOrNull { it.width }
+            }
 
             // 5 Autos, die das Fenster am knappsten verfehlen (am nächsten an 1.0, aber außerhalb 1.1..1.35)
             val missCandidates = objects
@@ -213,28 +219,32 @@ fun CalibrationScreen() {
             // Beim Einschalten einfrieren (inkl. Bitmap-Kopie), beim Ausschalten speichern und löschen
             LaunchedEffect(inCalibrationMode) {
                 if (inCalibrationMode) {
-                    val min = liveMin
-                    val max = liveMax
-                    if (min != null && max != null) {
-                        val minThumb = cropBitmap(rawBitmap, imageWidth, imageHeight, min)?.copy(Bitmap.Config.ARGB_8888, false)
-                        val maxThumb = cropBitmap(rawBitmap, imageWidth, imageHeight, max)?.copy(Bitmap.Config.ARGB_8888, false)
+                    val nearest = nearestObject
+                    val farthest = farthestObject
+                    if (nearest != null && farthest != null) {
+                        val nearestThumb = cropBitmap(rawBitmap, imageWidth, imageHeight, nearest)?.copy(Bitmap.Config.ARGB_8888, false)
+                        val farthestThumb = cropBitmap(rawBitmap, imageWidth, imageHeight, farthest)?.copy(Bitmap.Config.ARGB_8888, false)
                         frozenItems = listOfNotNull(
-                            maxThumb?.let { FrozenCalibrationItem("Max", max, it) }
-                                ?: FrozenCalibrationItem("Max", max, null),
-                            minThumb?.let { FrozenCalibrationItem("Min", min, it) }
-                                ?: FrozenCalibrationItem("Min", min, null)
+                            farthestThumb?.let { FrozenCalibrationItem("Max", farthest, it) }
+                                ?: FrozenCalibrationItem("Max", farthest, null),
+                            nearestThumb?.let { FrozenCalibrationItem("Min", nearest, it) }
+                                ?: FrozenCalibrationItem("Min", nearest, null)
                         ).distinctBy { it.obj }
 
+                        // Speichern: Min = nah (große Breite), Max = weit (kleine Breite)
                         app.updateCalibrationObjects(
-                            minWidth = min.width,
-                            minHeight = min.height,
-                            maxWidth = max.width,
-                            maxHeight = max.height
+                            minWidth = nearest.width,
+                            minHeight = nearest.height,
+                            maxWidth = farthest.width,
+                            maxHeight = farthest.height
                         )
 
-                        // Slider initial über gespeicherte Kalibrierung (oder Dreisatz aus den vorherigen Werten) vorbelegen
-                        val minD = app.estimateDistance(min.width).coerceIn(10f, 300f)
-                        val maxD = app.estimateDistance(max.width).coerceIn(10f, 300f)
+                        // Slider initial über gespeicherte Kalibrierung (oder Default) vorbelegen
+                        // Max = weit = 300m, Min = nah = 10m
+                        val maxD = app.estimateDistance(farthest.width).coerceIn(10f, 300f)
+                            .takeIf { it >= 0f } ?: 300f
+                        val minD = app.estimateDistance(nearest.width).coerceIn(10f, 300f)
+                            .takeIf { it >= 0f } ?: 10f
                         app.updateCalibrationDistances(minM = minD, maxM = maxD)
                     }
                 } else {
