@@ -26,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -89,8 +90,8 @@ fun OcrScreen() {
 
     var pendingLines by remember { mutableStateOf<List<String>>(emptyList()) }
 
-    LaunchedEffect(app) {
-        app.addListener {
+    DisposableEffect(app) {
+        val listener = {
             val lines = app.currentDetectionResult?.recognizedTextLines ?: emptyList()
             pendingLines = lines
             val now = System.currentTimeMillis()
@@ -98,6 +99,10 @@ fun OcrScreen() {
                 displayLines = lines
                 lastUpdateTime = now
             }
+        }
+        app.addListener(listener)
+        onDispose {
+            app.removeListener(listener)
         }
     }
 
