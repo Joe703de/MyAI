@@ -341,12 +341,13 @@ fun ObjectBadges(
 
             val finalX = (obj.x.toFloat() * scale) + offsetX
             val finalY = (obj.y.toFloat() * scale) + offsetY
+            val finalH = obj.height.toFloat() * scale
 
             Box(
                 modifier = Modifier
                     .offset(
                         x = finalX.dp,
-                        y = (finalY - 40f).coerceAtLeast(0f).dp
+                        y = (finalY + finalH).dp
                     )
                     .background(
                         color = Color(0xFF1A1A1A).copy(alpha = 0.85f),
