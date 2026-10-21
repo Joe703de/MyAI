@@ -36,11 +36,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -293,6 +296,57 @@ fun MainCameraScreen() {
                     .weight(0.15f)
                     .fillMaxWidth(0.9f)
             )
+
+            // Entfernungs-Slider unter dem Camera Preview
+            var distanceM by remember { mutableFloatStateOf(10f) }
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .padding(vertical = 4.dp)
+            ) {
+                Text(
+                    text = "Entfernung",
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "${distanceM.toInt()}m",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.width(64.dp)
+                    )
+                    Slider(
+                        value = distanceM,
+                        onValueChange = { distanceM = it },
+                        valueRange = 10f..300f,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
+            // Schalter "Hinweis anzeigen"
+            var showHint by remember { mutableStateOf(false) }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .padding(vertical = 4.dp)
+            ) {
+                Text(
+                    text = "Hinweis anzeigen",
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Switch(
+                    checked = showHint,
+                    onCheckedChange = { showHint = it }
+                )
+            }
 
             // Buttons oberhalb der Android-Navigationsleiste
             Row(
