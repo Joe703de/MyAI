@@ -216,7 +216,9 @@ fun CalibrationScreen() {
                 }
                 .take(5)
 
-            // Beim Einschalten einfrieren (inkl. Bitmap-Kopie), beim Ausschalten speichern und löschen
+            // Beim Einschalten einfrieren (inkl. Bitmap-Kopie) und Slider-Werte aus den
+            // bereits gespeicherten Kalibrierwerten ermitteln. Beim Ausschalten die neuen
+            // Kalibrierpunkte speichern und in SharedPreferences persistieren.
             LaunchedEffect(inCalibrationMode) {
                 if (inCalibrationMode) {
                     val nearest = nearestObject
@@ -231,25 +233,34 @@ fun CalibrationScreen() {
                                 ?: FrozenCalibrationItem("Min", nearest, null)
                         ).distinctBy { it.obj }
 
-                        // Speichern: Min = nah (große Breite), Max = weit (kleine Breite)
-                        app.updateCalibrationObjects(
-                            minWidth = nearest.width,
-                            minHeight = nearest.height,
-                            maxWidth = farthest.width,
-                            maxHeight = farthest.height
-                        )
-
-                        // Slider initial über gespeicherte Kalibrierung (oder Default) vorbelegen
-                        // Max = weit = 300m, Min = nah = 10m
-                        val maxD = app.estimateDistance(farthest.width).coerceIn(10f, 300f)
-                            .takeIf { it >= 0f } ?: 300f
-                        val minD = app.estimateDistance(nearest.width).coerceIn(10f, 300f)
-                            .takeIf { it >= 0f } ?: 10f
+                        // Slider initial über die GESPEICHERTEN Kalibrierwerte vorbelegen.
+                        // Max = weit = Default 300m, Min = nah = Default 10m.
+                        val maxD = app.estimateDistanceFromSavedPoint(
+                            app.calibrationMaxWidthPx,
+                            app.calibrationMaxDistanceM,
+                            farthest.width
+                        ).coerceIn(10f, 300f).takeIf { it >= 0f } ?: 300f
+                        val minD = app.estimateDistanceFromSavedPoint(
+                            app.calibrationMinWidthPx,
+                            app.calibrationMinDistanceM,
+                            nearest.width
+                        ).coerceIn(10f, 300f).takeIf { it >= 0f } ?: 10f
                         app.updateCalibrationDistances(minM = minD, maxM = maxD)
                     }
                 } else {
-                    frozenItems = emptyList()
+                    // Kalibrierung beendet -> aktuelle eingefrorene Objekte als neue Kalibrierpunkte speichern
+                    val currentMin = frozenItems.find { it.label == "Min" }?.obj
+                    val currentMax = frozenItems.find { it.label == "Max" }?.obj
+                    if (currentMin != null && currentMax != null) {
+                        app.updateCalibrationObjects(
+                            minWidth = currentMin.width,
+                            minHeight = currentMin.height,
+                            maxWidth = currentMax.width,
+                            maxHeight = currentMax.height
+                        )
+                    }
                     app.saveCalibration()
+                    frozenItems = emptyList()
                     app.clearCalibrationObjects()
                 }
             }
