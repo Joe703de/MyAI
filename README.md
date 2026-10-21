@@ -2,6 +2,8 @@
 
 Android-App zur Echtzeit-Erkennung von Autos mit YOLO und TensorFlow Lite.
 
+> **Lizenzen:** Für die verwendeten Komponenten (YOLO, ML Kit, COCO, TensorFlow Lite etc.) siehe [`LICENCE.md`](LICENCE.md).
+
 > **Hinweis:** Das Projekt wurde von der ursprünglichen OpenCV-basierten Eiererkennung auf ein YOLO-Modell umgestellt. Aktuell wird die COCO-Klasse **2 = Auto** erkannt.
 
 ## Funktionen
