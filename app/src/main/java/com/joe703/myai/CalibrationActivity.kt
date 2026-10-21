@@ -175,7 +175,7 @@ fun CalibrationScreen() {
             val missCandidates = objects
                 .filter { obj ->
                     val ratio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
-                    ratio > 0f && (ratio < 1.1f || ratio > 1.3f)
+                    ratio > 0f && (ratio < 1.1f || ratio > 1.35f)
                 }
                 .sortedBy { obj ->
                     val ratio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
@@ -208,7 +208,7 @@ fun CalibrationScreen() {
                 } else {
                     objects.forEachIndexed { index, obj ->
                         val aspectRatio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
-                        val outOfRange = aspectRatio < 1.1f || aspectRatio > 1.3f
+                        val outOfRange = aspectRatio < 1.1f || aspectRatio > 1.35f
                         val thumbnail = missCandidates.firstOrNull { it === obj }?.let { candidate ->
                             val left = candidate.x.coerceIn(0, imageWidth)
                             val top = candidate.y.coerceIn(0, imageHeight)
@@ -269,7 +269,7 @@ fun CalibrationScreen() {
                 )
 
                 Text(
-                    text = "SV<1,1|>1,3",
+                    text = "SV<1,1|>1,35",
                     color = Color.White,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.background(Color.Black.copy(alpha = 0.7f))

@@ -558,7 +558,7 @@ class YoloObjectAnalyzer(
 
         val stepX = max(1, (sampleRight - sampleLeft) / 24)
         val stepY = max(1, (sampleBottom - sampleTop) / 24)
-        val names = listOf("Rot", "Gelb", "Grün", "Blau")
+        val names = listOf("Rot", "Gelb", "Grün", "Blau", "Weiß", "Schwarz")
         val votes = IntArray(names.size)
         val hsv = FloatArray(3)
         var sampled = 0
@@ -573,13 +573,27 @@ class YoloObjectAnalyzer(
             while (pxIndex < rowPixels.size) {
                 sampled++
                 Color.colorToHSV(rowPixels[pxIndex], hsv)
+                val hue = hsv[0]
+                val sat = hsv[1]
+                val value = hsv[2]
+                // Weiß: sehr helle, fast ungesättigte Farbe
+                if (value > 0.80f && sat < 0.15f) {
+                    votes[4]++
+                    pxIndex += stepX
+                    continue
+                }
+                // Schwarz: sehr dunkle Farbe
+                if (value < 0.20f) {
+                    votes[5]++
+                    pxIndex += stepX
+                    continue
+                }
                 // Keine Abstimmung durch Grau, Weiß oder sehr dunkle Schatten.
-                if (hsv[1] < 0.30f || hsv[2] < 0.20f) {
+                if (sat < 0.30f || value < 0.20f) {
                     pxIndex += stepX
                     continue
                 }
                 chromatic++
-                val hue = hsv[0]
                 val index = when {
                     hue < 25f || hue >= 335f -> 0
                     hue >= 35f && hue < 75f -> 1
@@ -594,8 +608,11 @@ class YoloObjectAnalyzer(
 
         val winner = votes.indices.maxByOrNull { votes[it] } ?: return unknown
         if (sampled == 0 || votes[winner] < 3 ||
-            votes[winner] < sampled * 0.10f || votes[winner] <= chromatic * 0.60f
+            votes[winner] < sampled * 0.10f
         ) return unknown
+
+        // Für Weiß und Schwarz ist keine chromatische Mehrheit nötig.
+        if (names[winner] != "Weiß" && names[winner] != "Schwarz" && votes[winner] <= chromatic * 0.60f) return unknown
 
         return colorConfigs.firstOrNull { it.name == names[winner] }?.rgb ?: unknown
     }
