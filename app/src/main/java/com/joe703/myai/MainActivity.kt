@@ -438,11 +438,12 @@ fun DistanceHintBadge(
         ratio in 1.1f..1.35f
     }
 
-    // Objekt mit geringster Entfernungsabweichung finden
+    // Geschätzte Entfernungen berechnen und nach Entfernung sortieren (nächstes zuerst)
     val candidates = validObjects.mapNotNull { obj ->
         val estimated = app.estimateDistance(obj.width)
         if (estimated >= 0f) obj to estimated else null
-    }
+    }.sortedBy { (_, estimated) -> estimated }
+
     val totalValid = candidates.size
     val closest = candidates.minByOrNull { (_, estimated) ->
         kotlin.math.abs(estimated - targetDistanceM)
@@ -450,6 +451,8 @@ fun DistanceHintBadge(
 
     val (obj, estimatedM) = closest ?: return
     if (kotlin.math.abs(estimatedM - targetDistanceM) > 10f) return
+
+    val rank = candidates.indexOf(closest) + 1
 
     val finalX = (obj.x.toFloat() * scale) + offsetX
     val finalY = (obj.y.toFloat() * scale) + offsetY
@@ -488,7 +491,7 @@ fun DistanceHintBadge(
                     )
                 }
                 Text(
-                    text = "1/${totalValid} Objekten",
+                    text = "${rank}/${totalValid} Objekten",
                     color = Color.White,
                     style = MaterialTheme.typography.bodySmall,
                     maxLines = 1
