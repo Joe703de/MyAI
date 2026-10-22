@@ -432,16 +432,19 @@ fun DistanceHintBadge(
     val offsetX = (previewWidth - scaledWidth) / 2
     val offsetY = (previewHeight - scaledHeight) / 2
 
-    val minW = app.calibrationMinWidthPx
-    val maxW = app.calibrationMaxWidthPx
-    val minD = app.calibrationMinDistanceM
-    val maxD = app.calibrationMaxDistanceM
+    // Nur Objekte im Seitenverhältnis-Bereich 1.1..1.35 berücksichtigen
+    val validObjects = objects.filter { obj ->
+        val ratio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
+        ratio in 1.1f..1.35f
+    }
 
     // Objekt mit geringster Entfernungsabweichung finden
-    val closest = objects.mapNotNull { obj ->
+    val candidates = validObjects.mapNotNull { obj ->
         val estimated = app.estimateDistance(obj.width)
         if (estimated >= 0f) obj to estimated else null
-    }.minByOrNull { (_, estimated) ->
+    }
+    val totalValid = candidates.size
+    val closest = candidates.minByOrNull { (_, estimated) ->
         kotlin.math.abs(estimated - targetDistanceM)
     }
 
@@ -465,19 +468,27 @@ fun DistanceHintBadge(
                 .padding(horizontal = 8.dp, vertical = 4.dp),
             contentAlignment = Alignment.CenterStart
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Image(
-                    painter = painterResource(id = R.mipmap.ic_launcher_foreground),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                )
+            Column {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Image(
+                        painter = painterResource(id = R.mipmap.ic_launcher_foreground),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                    )
+                    Text(
+                        text = "${estimatedM.toInt()}m Entfernt",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1
+                    )
+                }
                 Text(
-                    text = "${targetDistanceM.toInt()}m Entfernt",
+                    text = "1/${totalValid} Objekten",
                     color = Color.White,
                     style = MaterialTheme.typography.bodySmall,
                     maxLines = 1
