@@ -144,6 +144,15 @@ class MyAIApplication : Application() {
         return savedDistanceM * savedWidthPx.toFloat() / currentWidthPx.toFloat()
     }
 
+    /**
+     * Berechnet die Breite in Pixeln für eine Zielentfernung über den gespeicherten
+     * Kalibrierpunkten. Umkehrfunktion zu [estimateDistanceFromSavedPoint].
+     */
+    fun estimateWidthForDistance(savedWidthPx: Int, savedDistanceM: Float, targetDistanceM: Float): Int {
+        if (savedWidthPx <= 0 || savedDistanceM <= 0f || targetDistanceM <= 0f) return -1
+        return (savedWidthPx.toFloat() * savedDistanceM / targetDistanceM).toInt()
+    }
+
     fun addListener(listener: () -> Unit) {
         listeners.add(listener)
     }

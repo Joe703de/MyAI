@@ -278,15 +278,27 @@ fun MainCameraScreen() {
                     )
                 }
 
-                // Badge über jedem erkannten roten Auto anzeigen
+                // Badges: entweder Hinweis auf nächste Entfernung oder rote Autos
                 if (previewViewSize.width > 0 && detectionResult.imageWidth > 0) {
-                    ObjectBadges(
-                        objects = detectionResult.objects,
-                        previewWidth = previewViewSize.width.toFloat(),
-                        previewHeight = previewViewSize.height.toFloat(),
-                        imageWidth = detectionResult.imageWidth.toFloat(),
-                        imageHeight = detectionResult.imageHeight.toFloat()
-                    )
+                    if (showHint) {
+                        DistanceHintBadge(
+                            objects = detectionResult.objects,
+                            targetDistanceM = distanceM,
+                            previewWidth = previewViewSize.width.toFloat(),
+                            previewHeight = previewViewSize.height.toFloat(),
+                            imageWidth = detectionResult.imageWidth.toFloat(),
+                            imageHeight = detectionResult.imageHeight.toFloat(),
+                            app = app
+                        )
+                    } else {
+                        ObjectBadges(
+                            objects = detectionResult.objects,
+                            previewWidth = previewViewSize.width.toFloat(),
+                            previewHeight = previewViewSize.height.toFloat(),
+                            imageWidth = detectionResult.imageWidth.toFloat(),
+                            imageHeight = detectionResult.imageHeight.toFloat()
+                        )
+                    }
                 }
             }
 
@@ -394,6 +406,80 @@ fun MainCameraScreen() {
                 ) {
                     Text("OCR")
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun DistanceHintBadge(
+    objects: List<DetectedObject>,
+    targetDistanceM: Float,
+    previewWidth: Float,
+    previewHeight: Float,
+    imageWidth: Float,
+    imageHeight: Float,
+    app: MyAIApplication
+) {
+    val scaleX = previewWidth / imageWidth
+    val scaleY = previewHeight / imageHeight
+    val scale = max(scaleX, scaleY)
+
+    val scaledWidth = imageWidth * scale
+    val scaledHeight = imageHeight * scale
+    val offsetX = (previewWidth - scaledWidth) / 2
+    val offsetY = (previewHeight - scaledHeight) / 2
+
+    val minW = app.calibrationMinWidthPx
+    val maxW = app.calibrationMaxWidthPx
+    val minD = app.calibrationMinDistanceM
+    val maxD = app.calibrationMaxDistanceM
+
+    // Objekt mit geringster Entfernungsabweichung finden
+    val closest = objects.mapNotNull { obj ->
+        val estimated = app.estimateDistance(obj.width)
+        if (estimated >= 0f) obj to estimated else null
+    }.minByOrNull { (_, estimated) ->
+        kotlin.math.abs(estimated - targetDistanceM)
+    }
+
+    val (obj, estimatedM) = closest ?: return
+    if (kotlin.math.abs(estimatedM - targetDistanceM) > 10f) return
+
+    val finalX = (obj.x.toFloat() * scale) + offsetX
+    val finalY = (obj.y.toFloat() * scale) + offsetY
+    val finalH = obj.height.toFloat() * scale
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .offset {
+                    IntOffset(finalX.toInt(), (finalY + finalH).toInt())
+                }
+                .background(
+                    color = Color(0xFF1A1A1A).copy(alpha = 0.85f),
+                    shape = MaterialTheme.shapes.small
+                )
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Image(
+                    painter = painterResource(id = R.mipmap.ic_launcher_foreground),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                )
+                Text(
+                    text = "${targetDistanceM.toInt()}m Entfernt",
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1
+                )
             }
         }
     }
