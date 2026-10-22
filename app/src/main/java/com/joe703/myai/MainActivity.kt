@@ -165,6 +165,10 @@ fun MainCameraScreen() {
     var previewViewSize by remember { mutableStateOf(android.util.Size(0, 0)) }
     var frameCount by remember { mutableStateOf(0) }
 
+    // Entfernungs-Slider und Hinweis-Schalter (werden im Preview-Bereich und unten benötigt)
+    var distanceM by remember { mutableFloatStateOf(10f) }
+    var showHint by remember { mutableStateOf(false) }
+
     val imageAnalyzer = remember(context) {
         ImageAnalysis.Builder()
             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
@@ -310,7 +314,6 @@ fun MainCameraScreen() {
             )
 
             // Entfernungs-Slider unter dem Camera Preview
-            var distanceM by remember { mutableFloatStateOf(10f) }
             Column(
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
@@ -341,7 +344,6 @@ fun MainCameraScreen() {
             }
 
             // Schalter "Hinweis anzeigen"
-            var showHint by remember { mutableStateOf(false) }
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
