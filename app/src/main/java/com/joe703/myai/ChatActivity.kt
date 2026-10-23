@@ -19,8 +19,10 @@ import androidx.compose.ui.layout.positionInWindow
 import androidx.lifecycle.Lifecycle
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.Executors
 import android.os.Bundle
+import android.view.Surface as AndroidSurface
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -46,6 +48,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -89,7 +92,7 @@ class ChatActivity : ComponentActivity() {
         val request = CompletableDeferred<DetectionResult>()
         pendingFrame = SystemClock.elapsedRealtimeNanos() to request
         return try {
-            withTimeoutOrNull(8000) { request.await() }
+            withTimeoutOrNull(8.seconds) { request.await() }
         } finally {
             if (pendingFrame?.second === request) pendingFrame = null
         }
@@ -109,7 +112,12 @@ class ChatActivity : ComponentActivity() {
                 val app = application as MyAIApplication
                 val useCase = ImageAnalysis.Builder()
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                    .setTargetRotation(window.decorView.display?.rotation ?: 0)
+                    .setTargetRotation(when (window.decorView.display?.rotation) {
+                        AndroidSurface.ROTATION_90 -> AndroidSurface.ROTATION_90
+                        AndroidSurface.ROTATION_180 -> AndroidSurface.ROTATION_180
+                        AndroidSurface.ROTATION_270 -> AndroidSurface.ROTATION_270
+                        else -> AndroidSurface.ROTATION_0
+                    })
                     .setResolutionSelector(ResolutionSelector.Builder()
                         .setResolutionStrategy(ResolutionStrategy(Size(1920, 1080),
                             ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER))
@@ -186,10 +194,10 @@ fun ChatScreen() {
     val activity = context as ChatActivity
     val detectionResult = activity.liveResult
     var sending by remember { mutableStateOf(false) }
-    var previewX by remember { mutableStateOf(0) }
-    var previewY by remember { mutableStateOf(0) }
-    var previewWidth by remember { mutableStateOf(1) }
-    var previewHeight by remember { mutableStateOf(1) }
+    var previewX by remember { mutableIntStateOf(0) }
+    var previewY by remember { mutableIntStateOf(0) }
+    var previewWidth by remember { mutableIntStateOf(1) }
+    var previewHeight by remember { mutableIntStateOf(1) }
     var frozenPreview by remember { mutableStateOf<DetectionResult?>(null) }
     val messages = remember { app.chatMessages }
     var inputText by remember { mutableStateOf("") }
@@ -340,12 +348,11 @@ private fun interpretQuestion(question: String, result: DetectionResult?, app: M
         }
     }
 
-    val targetDistance = q.mapNotNull { it.toIntOrNull() }.firstOrNull()
+    val targetDistance = q.firstNotNullOfOrNull { it.toIntOrNull() }
 
     val colorMap = mapOf(
         "rot" to "Rot", "rote" to "Rot", "roter" to "Rot", "rotes" to "Rot",
         "blau" to "Blau", "blaue" to "Blau", "blauer" to "Blau", "blaues" to "Blau",
-        "gruen" to "Gruen", "gruene" to "Gruen", "gruener" to "Gruen", "gruenes" to "Gruen",
         "gruen" to "Gruen", "gruene" to "Gruen", "gruener" to "Gruen", "gruenes" to "Gruen",
         "gelb" to "Gelb", "gelbe" to "Gelb", "gelber" to "Gelb", "gelbes" to "Gelb",
         "schwarz" to "Schwarz", "schwarze" to "Schwarz", "schwarzer" to "Schwarz", "schwarzes" to "Schwarz",
@@ -399,36 +406,33 @@ private fun interpretQuestion(question: String, result: DetectionResult?, app: M
         q.any { it in listOf("nah", "nahes", "nahe") } ||
         q.any { it in listOf("fern", "weit", "weites", "weiter", "weitweg", "weit weg") }
     ) {
-        val last = currentCandidates
-        if (last.isNotEmpty()) {
+        if (currentCandidates.isNotEmpty()) {
             val filtered = when {
                 q.any { it in listOf("naechste", "naechsten", "nächste", "nächsten", "n") } ->
-                    last.sortedBy { app.estimateDistance(it.width, it.classId) }.take(1)
+                    currentCandidates.sortedBy { app.estimateDistance(it.width, it.classId) }.take(1)
                 q.any { it in listOf("ganzlinks") } ->
-                    listOf(last.minByOrNull { it.x + it.width / 2 }!!)
+                    listOf(currentCandidates.minByOrNull { it.x + it.width / 2 }!!)
                 q.any { it in listOf("ganzrechts") } ->
-                    listOf(last.maxByOrNull { it.x + it.width / 2 }!!)
+                    listOf(currentCandidates.maxByOrNull { it.x + it.width / 2 }!!)
                 q.any { it in listOf("linke", "linkes", "links") } ->
-                    last.filter { it.x + it.width / 2 < result.imageWidth / 3 }
+                    currentCandidates.filter { it.x + it.width / 2 < result.imageWidth / 3 }
                 q.any { it in listOf("rechte", "rechtes", "rechts") } ->
-                    last.filter { it.x + it.width / 2 > 2 * result.imageWidth / 3 }
+                    currentCandidates.filter { it.x + it.width / 2 > 2 * result.imageWidth / 3 }
                 q.any { it in listOf("mitte", "mittlere") } ->
-                    last.filter { (it.x + it.width / 2) in (result.imageWidth / 3)..(2 * result.imageWidth / 3) }
+                    currentCandidates.filter { (it.x + it.width / 2) in (result.imageWidth / 3)..(2 * result.imageWidth / 3) }
                 q.any { it in listOf("nah", "nahes", "nahe") } ->
-                    last.sortedBy { app.estimateDistance(it.width, it.classId) }.take(1)
+                    currentCandidates.sortedBy { app.estimateDistance(it.width, it.classId) }.take(1)
                 q.any { it in listOf("fern", "weit", "weites", "weiter", "weitweg") } ->
-                    last.sortedByDescending { app.estimateDistance(it.width, it.classId) }.take(1)
-                else -> last
+                    currentCandidates.sortedByDescending { app.estimateDistance(it.width, it.classId) }.take(1)
+                else -> currentCandidates
             }
             if (filtered.isEmpty()) return ChatAnswer("Dort sehe ich aktuell kein passendes Objekt.", emptyList())
-            if (filtered.isNotEmpty()) {
-                return if (askingWhere) {
-                    ChatAnswer(describePositions(filtered, result, app), filtered)
-                } else if (askingDistance) {
-                    ChatAnswer(describeDistances(filtered, app), filtered)
-                } else {
-                    ChatAnswer(describeObjects(filtered, app), filtered)
-                }
+            return if (askingWhere) {
+                ChatAnswer(describePositions(filtered, result, app), filtered)
+            } else if (askingDistance) {
+                ChatAnswer(describeDistances(filtered, app), filtered)
+            } else {
+                ChatAnswer(describeObjects(filtered, app), filtered)
             }
         }
     }
@@ -445,30 +449,28 @@ private fun interpretQuestion(question: String, result: DetectionResult?, app: M
         }, matches.map { it.first })
     }
 
-    val candidates = currentCandidates
-
-    if (candidates.isEmpty()) {
+    if (currentCandidates.isEmpty()) {
         val className = requestedClassId?.let { CocoClassNames.getOrElse(it) { "Objekt" } }
         val colorPart = requestedColor?.let { " in $it" } ?: ""
         return ChatAnswer("Ich sehe gerade kein${if (requestedClassId == 11) "" else "e"} ${className ?: "Objekt"}${colorPart}.", emptyList())
     }
 
-    if (candidates.size > 3) {
+    if (currentCandidates.size > 3) {
         val className = requestedClassId?.let { CocoClassNames.getOrElse(it) { "Objekte" } } ?: "Objekte"
         val colorPart = requestedColor?.let { " $it" } ?: ""
-        val first = candidates.first()
+        val first = currentCandidates.first()
         val est = app.estimateDistance(first.width, first.classId)
         val distHint = if (est >= 0f) " Das nächste ist ${est.toInt()}m entfernt." else ""
         return ChatAnswer(
-            "Ich sehe ${candidates.size} ${className.lowercase()}${colorPart}.${distHint}\n\nSoll ich Dir die komplette Liste zeigen oder nur ein bestimmtes Auto?",
+            "Ich sehe ${currentCandidates.size} ${className.lowercase()}${colorPart}.${distHint}\n\nSoll ich Dir die komplette Liste zeigen oder nur ein bestimmtes Auto?",
             emptyList()
         )
     }
 
     return when {
-        askingWhere -> ChatAnswer(describePositions(candidates, result, app), candidates)
-        askingDistance -> ChatAnswer(describeDistances(candidates, app), candidates)
-        else -> ChatAnswer(describeObjects(candidates, app), candidates)
+        askingWhere -> ChatAnswer(describePositions(currentCandidates, result, app), currentCandidates)
+        askingDistance -> ChatAnswer(describeDistances(currentCandidates, app), currentCandidates)
+        else -> ChatAnswer(describeObjects(currentCandidates, app), currentCandidates)
     }
 }
 
