@@ -24,7 +24,11 @@ data class DetectionResult(
     val timingMs: TimingBreakdown = TimingBreakdown(),
     val zoomedObject: ZoomedObject? = null,
     val recognizedText: String = "",
-    val recognizedTextLines: List<String> = emptyList()
+    val recognizedTextLines: List<String> = emptyList(),
+    /** Zeitstempel des Kamera-Frames, an dem die Analyse lief. */
+    val cameraTimestampNanos: Long = 0L,
+    /** Zeitstempel, wann das Ergebnis an den UI-Thread zurückgegeben wurde. */
+    val resultDeliveredNanos: Long = 0L
 )
 
 /**

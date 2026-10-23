@@ -481,8 +481,11 @@ fun StatusBar(result: DetectionResult, targetClassIndex: Int, previewWidth: Floa
                 }
 
                 Box(modifier = Modifier.width(220.dp), contentAlignment = Alignment.CenterEnd) {
+                    val frameAgeMs = if (result.cameraTimestampNanos > 0L) {
+                        (System.nanoTime() - result.resultDeliveredNanos) / 1_000_000
+                    } else 0L
                     Text(
-                        text = "${result.processingTimeMs}ms@${result.imageWidth}x${result.imageHeight}",
+                        text = "${result.processingTimeMs}ms@${result.imageWidth}x${result.imageHeight} age=${frameAgeMs}ms",
                         color = Color.Gray,
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier

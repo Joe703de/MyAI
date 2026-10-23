@@ -145,11 +145,13 @@ class YoloObjectAnalyzer(
 
     override fun analyze(imageProxy: ImageProxy) {
         val startTime = System.currentTimeMillis()
+        val cameraTimestampNanos = imageProxy.imageInfo.timestamp
+        val analyzeStartNanos = System.nanoTime()
         try {
             val rawBitmap = imageProxy.toBitmap()
             if (rawBitmap == null) {
                 Log.i("YoloObjectAnalyzer", "imageProxy.toBitmap() returned null")
-                onEmptyResult(startTime, imageProxy.width, imageProxy.height, createFallbackBitmap(imageProxy.width, imageProxy.height))
+                onEmptyResult(startTime, imageProxy.width, imageProxy.height, createFallbackBitmap(imageProxy.width, imageProxy.height), cameraTimestampNanos)
                 imageProxy.close()
                 return
             }
@@ -170,6 +172,7 @@ class YoloObjectAnalyzer(
                     TimingBreakdown(preprocessMs = preprocessTime, totalMs = System.currentTimeMillis() - startTime, ocrMs = 0L, delegateName = "no-model")
                 )
 
+            val analyzeLatencyMs = (System.nanoTime() - analyzeStartNanos) / 1_000_000
             imageProxy.close()
 
             Log.i(
@@ -177,7 +180,7 @@ class YoloObjectAnalyzer(
                 "Frame OK: class=${targetClassProvider()} raw=${rawBitmap.width}x${rawBitmap.height}, rotated=${bitmap.width}x${bitmap.height}, " +
                 "scaled=${detections.scaled.width}x${detections.scaled.height}, detections=${detections.objects.size}, " +
                 "maxScore=${detections.maxScore}, topClass=${detections.topClassId}, topCarScore=${detections.topCarScore} " +
-                "timing=${detections.timing}"
+                "timing=${detections.timing}, cameraLatencyMs=${analyzeLatencyMs}"
             )
 
             onResult(
@@ -200,17 +203,19 @@ class YoloObjectAnalyzer(
                     timingMs = detections.timing,
                     zoomedObject = detections.zoomedObject,
                     recognizedText = lastRecognizedText,
-                    recognizedTextLines = lastRecognizedTextLines
+                    recognizedTextLines = lastRecognizedTextLines,
+                    cameraTimestampNanos = cameraTimestampNanos,
+                    resultDeliveredNanos = System.nanoTime()
                 )
             )
         } catch (e: Exception) {
             Log.i("YoloObjectAnalyzer", "Error during analysis: ${e.message}", e)
-            onEmptyResult(startTime, imageProxy.width, imageProxy.height, createFallbackBitmap(imageProxy.width, imageProxy.height))
+            onEmptyResult(startTime, imageProxy.width, imageProxy.height, createFallbackBitmap(imageProxy.width, imageProxy.height), cameraTimestampNanos)
             imageProxy.close()
         }
     }
 
-    private fun onEmptyResult(startTime: Long, width: Int, height: Int, bitmap: Bitmap?) {
+    private fun onEmptyResult(startTime: Long, width: Int, height: Int, bitmap: Bitmap?, cameraTimestampNanos: Long = 0L) {
         Log.i("YoloObjectAnalyzer", "Empty result: ${width}x${height}, bitmap=${bitmap?.let { "${it.width}x${it.height}" } ?: "null"}")
         onResult(
             DetectionResult(
@@ -227,7 +232,9 @@ class YoloObjectAnalyzer(
                     preprocessMs = System.currentTimeMillis() - startTime,
                     totalMs = System.currentTimeMillis() - startTime,
                     delegateName = "error"
-                )
+                ),
+                cameraTimestampNanos = cameraTimestampNanos,
+                resultDeliveredNanos = System.nanoTime()
             )
         )
     }
