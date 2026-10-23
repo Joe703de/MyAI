@@ -179,8 +179,9 @@ fun CalibrationScreen() {
 
             // Meta-Daten für alle erkannten Objekte der aktuellen Kalibrierklasse
             val currentClass = app.calibrationTargetClassIndex
-            val classFilteredObjects = remember(detectionResult?.objects ?: emptyList(), currentClass) {
-                (detectionResult?.objects ?: emptyList()).filter { obj: DetectedObject -> obj.classId == currentClass }
+            val allObjects: List<DetectedObject> = detectionResult?.objects ?: emptyList()
+            val classFilteredObjects = remember(allObjects, currentClass) {
+                allObjects.filter { obj -> obj.classId == currentClass }
             }
             val averageAspectRatio = if (classFilteredObjects.isNotEmpty()) {
                 classFilteredObjects.map { it.width.toFloat() / it.height.toFloat() }.average().toFloat()
