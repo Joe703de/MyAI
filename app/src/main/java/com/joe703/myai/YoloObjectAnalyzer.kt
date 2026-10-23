@@ -39,7 +39,7 @@ import kotlin.math.min
  */
 class YoloObjectAnalyzer(
     context: Context,
-    private val targetClassProvider: () -> Int,
+    private val targetClassProvider: () -> List<Int>,
     private val confThresholdProvider: () -> Float,
     private val enableOcr: Boolean = false,
     private val onResult: (DetectionResult) -> Unit
