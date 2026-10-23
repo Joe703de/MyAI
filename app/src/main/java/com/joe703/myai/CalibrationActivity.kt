@@ -188,6 +188,12 @@ fun CalibrationScreen() {
             var pendingMinDistanceM by remember { mutableFloatStateOf(app.calibrationMinDistanceM) }
             var pendingMaxDistanceM by remember { mutableFloatStateOf(app.calibrationMaxDistanceM) }
 
+            // Bei Klassenwechsel die gespeicherten Entfernungen der neuen Klasse laden
+            LaunchedEffect(app.targetClassIndex) {
+                pendingMinDistanceM = app.calibrationMinDistanceM
+                pendingMaxDistanceM = app.calibrationMaxDistanceM
+            }
+
             // Eingefrorene Kalibrierungsobjekte mit Bitmap-Kopien.
             // Bleiben erhalten, solange der Kalibrierungsmodus aktiv ist.
             var frozenItems by remember { mutableStateOf<List<FrozenCalibrationItem>>(emptyList()) }
@@ -265,10 +271,11 @@ fun CalibrationScreen() {
                             minWidth = currentMin.width,
                             minHeight = currentMin.height,
                             maxWidth = currentMax.width,
-                            maxHeight = currentMax.height
+                            maxHeight = currentMax.height,
+                            classIndex = app.targetClassIndex
                         )
                     }
-                    app.updateCalibrationDistances(minM = pendingMinDistanceM, maxM = pendingMaxDistanceM)
+                    app.updateCalibrationDistances(minM = pendingMinDistanceM, maxM = pendingMaxDistanceM, classIndex = app.targetClassIndex)
                     app.saveCalibration()
                     frozenItems = emptyList()
                 }
