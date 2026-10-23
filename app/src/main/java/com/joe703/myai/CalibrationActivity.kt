@@ -401,47 +401,49 @@ fun CalibrationScreen() {
                     }
                 }
 
-                // Debug-Anzeige immer unter den SV-Grenzen (bzw. unter dem Kalibrierungsmodus)
-                if (classFilteredObjects.isEmpty()) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Keine Objekte der Klasse erkannt",
-                        color = Color.Gray,
-                        style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp)
-                    )
-                } else {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    classFilteredObjects.forEachIndexed { index, obj ->
-                        val aspectRatio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
-                        val outOfRange = aspectRatio < ratioMin || aspectRatio > ratioMax
-                        val thumbnail = missCandidates.firstOrNull { it === obj }?.let { candidate ->
-                            cropBitmap(rawBitmap, imageWidth, imageHeight, candidate)
-                        }
+                // Debug-Anzeige der aktuell erkannten Objekte ausblenden, wenn Kalibrierung aktiv
+                if (!inCalibrationMode) {
+                    if (classFilteredObjects.isEmpty()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Keine Objekte der Klasse erkannt",
+                            color = Color.Gray,
+                            style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp)
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        classFilteredObjects.forEachIndexed { index, obj ->
+                            val aspectRatio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
+                            val outOfRange = aspectRatio < ratioMin || aspectRatio > ratioMax
+                            val thumbnail = missCandidates.firstOrNull { it === obj }?.let { candidate ->
+                                cropBitmap(rawBitmap, imageWidth, imageHeight, candidate)
+                            }
 
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color.Black.copy(alpha = 0.7f))
-                                .padding(horizontal = 4.dp, vertical = 1.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "${index + 1}: ${obj.width}×${obj.height}px, SV ${"%.2f".format(aspectRatio)}:1",
-                                color = if (outOfRange) Color.Red else Color.Cyan,
-                                style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp),
-                                modifier = Modifier.weight(1f)
-                            )
-                            thumbnail?.let { bitmap ->
-                                Image(
-                                    bitmap = bitmap.asImageBitmap(),
-                                    contentDescription = "Knappes Objekt",
-                                    modifier = Modifier
-                                        .padding(start = 4.dp)
-                                        .height(56.dp)
-                                        .width(84.dp)
-                                        .border(1.dp, Color.Yellow)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color.Black.copy(alpha = 0.7f))
+                                    .padding(horizontal = 4.dp, vertical = 1.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "${index + 1}: ${obj.width}×${obj.height}px, SV ${"%.2f".format(aspectRatio)}:1",
+                                    color = if (outOfRange) Color.Red else Color.Cyan,
+                                    style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp),
+                                    modifier = Modifier.weight(1f)
                                 )
+                                thumbnail?.let { bitmap ->
+                                    Image(
+                                        bitmap = bitmap.asImageBitmap(),
+                                        contentDescription = "Knappes Objekt",
+                                        modifier = Modifier
+                                            .padding(start = 4.dp)
+                                            .height(56.dp)
+                                            .width(84.dp)
+                                            .border(1.dp, Color.Yellow)
+                                    )
+                                }
                             }
                         }
                     }
