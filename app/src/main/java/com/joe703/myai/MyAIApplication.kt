@@ -17,7 +17,7 @@ import androidx.compose.runtime.setValue
 class MyAIApplication : Application() {
 
     /** Aktives Set von COCO-Klassen, die gleichzeitig erkannt werden sollen. */
-    val targetClassSet = listOf(2, 9, 11)
+    val targetClassSet = listOf(2, 5, 7, 9, 11)
 
     /** Magic Index, der den Set-Erkennungsmodus repräsentiert. */
     val SET_MODE_CLASS_INDEX = -1
