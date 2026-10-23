@@ -474,6 +474,7 @@ private fun CalibrateView(
                                     maxHeight = it.obj.height,
                                     classIndex = app.calibrationTargetClassIndex
                                 )
+                                app.updateCalibrationMaxDistance(pendingMaxDistanceM, app.calibrationTargetClassIndex)
                                 app.saveCalibration()
                             }
                         )
@@ -497,6 +498,7 @@ private fun CalibrateView(
                                     maxHeight = frozenItems.find { item -> item.label == "Max" }?.obj?.height ?: app.calibrationMaxHeightPx,
                                     classIndex = app.calibrationTargetClassIndex
                                 )
+                                app.updateCalibrationMinDistance(pendingMinDistanceM, app.calibrationTargetClassIndex)
                                 app.saveCalibration()
                             }
                         )
@@ -578,7 +580,7 @@ private fun CalibrateView(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "beim Beenden speichern:",
+                            text = "zu speichern:",
                             color = Color.Cyan,
                             style = MaterialTheme.typography.bodySmall
                         )
@@ -589,6 +591,11 @@ private fun CalibrateView(
                         )
                         Text(
                             text = "Max: ${currentMaxWidth}px @ ${pendingMaxDistanceM.toInt()}m",
+                            color = Color.Cyan,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Text(
+                            text = "SV: ${"%.2f".format(pendingRatioMin)}..${"%.2f".format(pendingRatioMax)}",
                             color = Color.Cyan,
                             style = MaterialTheme.typography.bodySmall
                         )

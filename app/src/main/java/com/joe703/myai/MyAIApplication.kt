@@ -154,6 +154,18 @@ class MyAIApplication : Application() {
         notifyListeners()
     }
 
+    fun updateCalibrationMinDistance(minM: Float, classIndex: Int = calibrationTargetClassIndex) {
+        val current = calibrationByClass[classIndex.coerceIn(0, 79)].value
+        updateCalibrationForClass(classIndex, current.copy(minDistanceM = minM))
+        notifyListeners()
+    }
+
+    fun updateCalibrationMaxDistance(maxM: Float, classIndex: Int = calibrationTargetClassIndex) {
+        val current = calibrationByClass[classIndex.coerceIn(0, 79)].value
+        updateCalibrationForClass(classIndex, current.copy(maxDistanceM = maxM))
+        notifyListeners()
+    }
+
     fun updateCalibrationRatios(ratioMin: Float, ratioMax: Float, classIndex: Int = calibrationTargetClassIndex) {
         val current = calibrationByClass[classIndex.coerceIn(0, 79)].value
         updateCalibrationForClass(classIndex, current.copy(ratioMin = ratioMin, ratioMax = ratioMax))
