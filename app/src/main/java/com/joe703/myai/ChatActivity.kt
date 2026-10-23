@@ -199,6 +199,19 @@ private fun interpretQuestion(question: String, result: DetectionResult?, app: M
         .replace(",", " ")
         .split(Regex("\\s+"))
         .filter { it.isNotBlank() }
+        .toMutableList()
+
+    // Zwei-Wort-Phrasen zusammenfassen, damit "ganz links" und "ganz rechts" erkannt werden
+    var i = 0
+    while (i < q.size - 1) {
+        val pair = "${q[i]} ${q[i + 1]}"
+        if (pair in listOf("ganz links", "ganz rechts")) {
+            q[i] = pair.replace(" ", "")
+            q.removeAt(i + 1)
+        } else {
+            i++
+        }
+    }
 
     val targetDistance = q.mapNotNull { it.toIntOrNull() }.firstOrNull()
 
@@ -355,7 +368,7 @@ private fun describePositions(objects: List<DetectedObject>, result: DetectionRe
         }
         val distM = app.estimateDistance(obj.width, obj.classId)
         val yPos = when {
-            distM >= 0f -> if (distM < 60f) "nah" else "weit weg"
+            distM >= 0f -> if (distM < 60f) "nah (${distM.toInt()}m)" else "weit weg (${distM.toInt()}m)"
             obj.y + obj.height / 2 > 2 * result.imageHeight / 3 -> "nah"
             obj.y + obj.height / 2 < result.imageHeight / 3 -> "weit weg"
             else -> "mittlere Entfernung"
@@ -371,7 +384,7 @@ private fun describePositions(objects: List<DetectedObject>, result: DetectionRe
             }
             val distM = app.estimateDistance(obj.width, obj.classId)
             val yPos = when {
-                distM >= 0f -> if (distM < 60f) "nah" else "weit weg"
+                distM >= 0f -> if (distM < 60f) "nah (${distM.toInt()}m)" else "weit weg (${distM.toInt()}m)"
                 obj.y + obj.height / 2 > 2 * result.imageHeight / 3 -> "nah"
                 obj.y + obj.height / 2 < result.imageHeight / 3 -> "weit weg"
                 else -> "mittlere Entfernung"
