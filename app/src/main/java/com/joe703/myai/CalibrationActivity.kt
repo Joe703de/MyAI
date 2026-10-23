@@ -199,6 +199,8 @@ fun CalibrationScreen() {
             var pendingMaxDistanceM by remember { mutableFloatStateOf(app.calibrationMaxDistanceM) }
             var pendingRatioMin by remember { mutableFloatStateOf(app.calibrationRatioMin) }
             var pendingRatioMax by remember { mutableFloatStateOf(app.calibrationRatioMax) }
+            var ratioMinText by remember { mutableStateOf("%.2f".format(pendingRatioMin)) }
+            var ratioMaxText by remember { mutableStateOf("%.2f".format(pendingRatioMax)) }
 
             // Bei Klassenwechsel die gespeicherten Werte der neuen Klasse laden
             LaunchedEffect(app.calibrationTargetClassIndex) {
@@ -206,6 +208,8 @@ fun CalibrationScreen() {
                 pendingMaxDistanceM = app.calibrationMaxDistanceM
                 pendingRatioMin = app.calibrationRatioMin
                 pendingRatioMax = app.calibrationRatioMax
+                ratioMinText = "%.2f".format(pendingRatioMin)
+                ratioMaxText = "%.2f".format(pendingRatioMax)
             }
 
             // Eingefrorene Kalibrierungsobjekte mit Bitmap-Kopien.
@@ -292,6 +296,14 @@ fun CalibrationScreen() {
                             classIndex = app.targetClassIndex
                         )
                     }
+                    // Texteingaben validieren und übernehmen
+                    val parsedMin = ratioMinText.replace(",", ".").toFloatOrNull()?.coerceIn(0.1f, 10f) ?: pendingRatioMin
+                    val parsedMax = ratioMaxText.replace(",", ".").toFloatOrNull()?.coerceIn(0.1f, 10f) ?: pendingRatioMax
+                    pendingRatioMin = kotlin.math.min(parsedMin, parsedMax - 0.01f).coerceAtLeast(0.1f)
+                    pendingRatioMax = kotlin.math.max(parsedMax, pendingRatioMin + 0.01f).coerceAtMost(10f)
+                    ratioMinText = "%.2f".format(pendingRatioMin)
+                    ratioMaxText = "%.2f".format(pendingRatioMax)
+
                     app.updateCalibrationDistances(minM = pendingMinDistanceM, maxM = pendingMaxDistanceM, classIndex = app.targetClassIndex)
                     app.updateCalibrationRatios(pendingRatioMin, pendingRatioMax, app.targetClassIndex)
                     app.saveCalibration()
@@ -353,6 +365,40 @@ fun CalibrationScreen() {
                                 )
                             }
                         }
+                        // SV-Grenzen-Eingabefelder direkt unter den Kalibrierungs-Slidern
+                        if (inCalibrationMode) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "SV-Grenzen",
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    OutlinedTextField(
+                                        value = ratioMinText,
+                                        onValueChange = { ratioMinText = it },
+                                        label = { Text("Min", color = Color.White, style = MaterialTheme.typography.bodySmall) },
+                                        textStyle = MaterialTheme.typography.bodyMedium.copy(color = Color.White),
+                                        modifier = Modifier.width(100.dp),
+                                        singleLine = true
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    OutlinedTextField(
+                                        value = ratioMaxText,
+                                        onValueChange = { ratioMaxText = it },
+                                        label = { Text("Max", color = Color.White, style = MaterialTheme.typography.bodySmall) },
+                                        textStyle = MaterialTheme.typography.bodyMedium.copy(color = Color.White),
+                                        modifier = Modifier.width(100.dp),
+                                        singleLine = true
+                                    )
+                                }
+                            }
+                        }
                     }
                 } else if (classFilteredObjects.isEmpty()) {
                     Text(
@@ -398,7 +444,7 @@ fun CalibrationScreen() {
                 }
             }
 
-            // Fußzeile mit Durchschnitt, Schwellen (nur im Kalibrierungsmodus) und Kalibrierung-Schalter
+            // Fußzeile mit Durchschnitt und Kalibrierung-Schalter
             Row(
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
@@ -429,36 +475,6 @@ fun CalibrationScreen() {
                     horizontalAlignment = Alignment.End,
                     modifier = Modifier.background(Color.Black.copy(alpha = 0.7f)).padding(horizontal = 4.dp, vertical = 2.dp)
                 ) {
-                    if (inCalibrationMode) {
-                        Text(text = "SV-Grenzen", color = Color.White, style = MaterialTheme.typography.bodySmall)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            OutlinedTextField(
-                                value = "%.2f".format(pendingRatioMin),
-                                onValueChange = { text ->
-                                    text.replace(",", ".").toFloatOrNull()?.let {
-                                        pendingRatioMin = it.coerceIn(0.1f, pendingRatioMax - 0.01f)
-                                    }
-                                },
-                                label = { Text("Min", color = Color.White, style = MaterialTheme.typography.bodySmall) },
-                                textStyle = MaterialTheme.typography.bodyMedium.copy(color = Color.White),
-                                modifier = Modifier.width(80.dp),
-                                singleLine = true
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            OutlinedTextField(
-                                value = "%.2f".format(pendingRatioMax),
-                                onValueChange = { text ->
-                                    text.replace(",", ".").toFloatOrNull()?.let {
-                                        pendingRatioMax = it.coerceIn(pendingRatioMin + 0.01f, 10f)
-                                    }
-                                },
-                                label = { Text("Max", color = Color.White, style = MaterialTheme.typography.bodySmall) },
-                                textStyle = MaterialTheme.typography.bodyMedium.copy(color = Color.White),
-                                modifier = Modifier.width(80.dp),
-                                singleLine = true
-                            )
-                        }
-                    }
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.clickable { inCalibrationMode = !inCalibrationMode }
