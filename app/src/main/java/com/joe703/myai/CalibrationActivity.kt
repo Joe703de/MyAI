@@ -202,14 +202,17 @@ fun CalibrationScreen() {
             var ratioMinText by remember { mutableStateOf("%.2f".format(pendingRatioMin)) }
             var ratioMaxText by remember { mutableStateOf("%.2f".format(pendingRatioMax)) }
 
-            // Bei Klassenwechsel die gespeicherten Werte der neuen Klasse laden
-            LaunchedEffect(app.calibrationTargetClassIndex) {
+            // Bei Klassenwechsel die gespeicherten Werte der neuen Klasse laden und eingefrorene Objekte zurücksetzen
+            LaunchedEffect(app.calibrationTargetClassIndex, inCalibrationMode) {
                 pendingMinDistanceM = app.calibrationMinDistanceM
                 pendingMaxDistanceM = app.calibrationMaxDistanceM
                 pendingRatioMin = app.calibrationRatioMin
                 pendingRatioMax = app.calibrationRatioMax
                 ratioMinText = "%.2f".format(pendingRatioMin)
                 ratioMaxText = "%.2f".format(pendingRatioMax)
+                if (inCalibrationMode) {
+                    frozenItems = emptyList()
+                }
             }
 
             // Eingefrorene Kalibrierungsobjekte mit Bitmap-Kopien.
@@ -397,6 +400,51 @@ fun CalibrationScreen() {
                                 modifier = Modifier.width(100.dp),
                                 singleLine = true
                             )
+                        }
+                    }
+
+                    // Debug-Daten unter den SV-Grenzen anzeigen, auch bei genau einem Objekt
+                    Spacer(modifier = Modifier.height(8.dp))
+                    if (classFilteredObjects.isEmpty()) {
+                        Text(
+                            text = "Keine Objekte der Klasse erkannt",
+                            color = Color.Gray,
+                            style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp)
+                        )
+                    } else {
+                        classFilteredObjects.forEachIndexed { index, obj ->
+                            val aspectRatio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
+                            val outOfRange = aspectRatio < ratioMin || aspectRatio > ratioMax
+                            val thumbnail = missCandidates.firstOrNull { it === obj }?.let { candidate ->
+                                cropBitmap(rawBitmap, imageWidth, imageHeight, candidate)
+                            }
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color.Black.copy(alpha = 0.7f))
+                                    .padding(horizontal = 4.dp, vertical = 1.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "${index + 1}: ${obj.width}×${obj.height}px, SV ${"%.2f".format(aspectRatio)}:1",
+                                    color = if (outOfRange) Color.Red else Color.Cyan,
+                                    style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp),
+                                    modifier = Modifier.weight(1f)
+                                )
+                                thumbnail?.let { bitmap ->
+                                    Image(
+                                        bitmap = bitmap.asImageBitmap(),
+                                        contentDescription = "Knappes Objekt",
+                                        modifier = Modifier
+                                            .padding(start = 4.dp)
+                                            .height(56.dp)
+                                            .width(84.dp)
+                                            .border(1.dp, Color.Yellow)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
