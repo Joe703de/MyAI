@@ -282,7 +282,7 @@ fun DebugCameraScreen() {
                     Executors.newSingleThreadExecutor(),
                     YoloObjectAnalyzer(
                         context,
-                        targetClassProvider = { app.targetClassSet },
+                        targetClassProvider = { app.activeDetectionClasses },
                         confThresholdProvider = { app.confidenceThreshold },
                         enableOcr = false
                     ) { result ->
@@ -376,7 +376,9 @@ fun DebugCameraScreen() {
             }
 
             Text(
-                text = "Set: ${app.targetClassSet.joinToString(", ")}",
+                text = "Set: ${app.targetClassSet.joinToString(", ") { idx ->
+                    CocoClassNames.getOrElse(idx) { "?" }.let { if (it == "Stoppschild") "Stop" else it }
+                }}",
                 color = Color.White,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier
@@ -392,7 +394,8 @@ fun DebugCameraScreen() {
                     targetClassIndex = it
                     app.updateTargetClass(it)
                 },
-                allowedIndices = app.targetClassSet,
+                setModeIndex = app.SET_MODE_CLASS_INDEX,
+                targetClassSet = app.targetClassSet,
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
                     .padding(vertical = 4.dp)
@@ -428,12 +431,15 @@ fun DebugCameraScreen() {
 fun ClassDropdown(
     selectedIndex: Int,
     onSelectionChanged: (Int) -> Unit,
-    allowedIndices: List<Int> = CocoClassNames.indices.toList(),
+    setModeIndex: Int = -1,
+    targetClassSet: List<Int> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val selectedName = CocoClassNames.getOrElse(selectedIndex) { "Unbekannt" }
-    val allowedNames = allowedIndices.mapNotNull { idx -> CocoClassNames.getOrNull(idx)?.let { idx to it } }
+    val selectedName = when (selectedIndex) {
+        setModeIndex -> "Set"
+        else -> CocoClassNames.getOrElse(selectedIndex) { "Unbekannt" }
+    }
 
     ExposedDropdownMenuBox(
         expanded = expanded,
@@ -441,7 +447,7 @@ fun ClassDropdown(
         modifier = modifier
     ) {
         TextField(
-            value = "COCO #$selectedIndex: $selectedName",
+            value = if (selectedIndex == setModeIndex) "Set" else "COCO #$selectedIndex: $selectedName",
             onValueChange = {},
             readOnly = true,
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
@@ -455,7 +461,21 @@ fun ClassDropdown(
             expanded = expanded,
             onDismissRequest = { expanded = false }
         ) {
-            allowedNames.forEach { (index, name) ->
+            // Set ganz oben anzeigen
+            if (targetClassSet.isNotEmpty()) {
+                val setLabel = targetClassSet.joinToString(", ") { idx ->
+                    CocoClassNames.getOrElse(idx) { "?" }.let { if (it == "Stoppschild") "Stop" else it }
+                }
+                DropdownMenuItem(
+                    text = { Text("Set: $setLabel") },
+                    onClick = {
+                        onSelectionChanged(setModeIndex)
+                        expanded = false
+                    },
+                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                )
+            }
+            CocoClassNames.forEachIndexed { index, name ->
                 DropdownMenuItem(
                     text = { Text("$index: $name") },
                     onClick = {

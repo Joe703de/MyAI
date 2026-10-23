@@ -19,13 +19,20 @@ class MyAIApplication : Application() {
     /** Aktives Set von COCO-Klassen, die gleichzeitig erkannt werden sollen. */
     val targetClassSet = listOf(2, 9, 11)
 
+    /** Magic Index, der den Set-Erkennungsmodus repräsentiert. */
+    val SET_MODE_CLASS_INDEX = -1
+
     /** Aktuell für die Kalibrierung ausgewählte Klasse (muss im Set liegen). */
     var calibrationTargetClassIndex by mutableIntStateOf(2)
         private set
 
-    /** Legacy: aktuell ausgewählte COCO-Klasse (entspricht der Kalibrierklasse im Set). */
-    val targetClassIndex: Int
-        get() = calibrationTargetClassIndex
+    /** Legacy: aktuell ausgewählte COCO-Klasse (im Set-Modus = SET_MODE_CLASS_INDEX). */
+    var targetClassIndex by mutableIntStateOf(SET_MODE_CLASS_INDEX)
+        private set
+
+    /** Gibt zurück, welche Klassen aktuell erkannt werden sollen. */
+    val activeDetectionClasses: List<Int>
+        get() = if (targetClassIndex == SET_MODE_CLASS_INDEX) targetClassSet else listOf(targetClassIndex)
 
     /** aktueller Confidence-Threshold, thread-safe lesbar */
     var confidenceThreshold by mutableFloatStateOf(0.3f)
@@ -94,7 +101,12 @@ class MyAIApplication : Application() {
     }
 
     fun updateTargetClass(index: Int) {
-        calibrationTargetClassIndex = targetClassSet.firstOrNull { it == index } ?: targetClassSet.firstOrNull() ?: 2
+        if (index == SET_MODE_CLASS_INDEX || targetClassSet.contains(index)) {
+            targetClassIndex = index
+        }
+        if (targetClassSet.contains(index)) {
+            calibrationTargetClassIndex = index
+        }
         notifyListeners()
     }
 

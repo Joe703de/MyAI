@@ -133,7 +133,7 @@ fun CalibrationScreen() {
                     Executors.newSingleThreadExecutor(),
                     YoloObjectAnalyzer(
                         context,
-                        targetClassProvider = { app.targetClassSet },
+                        targetClassProvider = { app.activeDetectionClasses },
                         confThresholdProvider = { app.confidenceThreshold },
                         enableOcr = false
                     ) { result ->

@@ -188,7 +188,7 @@ fun MainCameraScreen() {
                     Executors.newSingleThreadExecutor(),
                     YoloObjectAnalyzer(
                         context,
-                        targetClassProvider = { app.targetClassSet },
+                        targetClassProvider = { app.activeDetectionClasses },
                         confThresholdProvider = { app.confidenceThreshold },
                         enableOcr = false
                     ) { result ->
@@ -574,9 +574,15 @@ fun MainStatusBar(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Box(modifier = Modifier.width(180.dp), contentAlignment = Alignment.CenterStart) {
-            val className = CocoClassNames.getOrElse(targetClassIndex) { "Objekt" }
+            val label = if (targetClassIndex == -1) {
+                targetClassSet.joinToString(", ") { idx ->
+                    CocoClassNames.getOrElse(idx) { "?" }.let { if (it == "Stoppschild") "Stop" else it }
+                }.let { if (it.length > 20) it.take(17) + "..." else it }
+            } else {
+                CocoClassNames.getOrElse(targetClassIndex) { "Objekt" }.let { if (it == "Stoppschild") "Stop" else it }
+            }
             Text(
-                text = "Set: ${targetClassSet.joinToString(", ")}\n$className: ${result.eggCount}",
+                text = "$label: ${result.eggCount}",
                 color = Color.Yellow,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier
