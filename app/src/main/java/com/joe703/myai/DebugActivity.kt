@@ -362,7 +362,9 @@ fun DebugCameraScreen() {
                         previewWidth = previewViewSize.width.toFloat(),
                         previewHeight = previewViewSize.height.toFloat(),
                         imageWidth = detectionResult.imageWidth.toFloat(),
-                        imageHeight = detectionResult.imageHeight.toFloat()
+                        imageHeight = detectionResult.imageHeight.toFloat(),
+                        app = app,
+                        useThresholdColors = false
                     )
                 }
 
@@ -546,7 +548,9 @@ fun DetectionOverlay(
     previewWidth: Float,
     previewHeight: Float,
     imageWidth: Float,
-    imageHeight: Float
+    imageHeight: Float,
+    app: MyAIApplication? = null,
+    useThresholdColors: Boolean = false
 ) {
     val scaleX = previewWidth / imageWidth
     val scaleY = previewHeight / imageHeight
@@ -559,7 +563,16 @@ fun DetectionOverlay(
 
     Canvas(modifier = Modifier.fillMaxSize()) {
         objects.forEach { obj ->
-            val color = Color(obj.colorR, obj.colorG, obj.colorB)
+            val color = when {
+                useThresholdColors && app != null -> {
+                    val cal = app.calibrationByClass.getOrNull(obj.classId)?.value
+                    val ratioMin = cal?.ratioMin ?: 1.1f
+                    val ratioMax = cal?.ratioMax ?: 1.35f
+                    val ratio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
+                    if (ratio in ratioMin..ratioMax) Color.Green else Color.Yellow
+                }
+                else -> Color(obj.colorR, obj.colorG, obj.colorB)
+            }
 
             val finalX = (obj.x.toFloat() * scale) + offsetX
             val finalY = (obj.y.toFloat() * scale) + offsetY

@@ -281,7 +281,9 @@ fun MainCameraScreen() {
                         previewWidth = previewViewSize.width.toFloat(),
                         previewHeight = previewViewSize.height.toFloat(),
                         imageWidth = detectionResult.imageWidth.toFloat(),
-                        imageHeight = detectionResult.imageHeight.toFloat()
+                        imageHeight = detectionResult.imageHeight.toFloat(),
+                        app = app,
+                        useThresholdColors = showHint
                     )
                 }
 
