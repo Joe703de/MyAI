@@ -1,5 +1,6 @@
 package com.joe703.myai
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -124,7 +125,7 @@ fun ChatScreen() {
                             val (answer, matchedObjects) = interpretQuestion(inputText, detectionResult, app)
                             messages.add(ChatMessage("Assistant", answer))
                             if (matchedObjects.isNotEmpty()) {
-                                app.chatResultSnapshot = detectionResult
+                                app.setChatResultSnapshot(detectionResult)
                                 val intent = Intent(context, ChatResultActivity::class.java)
                                 context.startActivity(intent)
                             }
