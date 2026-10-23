@@ -483,8 +483,19 @@ private fun CalibrateView(
                             initialDistanceM = pendingMaxDistanceM,
                             otherProvider = { pendingMinDistanceM },
                             onDistanceChange = { pendingMaxDistanceM = it },
-                            saveButtonLabel = "als Max speichern",
-                            onSave = {
+                            app = app,
+                            onSaveMin = { pendingM ->
+                                app.updateCalibrationObjects(
+                                    minWidth = it.obj.width,
+                                    minHeight = it.obj.height,
+                                    maxWidth = frozenItems.find { item -> item.label == "Max" }?.obj?.width ?: app.calibrationMaxWidthPx,
+                                    maxHeight = frozenItems.find { item -> item.label == "Max" }?.obj?.height ?: app.calibrationMaxHeightPx,
+                                    classIndex = app.calibrationTargetClassIndex
+                                )
+                                app.updateCalibrationMinDistance(pendingM, app.calibrationTargetClassIndex)
+                                app.saveCalibration()
+                            },
+                            onSaveMax = { pendingM ->
                                 app.updateCalibrationObjects(
                                     minWidth = frozenItems.find { item -> item.label == "Min" }?.obj?.width ?: app.calibrationMinWidthPx,
                                     minHeight = frozenItems.find { item -> item.label == "Min" }?.obj?.height ?: app.calibrationMinHeightPx,
@@ -492,7 +503,7 @@ private fun CalibrateView(
                                     maxHeight = it.obj.height,
                                     classIndex = app.calibrationTargetClassIndex
                                 )
-                                app.updateCalibrationMaxDistance(pendingMaxDistanceM, app.calibrationTargetClassIndex)
+                                app.updateCalibrationMaxDistance(pendingM, app.calibrationTargetClassIndex)
                                 app.saveCalibration()
                             }
                         )
@@ -507,8 +518,8 @@ private fun CalibrateView(
                             initialDistanceM = pendingMinDistanceM,
                             otherProvider = { pendingMaxDistanceM },
                             onDistanceChange = { pendingMinDistanceM = it },
-                            saveButtonLabel = "als Min speichern",
-                            onSave = {
+                            app = app,
+                            onSaveMin = { pendingM ->
                                 app.updateCalibrationObjects(
                                     minWidth = it.obj.width,
                                     minHeight = it.obj.height,
@@ -516,7 +527,18 @@ private fun CalibrateView(
                                     maxHeight = frozenItems.find { item -> item.label == "Max" }?.obj?.height ?: app.calibrationMaxHeightPx,
                                     classIndex = app.calibrationTargetClassIndex
                                 )
-                                app.updateCalibrationMinDistance(pendingMinDistanceM, app.calibrationTargetClassIndex)
+                                app.updateCalibrationMinDistance(pendingM, app.calibrationTargetClassIndex)
+                                app.saveCalibration()
+                            },
+                            onSaveMax = { pendingM ->
+                                app.updateCalibrationObjects(
+                                    minWidth = frozenItems.find { item -> item.label == "Min" }?.obj?.width ?: app.calibrationMinWidthPx,
+                                    minHeight = frozenItems.find { item -> item.label == "Min" }?.obj?.height ?: app.calibrationMinHeightPx,
+                                    maxWidth = it.obj.width,
+                                    maxHeight = it.obj.height,
+                                    classIndex = app.calibrationTargetClassIndex
+                                )
+                                app.updateCalibrationMaxDistance(pendingM, app.calibrationTargetClassIndex)
                                 app.saveCalibration()
                             }
                         )
@@ -704,8 +726,9 @@ private fun CalibrationItemCard(
     initialDistanceM: Float,
     otherProvider: () -> Float,
     onDistanceChange: (Float) -> Unit,
-    saveButtonLabel: String? = null,
-    onSave: ((FrozenCalibrationItem) -> Unit)? = null
+    app: MyAIApplication,
+    onSaveMin: ((Float) -> Unit)? = null,
+    onSaveMax: ((Float) -> Unit)? = null
 ) {
     val item = remember(obj, thumbnail) { FrozenCalibrationItem(label, obj, thumbnail) }
     val aspectRatio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
@@ -713,6 +736,11 @@ private fun CalibrationItemCard(
     var distanceM by remember(label, initialDistanceM) {
         mutableFloatStateOf(initialDistanceM)
     }
+
+    val savedMinM = app.calibrationMinDistanceM
+    val savedMaxM = app.calibrationMaxDistanceM
+    val canSaveMin = onSaveMin != null && distanceM != savedMinM
+    val canSaveMax = onSaveMax != null && distanceM != savedMaxM
 
     Column(
         modifier = Modifier
@@ -778,14 +806,31 @@ private fun CalibrationItemCard(
             )
         }
 
-        if (saveButtonLabel != null && onSave != null) {
-            Button(
-                onClick = { onSave(item) },
+        if (onSaveMin != null || onSaveMax != null) {
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 4.dp)
+                    .padding(top = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(saveButtonLabel)
+                onSaveMin?.let { onMin ->
+                    Button(
+                        onClick = { onMin(distanceM) },
+                        enabled = canSaveMin,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("als Min speichern")
+                    }
+                }
+                onSaveMax?.let { onMax ->
+                    Button(
+                        onClick = { onMax(distanceM) },
+                        enabled = canSaveMax,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("als Max speichern")
+                    }
+                }
             }
         }
     }
