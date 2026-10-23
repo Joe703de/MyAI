@@ -462,10 +462,7 @@ private fun CalibrateView(
                             label = it.label,
                             obj = it.obj,
                             thumbnail = it.thumbnail,
-                            app = app,
                             initialDistanceM = pendingMaxDistanceM,
-                            currentMinWidth = currentMinWidth,
-                            currentMaxWidth = currentMaxWidth,
                             otherProvider = { pendingMinDistanceM },
                             onDistanceChange = { pendingMaxDistanceM = it }
                         )
@@ -477,10 +474,7 @@ private fun CalibrateView(
                             label = it.label,
                             obj = it.obj,
                             thumbnail = it.thumbnail,
-                            app = app,
                             initialDistanceM = pendingMinDistanceM,
-                            currentMinWidth = currentMinWidth,
-                            currentMaxWidth = currentMaxWidth,
                             otherProvider = { pendingMaxDistanceM },
                             onDistanceChange = { pendingMinDistanceM = it }
                         )
@@ -517,6 +511,48 @@ private fun CalibrateView(
                                 singleLine = true
                             )
                         }
+                    }
+
+                    // 4. Debug-Werte (aus Min/Max-Karten ausgelagert)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    val savedMinW = app.calibrationMinWidthPx
+                    val savedMinD = app.calibrationMinDistanceM
+                    val savedMaxW = app.calibrationMaxWidthPx
+                    val savedMaxD = app.calibrationMaxDistanceM
+                    val calcMinD = if (savedMinW > 0 && currentMinWidth > 0) savedMinD * savedMinW / currentMinWidth else -1f
+                    val calcMaxD = if (savedMaxW > 0 && currentMaxWidth > 0) savedMaxD * savedMaxW / currentMaxWidth else -1f
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.Black.copy(alpha = 0.7f))
+                            .padding(horizontal = 4.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "aktuell Min: ${currentMinWidth}px @ ${calcMinD.toInt()}m",
+                            color = Color.Yellow,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Text(
+                            text = "aktuell Max: ${currentMaxWidth}px @ ${calcMaxD.toInt()}m",
+                            color = Color.Yellow,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "beim Beenden speichern:",
+                            color = Color.Cyan,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Text(
+                            text = "Min: ${currentMinWidth}px @ ${pendingMinDistanceM.toInt()}m",
+                            color = Color.Cyan,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Text(
+                            text = "Max: ${currentMaxWidth}px @ ${pendingMaxDistanceM.toInt()}m",
+                            color = Color.Cyan,
+                            style = MaterialTheme.typography.bodySmall
+                        )
                     }
                 }
             }
@@ -628,10 +664,7 @@ private fun CalibrationItemCard(
     label: String,
     obj: DetectedObject,
     thumbnail: Bitmap?,
-    app: MyAIApplication,
     initialDistanceM: Float,
-    currentMinWidth: Int,
-    currentMaxWidth: Int,
     otherProvider: () -> Float,
     onDistanceChange: (Float) -> Unit
 ) {
@@ -640,8 +673,6 @@ private fun CalibrationItemCard(
     var distanceM by remember(label, initialDistanceM) {
         mutableFloatStateOf(initialDistanceM)
     }
-
-    val showDebug = label == "Min"
 
     Column(
         modifier = Modifier
@@ -705,45 +736,6 @@ private fun CalibrationItemCard(
                 valueRange = 10f..300f,
                 modifier = Modifier.weight(1f)
             )
-        }
-
-        if (showDebug) {
-            val savedMinW = app.calibrationMinWidthPx
-            val savedMinD = app.calibrationMinDistanceM
-            val savedMaxW = app.calibrationMaxWidthPx
-            val savedMaxD = app.calibrationMaxDistanceM
-            val calcMinD = if (savedMinW > 0 && currentMinWidth > 0) savedMinD * savedMinW / currentMinWidth else -1f
-            val calcMaxD = if (savedMaxW > 0 && currentMaxWidth > 0) savedMaxD * savedMaxW / currentMaxWidth else -1f
-            val willSaveMaxD = otherProvider()
-
-            Column(modifier = Modifier.padding(top = 4.dp)) {
-                Text(
-                    text = "aktuell Min: ${currentMinWidth}px @ ${calcMinD.toInt()}m",
-                    color = Color.Yellow,
-                    style = MaterialTheme.typography.bodySmall
-                )
-                Text(
-                    text = "aktuell Max: ${currentMaxWidth}px @ ${calcMaxD.toInt()}m",
-                    color = Color.Yellow,
-                    style = MaterialTheme.typography.bodySmall
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "beim Beenden speichern:",
-                    color = Color.Cyan,
-                    style = MaterialTheme.typography.bodySmall
-                )
-                Text(
-                    text = "Min: ${currentMinWidth}px @ ${distanceM.toInt()}m",
-                    color = Color.Cyan,
-                    style = MaterialTheme.typography.bodySmall
-                )
-                Text(
-                    text = "Max: ${currentMaxWidth}px @ ${willSaveMaxD.toInt()}m",
-                    color = Color.Cyan,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
         }
     }
 }
