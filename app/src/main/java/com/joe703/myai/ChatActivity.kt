@@ -200,10 +200,6 @@ private fun interpretQuestion(question: String, result: DetectionResult?, app: M
         .split(Regex("\\s+"))
         .filter { it.isNotBlank() }
 
-    if (q.any { it in listOf("was", "siehst", "gibt", "alles", "objekte", "liste") } && requestedClassId == null && requestedColor == null) {
-        return ChatAnswer(describeAllObjects(objects, app), objects)
-    }
-
     val targetDistance = q.mapNotNull { it.toIntOrNull() }.firstOrNull()
 
     val colorMap = mapOf(
@@ -239,6 +235,10 @@ private fun interpretQuestion(question: String, result: DetectionResult?, app: M
         "stoppschild" to 11, "stopschild" to 11, "stop" to 11, "stopschilder" to 11
     )
     val requestedClassId = classMap.entries.firstOrNull { q.contains(it.key) }?.value
+
+    if (q.any { it in listOf("was", "siehst", "gibt", "alles", "objekte", "liste") } && requestedClassId == null && requestedColor == null) {
+        return ChatAnswer(describeAllObjects(objects, app), objects)
+    }
 
     val askingWhere = q.any { it in listOf("wo", "position", "seite", "links", "rechts") }
     val askingDistance = q.any { it in listOf("weit", "entfernung", "entfernt", "distanz") }
