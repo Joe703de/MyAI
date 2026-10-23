@@ -42,7 +42,9 @@ class MyAIApplication : Application() {
         val maxWidthPx: Int = 0,
         val maxHeightPx: Int = 0,
         val minDistanceM: Float = 10f,
-        val maxDistanceM: Float = 300f
+        val maxDistanceM: Float = 300f,
+        val ratioMin: Float = 1.1f,
+        val ratioMax: Float = 1.35f
     )
 
     private val calibrationByClass = Array(80) { mutableStateOf(Calibration()) }
@@ -64,6 +66,14 @@ class MyAIApplication : Application() {
     var calibrationMaxHeightPx: Int
         get() = currentCalibration.maxHeightPx
         private set(value) { updateCalibrationForClass(calibrationTargetClassIndex, currentCalibration.copy(maxHeightPx = value)) }
+
+    /** Kalibrierung: Seitenverhältnis-Grenzen für die aktuelle Klasse. */
+    var calibrationRatioMin: Float
+        get() = currentCalibration.ratioMin
+        private set(value) { updateCalibrationForClass(calibrationTargetClassIndex, currentCalibration.copy(ratioMin = value)) }
+    var calibrationRatioMax: Float
+        get() = currentCalibration.ratioMax
+        private set(value) { updateCalibrationForClass(calibrationTargetClassIndex, currentCalibration.copy(ratioMax = value)) }
 
     /** Kalibrierung: eingestellte Entfernungen in Metern */
     var calibrationMinDistanceM: Float
@@ -125,6 +135,12 @@ class MyAIApplication : Application() {
         notifyListeners()
     }
 
+    fun updateCalibrationRatios(ratioMin: Float, ratioMax: Float, classIndex: Int = calibrationTargetClassIndex) {
+        val current = calibrationByClass[classIndex.coerceIn(0, 79)].value
+        updateCalibrationForClass(classIndex, current.copy(ratioMin = ratioMin, ratioMax = ratioMax))
+        notifyListeners()
+    }
+
     fun clearCalibrationObjects(classIndex: Int = calibrationTargetClassIndex) {
         val current = calibrationByClass[classIndex.coerceIn(0, 79)].value
         updateCalibrationForClass(classIndex, current.copy(
@@ -147,6 +163,8 @@ class MyAIApplication : Application() {
             editor.putInt(KEY_MAX_HEIGHT_PX.format(index), cal.maxHeightPx)
             editor.putFloat(KEY_MIN_DISTANCE_M.format(index), cal.minDistanceM)
             editor.putFloat(KEY_MAX_DISTANCE_M.format(index), cal.maxDistanceM)
+            editor.putFloat(KEY_MIN_RATIO.format(index), cal.ratioMin)
+            editor.putFloat(KEY_MAX_RATIO.format(index), cal.ratioMax)
         }
         editor.apply()
     }
@@ -160,7 +178,9 @@ class MyAIApplication : Application() {
             val maxH = prefs.getInt(KEY_MAX_HEIGHT_PX.format(index), 0)
             val minD = prefs.getFloat(KEY_MIN_DISTANCE_M.format(index), 10f)
             val maxD = prefs.getFloat(KEY_MAX_DISTANCE_M.format(index), 300f)
-            state.value = Calibration(minW, minH, maxW, maxH, minD, maxD)
+            val ratioMin = prefs.getFloat(KEY_MIN_RATIO.format(index), 1.1f)
+            val ratioMax = prefs.getFloat(KEY_MAX_RATIO.format(index), 1.35f)
+            state.value = Calibration(minW, minH, maxW, maxH, minD, maxD, ratioMin, ratioMax)
         }
     }
 
@@ -217,5 +237,7 @@ class MyAIApplication : Application() {
         private const val KEY_MAX_HEIGHT_PX = "calibration_max_height_px_%d"
         private const val KEY_MIN_DISTANCE_M = "calibration_min_distance_m_%d"
         private const val KEY_MAX_DISTANCE_M = "calibration_max_distance_m_%d"
+        private const val KEY_MIN_RATIO = "calibration_min_ratio_%d"
+        private const val KEY_MAX_RATIO = "calibration_max_ratio_%d"
     }
 }

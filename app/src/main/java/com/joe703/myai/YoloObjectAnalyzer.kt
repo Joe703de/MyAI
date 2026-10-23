@@ -423,7 +423,8 @@ class YoloObjectAnalyzer(
                     colorR = color.r,
                     colorG = color.g,
                     colorB = color.b,
-                    colorName = colorName
+                    colorName = colorName,
+                    classId = raw.classId
                 )
             }.take(maxDetections)
         val postColorMs = System.currentTimeMillis() - colorStart

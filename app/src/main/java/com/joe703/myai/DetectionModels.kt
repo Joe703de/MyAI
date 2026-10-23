@@ -67,5 +67,6 @@ data class DetectedObject(
     val colorR: Int = 255,
     val colorG: Int = 255,
     val colorB: Int = 0,
-    val colorName: String = ""
+    val colorName: String = "",
+    val classId: Int = -1
 )

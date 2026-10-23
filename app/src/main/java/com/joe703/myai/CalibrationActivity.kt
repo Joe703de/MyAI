@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -171,10 +172,13 @@ fun CalibrationScreen() {
             // Leerer Abstand oben wie in DebugActivity
             Box(modifier = Modifier.weight(0.1f))
 
-            // Meta-Daten für alle erkannten Objekte
-            val objects = detectionResult?.objects ?: emptyList()
-            val averageAspectRatio = if (objects.isNotEmpty()) {
-                objects.map { it.width.toFloat() / it.height.toFloat() }.average().toFloat()
+            // Meta-Daten für alle erkannten Objekte der aktuellen Kalibrierklasse
+            val currentClass = app.targetClassIndex
+            val classFilteredObjects = remember(objects, currentClass) {
+                objects.filter { it.classId == currentClass }
+            }
+            val averageAspectRatio = if (classFilteredObjects.isNotEmpty()) {
+                classFilteredObjects.map { it.width.toFloat() / it.height.toFloat() }.average().toFloat()
             } else {
                 0f
             }
@@ -187,24 +191,28 @@ fun CalibrationScreen() {
             // Lokale Slider-Werte, werden erst beim Verlassen gespeichert
             var pendingMinDistanceM by remember { mutableFloatStateOf(app.calibrationMinDistanceM) }
             var pendingMaxDistanceM by remember { mutableFloatStateOf(app.calibrationMaxDistanceM) }
+            var pendingRatioMin by remember { mutableFloatStateOf(app.calibrationRatioMin) }
+            var pendingRatioMax by remember { mutableFloatStateOf(app.calibrationRatioMax) }
 
-            // Bei Klassenwechsel die gespeicherten Entfernungen der neuen Klasse laden
+            // Bei Klassenwechsel die gespeicherten Werte der neuen Klasse laden
             LaunchedEffect(app.targetClassIndex) {
                 pendingMinDistanceM = app.calibrationMinDistanceM
                 pendingMaxDistanceM = app.calibrationMaxDistanceM
+                pendingRatioMin = app.calibrationRatioMin
+                pendingRatioMax = app.calibrationRatioMax
             }
 
             // Eingefrorene Kalibrierungsobjekte mit Bitmap-Kopien.
             // Bleiben erhalten, solange der Kalibrierungsmodus aktiv ist.
             var frozenItems by remember { mutableStateOf<List<FrozenCalibrationItem>>(emptyList()) }
 
-            // Gültige Objekte innerhalb des Seitenverhältnis-Fensters 1.1..1.35
-            // Max = weiteste Entfernung = kleinste Breite im Bild
-            // Min = nächste Entfernung = größte Breite im Bild
-            val validObjects = remember(objects) {
-                objects.filter { obj ->
+            // Gültige Objekte innerhalb des klassenspezifischen Seitenverhältnis-Fensters
+            val ratioMin = pendingRatioMin
+            val ratioMax = pendingRatioMax
+            val validObjects = remember(classFilteredObjects, ratioMin, ratioMax) {
+                classFilteredObjects.filter { obj ->
                     val ratio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
-                    ratio in 1.1f..1.35f
+                    ratio in ratioMin..ratioMax
                 }
             }
             val farthestObject = remember(validObjects) {
@@ -214,15 +222,18 @@ fun CalibrationScreen() {
                 validObjects.maxByOrNull { it.width }
             }
 
-            // 5 Autos, die das Fenster am knappsten verfehlen (am nächsten an 1.0, aber außerhalb 1.1..1.35)
-            val missCandidates = objects
+            // 5 Objekte der aktuellen Klasse, die das Fenster am knappsten verfehlen
+            val missCandidates = classFilteredObjects
                 .filter { obj ->
                     val ratio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
-                    ratio > 0f && (ratio < 1.1f || ratio > 1.35f)
+                    ratio > 0f && (ratio < ratioMin || ratio > ratioMax)
                 }
                 .sortedBy { obj ->
                     val ratio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
-                    kotlin.math.abs(ratio - 1f)
+                    kotlin.math.min(
+                        kotlin.math.abs(ratio - ratioMin),
+                        kotlin.math.abs(ratio - ratioMax)
+                    )
                 }
                 .take(5)
 
@@ -276,6 +287,7 @@ fun CalibrationScreen() {
                         )
                     }
                     app.updateCalibrationDistances(minM = pendingMinDistanceM, maxM = pendingMaxDistanceM, classIndex = app.targetClassIndex)
+                    app.updateCalibrationRatios(pendingRatioMin, pendingRatioMax, app.targetClassIndex)
                     app.saveCalibration()
                     frozenItems = emptyList()
                 }
@@ -336,16 +348,16 @@ fun CalibrationScreen() {
                             }
                         }
                     }
-                } else if (objects.isEmpty()) {
+                } else if (classFilteredObjects.isEmpty()) {
                     Text(
-                        text = "Keine Objekte erkannt",
+                        text = "Keine Objekte der Klasse erkannt",
                         color = Color.Gray,
                         style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp)
                     )
                 } else {
-                    objects.forEachIndexed { index, obj ->
+                    classFilteredObjects.forEachIndexed { index, obj ->
                         val aspectRatio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
-                        val outOfRange = aspectRatio < 1.1f || aspectRatio > 1.35f
+                        val outOfRange = aspectRatio < ratioMin || aspectRatio > ratioMax
                         val thumbnail = missCandidates.firstOrNull { it === obj }?.let { candidate ->
                             cropBitmap(rawBitmap, imageWidth, imageHeight, candidate)
                         }
@@ -367,7 +379,7 @@ fun CalibrationScreen() {
                             thumbnail?.let { bitmap ->
                                 Image(
                                     bitmap = bitmap.asImageBitmap(),
-                                    contentDescription = "Knappes Auto",
+                                    contentDescription = "Knappes Objekt",
                                     modifier = Modifier
                                         .padding(start = 4.dp)
                                         .height(56.dp)
@@ -400,30 +412,60 @@ fun CalibrationScreen() {
                         modifier = Modifier.background(Color.Black.copy(alpha = 0.7f))
                     )
                     Text(
-                        text = "SV<1,1|>1,35",
+                        text = "SV<${"%.2f".format(pendingRatioMin)}|>${"%.2f".format(pendingRatioMax)}",
                         color = Color.White,
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.background(Color.Black.copy(alpha = 0.7f))
                     )
                 }
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .background(Color.Black.copy(alpha = 0.7f))
-                        .padding(horizontal = 4.dp, vertical = 2.dp)
-                        .clickable { inCalibrationMode = !inCalibrationMode }
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    modifier = Modifier.background(Color.Black.copy(alpha = 0.7f)).padding(horizontal = 4.dp, vertical = 2.dp)
                 ) {
-                    Text(
-                        text = "Kalibrierung",
-                        color = Color.White,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Switch(
-                        checked = inCalibrationMode,
-                        onCheckedChange = { inCalibrationMode = it }
-                    )
+                    Text(text = "SV-Grenzen", color = Color.White, style = MaterialTheme.typography.bodySmall)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedTextField(
+                            value = "%.2f".format(pendingRatioMin),
+                            onValueChange = { text ->
+                                text.replace(",", ".").toFloatOrNull()?.let {
+                                    pendingRatioMin = it.coerceIn(0.1f, pendingRatioMax - 0.01f)
+                                }
+                            },
+                            label = { Text("Min", color = Color.White, style = MaterialTheme.typography.bodySmall) },
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(color = Color.White),
+                            modifier = Modifier.width(80.dp),
+                            singleLine = true
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        OutlinedTextField(
+                            value = "%.2f".format(pendingRatioMax),
+                            onValueChange = { text ->
+                                text.replace(",", ".").toFloatOrNull()?.let {
+                                    pendingRatioMax = it.coerceIn(pendingRatioMin + 0.01f, 10f)
+                                }
+                            },
+                            label = { Text("Max", color = Color.White, style = MaterialTheme.typography.bodySmall) },
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(color = Color.White),
+                            modifier = Modifier.width(80.dp),
+                            singleLine = true
+                        )
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable { inCalibrationMode = !inCalibrationMode }
+                    ) {
+                        Text(
+                            text = "Kalibrierung",
+                            color = Color.White,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Switch(
+                            checked = inCalibrationMode,
+                            onCheckedChange = { inCalibrationMode = it }
+                        )
+                    }
                 }
             }
 
