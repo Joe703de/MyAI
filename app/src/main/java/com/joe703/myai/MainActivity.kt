@@ -225,6 +225,7 @@ fun MainCameraScreen() {
                 result = detectionResult,
                 targetClassIndex = app.targetClassIndex,
                 targetClassSet = app.targetClassSet,
+                setModeClassIndex = app.SET_MODE_CLASS_INDEX,
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
                     .padding(bottom = 4.dp)
@@ -302,7 +303,8 @@ fun MainCameraScreen() {
                             previewWidth = previewViewSize.width.toFloat(),
                             previewHeight = previewViewSize.height.toFloat(),
                             imageWidth = detectionResult.imageWidth.toFloat(),
-                            imageHeight = detectionResult.imageHeight.toFloat()
+                            imageHeight = detectionResult.imageHeight.toFloat(),
+                            app = app
                         )
                     }
                 }
@@ -502,7 +504,8 @@ fun ObjectBadges(
     previewWidth: Float,
     previewHeight: Float,
     imageWidth: Float,
-    imageHeight: Float
+    imageHeight: Float,
+    app: MyAIApplication
 ) {
     val scaleX = previewWidth / imageWidth
     val scaleY = previewHeight / imageHeight
@@ -513,10 +516,12 @@ fun ObjectBadges(
     val offsetX = (previewWidth - scaledWidth) / 2
     val offsetY = (previewHeight - scaledHeight) / 2
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        objects.forEach { obj ->
-            if (obj.colorName != "Rot") return@forEach
+    val activeClasses = app.activeDetectionClasses
+    val showCarBadge = activeClasses.contains(2)
 
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (!showCarBadge) return@Box
+        objects.filter { it.classId == 2 && it.colorName == "Rot" }.forEach { obj ->
             val finalX = (obj.x.toFloat() * scale) + offsetX
             val finalY = (obj.y.toFloat() * scale) + offsetY
             val finalH = obj.height.toFloat() * scale
@@ -561,9 +566,12 @@ fun MainStatusBar(
     result: DetectionResult,
     targetClassIndex: Int,
     targetClassSet: List<Int>,
+    setModeClassIndex: Int,
     modifier: Modifier = Modifier
 ) {
     val countsByClass = result.objects.groupingBy { it.classId }.eachCount()
+    val isSetMode = targetClassIndex == setModeClassIndex
+    val displayClasses = if (isSetMode) targetClassSet else listOf(targetClassIndex)
 
     Column(
         modifier = modifier,
@@ -574,8 +582,13 @@ fun MainStatusBar(
             verticalAlignment = Alignment.Top
         ) {
             Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                val label = if (isSetMode) {
+                    "Set: ${targetClassSet.joinToString(", ")}"
+                } else {
+                    CocoClassNames.getOrElse(targetClassIndex) { "Objekt" }.let { if (it == "Stoppschild") "Stop" else it }
+                }
                 Text(
-                    text = "Set: ${targetClassSet.joinToString(", ")}",
+                    text = label,
                     color = Color.White,
                     style = MaterialTheme.typography.bodyMedium,
                     maxLines = 1,
@@ -600,7 +613,7 @@ fun MainStatusBar(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Start
         ) {
-            val classLabels = targetClassSet.map { idx ->
+            val classLabels = displayClasses.map { idx ->
                 val name = CocoClassNames.getOrElse(idx) { "?" }.let { if (it == "Stoppschild") "Stop" else it }
                 val count = countsByClass[idx] ?: 0
                 "$name: $count"
