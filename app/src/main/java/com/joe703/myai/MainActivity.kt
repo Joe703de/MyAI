@@ -584,11 +584,12 @@ fun MainStatusBar(
         }
 
         Box(modifier = Modifier.width(220.dp), contentAlignment = Alignment.CenterEnd) {
-            val frameAgeMs = if (result.cameraTimestampNanos > 0L) {
-                (System.nanoTime() - result.resultDeliveredNanos) / 1_000_000
-            } else 0L
+            val skippedFrames = if (result.processingTimeMs > 0) {
+                // Annahme Kamera läuft mit 30 fps -> 33ms pro Frame
+                (result.processingTimeMs / 33f).toInt()
+            } else 0
             Text(
-                text = "${result.processingTimeMs}ms@${result.imageWidth}x${result.imageHeight} age=${frameAgeMs}ms",
+                text = "${result.processingTimeMs}ms@${result.imageWidth}x${result.imageHeight} skip=${skippedFrames}",
                 color = Color.Gray,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier
