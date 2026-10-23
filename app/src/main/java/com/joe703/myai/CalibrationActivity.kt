@@ -132,7 +132,7 @@ fun CalibrationScreen() {
                     Executors.newSingleThreadExecutor(),
                     YoloObjectAnalyzer(
                         context,
-                        targetClassProvider = { app.targetClassIndex },
+                        targetClassProvider = { app.targetClassSet },
                         confThresholdProvider = { app.confidenceThreshold },
                         enableOcr = false
                     ) { result ->
@@ -285,6 +285,7 @@ fun CalibrationScreen() {
             CalibrationStatusBar(
                 result = detectionResult,
                 targetClassIndex = app.targetClassIndex,
+                targetClassSet = app.targetClassSet,
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
                     .padding(bottom = 4.dp)
@@ -425,6 +426,16 @@ fun CalibrationScreen() {
                     )
                 }
             }
+
+            // Klassenauswahl nur für das aktuelle Set (Kalibrierklasse)
+            ClassDropdown(
+                selectedIndex = app.targetClassIndex,
+                onSelectionChanged = { app.updateTargetClass(it) },
+                allowedIndices = app.targetClassSet,
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .padding(vertical = 4.dp)
+            )
         }
     }
 }
@@ -433,16 +444,17 @@ fun CalibrationScreen() {
 fun CalibrationStatusBar(
     result: DetectionResult?,
     targetClassIndex: Int,
+    targetClassSet: List<Int>,
     modifier: Modifier = Modifier
 ) {
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Box(modifier = Modifier.width(120.dp), contentAlignment = Alignment.CenterStart) {
+        Box(modifier = Modifier.width(180.dp), contentAlignment = Alignment.CenterStart) {
             val className = CocoClassNames.getOrElse(targetClassIndex) { "Objekt" }
             Text(
-                text = "$className: ${result?.eggCount ?: 0}",
+                text = "Set: ${targetClassSet.joinToString(", ")}\n$className: ${result?.eggCount ?: 0}",
                 color = Color.Yellow,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier

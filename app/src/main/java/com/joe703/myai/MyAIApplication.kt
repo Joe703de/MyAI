@@ -16,9 +16,16 @@ import androidx.compose.runtime.setValue
  */
 class MyAIApplication : Application() {
 
-    /** aktuell ausgewählte COCO-Klasse (z. B. 2 = Auto) */
-    var targetClassIndex by mutableIntStateOf(2)
+    /** Aktives Set von COCO-Klassen, die gleichzeitig erkannt werden sollen. */
+    val targetClassSet = listOf(2, 9, 11)
+
+    /** Aktuell für die Kalibrierung ausgewählte Klasse (muss im Set liegen). */
+    var calibrationTargetClassIndex by mutableIntStateOf(2)
         private set
+
+    /** Legacy: aktuell ausgewählte COCO-Klasse (entspricht der Kalibrierklasse im Set). */
+    val targetClassIndex: Int
+        get() = calibrationTargetClassIndex
 
     /** aktueller Confidence-Threshold, thread-safe lesbar */
     var confidenceThreshold by mutableFloatStateOf(0.3f)
@@ -40,31 +47,31 @@ class MyAIApplication : Application() {
 
     private val calibrationByClass = Array(80) { mutableStateOf(Calibration()) }
 
-    /** Aktuelle Kalibrierung für die ausgewählte COCO-Klasse. */
+    /** Aktuelle Kalibrierung für die aktuell ausgewählte Kalibrierklasse. */
     val currentCalibration: Calibration
-        get() = calibrationByClass[targetClassIndex.coerceIn(0, 79)].value
+        get() = calibrationByClass[calibrationTargetClassIndex.coerceIn(0, 79)].value
 
     /** Kalibrierung: eingefrorene Breiten/Höhen des kleinsten/größten gültigen Objekts */
     var calibrationMinWidthPx: Int
         get() = currentCalibration.minWidthPx
-        private set(value) { updateCalibrationForClass(targetClassIndex, currentCalibration.copy(minWidthPx = value)) }
+        private set(value) { updateCalibrationForClass(calibrationTargetClassIndex, currentCalibration.copy(minWidthPx = value)) }
     var calibrationMinHeightPx: Int
         get() = currentCalibration.minHeightPx
-        private set(value) { updateCalibrationForClass(targetClassIndex, currentCalibration.copy(minHeightPx = value)) }
+        private set(value) { updateCalibrationForClass(calibrationTargetClassIndex, currentCalibration.copy(minHeightPx = value)) }
     var calibrationMaxWidthPx: Int
         get() = currentCalibration.maxWidthPx
-        private set(value) { updateCalibrationForClass(targetClassIndex, currentCalibration.copy(maxWidthPx = value)) }
+        private set(value) { updateCalibrationForClass(calibrationTargetClassIndex, currentCalibration.copy(maxWidthPx = value)) }
     var calibrationMaxHeightPx: Int
         get() = currentCalibration.maxHeightPx
-        private set(value) { updateCalibrationForClass(targetClassIndex, currentCalibration.copy(maxHeightPx = value)) }
+        private set(value) { updateCalibrationForClass(calibrationTargetClassIndex, currentCalibration.copy(maxHeightPx = value)) }
 
     /** Kalibrierung: eingestellte Entfernungen in Metern */
     var calibrationMinDistanceM: Float
         get() = currentCalibration.minDistanceM
-        private set(value) { updateCalibrationForClass(targetClassIndex, currentCalibration.copy(minDistanceM = value)) }
+        private set(value) { updateCalibrationForClass(calibrationTargetClassIndex, currentCalibration.copy(minDistanceM = value)) }
     var calibrationMaxDistanceM: Float
         get() = currentCalibration.maxDistanceM
-        private set(value) { updateCalibrationForClass(targetClassIndex, currentCalibration.copy(maxDistanceM = value)) }
+        private set(value) { updateCalibrationForClass(calibrationTargetClassIndex, currentCalibration.copy(maxDistanceM = value)) }
 
     private val listeners = mutableListOf<() -> Unit>()
 
@@ -77,7 +84,7 @@ class MyAIApplication : Application() {
     }
 
     fun updateTargetClass(index: Int) {
-        targetClassIndex = index
+        calibrationTargetClassIndex = targetClassSet.firstOrNull { it == index } ?: targetClassSet.firstOrNull() ?: 2
         notifyListeners()
     }
 
@@ -100,7 +107,7 @@ class MyAIApplication : Application() {
         minHeight: Int,
         maxWidth: Int,
         maxHeight: Int,
-        classIndex: Int = targetClassIndex
+        classIndex: Int = calibrationTargetClassIndex
     ) {
         val current = calibrationByClass[classIndex.coerceIn(0, 79)].value
         updateCalibrationForClass(classIndex, current.copy(
@@ -112,13 +119,13 @@ class MyAIApplication : Application() {
         notifyListeners()
     }
 
-    fun updateCalibrationDistances(minM: Float, maxM: Float, classIndex: Int = targetClassIndex) {
+    fun updateCalibrationDistances(minM: Float, maxM: Float, classIndex: Int = calibrationTargetClassIndex) {
         val current = calibrationByClass[classIndex.coerceIn(0, 79)].value
         updateCalibrationForClass(classIndex, current.copy(minDistanceM = minM, maxDistanceM = maxM))
         notifyListeners()
     }
 
-    fun clearCalibrationObjects(classIndex: Int = targetClassIndex) {
+    fun clearCalibrationObjects(classIndex: Int = calibrationTargetClassIndex) {
         val current = calibrationByClass[classIndex.coerceIn(0, 79)].value
         updateCalibrationForClass(classIndex, current.copy(
             minWidthPx = 0,
@@ -162,7 +169,7 @@ class MyAIApplication : Application() {
      * Kalibrierung: Min = nah (große Breite), Max = weit (kleine Breite).
      * Gibt -1f zurück, wenn nicht genug Kalibrierdaten vorhanden sind.
      */
-    fun estimateDistance(widthPx: Int, classIndex: Int = targetClassIndex): Float {
+    fun estimateDistance(widthPx: Int, classIndex: Int = calibrationTargetClassIndex): Float {
         val cal = calibrationByClass[classIndex.coerceIn(0, 79)].value
         val minW = cal.minWidthPx
         val maxW = cal.maxWidthPx

@@ -188,7 +188,7 @@ fun MainCameraScreen() {
                     Executors.newSingleThreadExecutor(),
                     YoloObjectAnalyzer(
                         context,
-                        targetClassProvider = { app.targetClassIndex },
+                        targetClassProvider = { app.targetClassSet },
                         confThresholdProvider = { app.confidenceThreshold },
                         enableOcr = false
                     ) { result ->
@@ -223,6 +223,7 @@ fun MainCameraScreen() {
             MainStatusBar(
                 result = detectionResult,
                 targetClassIndex = app.targetClassIndex,
+                targetClassSet = app.targetClassSet,
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
                     .padding(bottom = 4.dp)
@@ -565,16 +566,17 @@ fun ObjectBadges(
 fun MainStatusBar(
     result: DetectionResult,
     targetClassIndex: Int,
+    targetClassSet: List<Int>,
     modifier: Modifier = Modifier
 ) {
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Box(modifier = Modifier.width(120.dp), contentAlignment = Alignment.CenterStart) {
+        Box(modifier = Modifier.width(180.dp), contentAlignment = Alignment.CenterStart) {
             val className = CocoClassNames.getOrElse(targetClassIndex) { "Objekt" }
             Text(
-                text = "$className: ${result.eggCount}",
+                text = "Set: ${targetClassSet.joinToString(", ")}\n$className: ${result.eggCount}",
                 color = Color.Yellow,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier

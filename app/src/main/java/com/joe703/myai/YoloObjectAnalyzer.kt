@@ -179,7 +179,7 @@ class YoloObjectAnalyzer(
                 "YoloObjectAnalyzer",
                 "Frame OK: class=${targetClassProvider()} raw=${rawBitmap.width}x${rawBitmap.height}, rotated=${bitmap.width}x${bitmap.height}, " +
                 "scaled=${detections.scaled.width}x${detections.scaled.height}, detections=${detections.objects.size}, " +
-                "maxScore=${detections.maxScore}, topClass=${detections.topClassId}, topCarScore=${detections.topCarScore} " +
+                "maxScore=${detections.maxScore}, topClass=${detections.topClassId}, topSetScore=${detections.topCarScore} " +
                 "timing=${detections.timing}, cameraLatencyMs=${analyzeLatencyMs}"
             )
 
@@ -256,14 +256,14 @@ class YoloObjectAnalyzer(
         bitmap: Bitmap,
         originalWidth: Int,
         originalHeight: Int,
-        targetClassId: Int,
+        targetClassIds: List<Int>,
         preprocessMs: Long,
         confThreshold: Float
     ): DetectedFrame {
         val scaled = scaleToModelInput(bitmap)
         val inputBuffer = bitmapToFloatBuffer(scaled, normalize255 = true, bgr = false)
 
-        Log.i("YoloObjectAnalyzer", "Running inference for targetClass=$targetClassId")
+        Log.i("YoloObjectAnalyzer", "Running inference for targetClasses=$targetClassIds")
 
         val inferenceStart = System.currentTimeMillis()
 
@@ -325,7 +325,8 @@ class YoloObjectAnalyzer(
             }
             val classId = classScores.indices.maxByOrNull { classScores[it] } ?: 0
             val classScore = classScores.getOrElse(classId) { 0f }
-            val targetScore = classScores.getOrElse(targetClassId) { 0f }
+            val targetScore = targetClassIds.map { classScores.getOrElse(it) { 0f } }.maxOrNull() ?: 0f
+            val winningTargetClassId = targetClassIds.maxByOrNull { classScores.getOrElse(it) { 0f } } ?: targetClassIds.firstOrNull() ?: classId
 
             // Globale Top-Klasse unabhängig vom Ziel-Filter merken
             if (classScore > maxGlobalScore) {
@@ -368,7 +369,7 @@ class YoloObjectAnalyzer(
                     x2 = x2.coerceIn(0f, modelInputSize.toFloat()),
                     y2 = y2.coerceIn(0f, modelInputSize.toFloat()),
                     score = finalScore,
-                    classId = targetClassId
+                    classId = winningTargetClassId
                 )
             )
         }

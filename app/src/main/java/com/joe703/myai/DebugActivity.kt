@@ -282,7 +282,7 @@ fun DebugCameraScreen() {
                     Executors.newSingleThreadExecutor(),
                     YoloObjectAnalyzer(
                         context,
-                        targetClassProvider = { app.targetClassIndex },
+                        targetClassProvider = { app.targetClassSet },
                         confThresholdProvider = { app.confidenceThreshold },
                         enableOcr = false
                     ) { result ->
@@ -375,12 +375,24 @@ fun DebugCameraScreen() {
                 }
             }
 
+            Text(
+                text = "Set: ${app.targetClassSet.joinToString(", ")}",
+                color = Color.White,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .padding(vertical = 4.dp)
+                    .background(Color.Black.copy(alpha = 0.7f))
+                    .padding(horizontal = 4.dp, vertical = 4.dp)
+            )
+
             ClassDropdown(
                 selectedIndex = targetClassIndex,
                 onSelectionChanged = {
                     targetClassIndex = it
                     app.updateTargetClass(it)
                 },
+                allowedIndices = app.targetClassSet,
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
                     .padding(vertical = 4.dp)
@@ -416,10 +428,12 @@ fun DebugCameraScreen() {
 fun ClassDropdown(
     selectedIndex: Int,
     onSelectionChanged: (Int) -> Unit,
+    allowedIndices: List<Int> = CocoClassNames.indices.toList(),
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
     val selectedName = CocoClassNames.getOrElse(selectedIndex) { "Unbekannt" }
+    val allowedNames = allowedIndices.mapNotNull { idx -> CocoClassNames.getOrNull(idx)?.let { idx to it } }
 
     ExposedDropdownMenuBox(
         expanded = expanded,
@@ -441,7 +455,7 @@ fun ClassDropdown(
             expanded = expanded,
             onDismissRequest = { expanded = false }
         ) {
-            CocoClassNames.forEachIndexed { index, name ->
+            allowedNames.forEach { (index, name) ->
                 DropdownMenuItem(
                     text = { Text("$index: $name") },
                     onClick = {
