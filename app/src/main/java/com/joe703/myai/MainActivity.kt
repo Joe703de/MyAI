@@ -573,14 +573,9 @@ fun MainStatusBar(
             verticalAlignment = Alignment.Top
         ) {
             Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                val classLabels = targetClassSet.map { idx ->
-                    val name = CocoClassNames.getOrElse(idx) { "?" }.let { if (it == "Stoppschild") "Stop" else it }
-                    val count = countsByClass[idx] ?: 0
-                    "$name: $count"
-                }
                 Text(
-                    text = classLabels.joinToString(", "),
-                    color = Color.Yellow,
+                    text = "Set: ${targetClassSet.joinToString(", ")}",
+                    color = Color.White,
                     style = MaterialTheme.typography.bodyMedium,
                     maxLines = 1,
                     modifier = Modifier
@@ -590,8 +585,8 @@ fun MainStatusBar(
             }
             Box(modifier = Modifier.width(120.dp), contentAlignment = Alignment.CenterEnd) {
                 Text(
-                    text = "Set: ${targetClassSet.joinToString(", ")}",
-                    color = Color.White,
+                    text = "${result.processingTimeMs}ms@${result.imageWidth}x${result.imageHeight}",
+                    color = Color.Gray,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier
                         .background(Color.Black.copy(alpha = 0.7f))
@@ -601,12 +596,18 @@ fun MainStatusBar(
         }
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End
+            horizontalArrangement = Arrangement.Start
         ) {
+            val classLabels = targetClassSet.map { idx ->
+                val name = CocoClassNames.getOrElse(idx) { "?" }.let { if (it == "Stoppschild") "Stop" else it }
+                val count = countsByClass[idx] ?: 0
+                "$name: $count"
+            }
             Text(
-                text = "${result.processingTimeMs}ms@${result.imageWidth}x${result.imageHeight}",
-                color = Color.Gray,
+                text = classLabels.joinToString(", "),
+                color = Color.Yellow,
                 style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
                 modifier = Modifier
                     .background(Color.Black.copy(alpha = 0.7f))
                     .padding(horizontal = 4.dp, vertical = 4.dp)
