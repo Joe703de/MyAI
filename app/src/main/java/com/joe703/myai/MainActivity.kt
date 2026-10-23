@@ -583,11 +583,12 @@ fun MainStatusBar(
                         .padding(horizontal = 4.dp, vertical = 4.dp)
                 )
             }
-            Box(modifier = Modifier.width(120.dp), contentAlignment = Alignment.CenterEnd) {
+            Box(modifier = Modifier.wrapContentWidth(), contentAlignment = Alignment.CenterEnd) {
                 Text(
                     text = "${result.processingTimeMs}ms@${result.imageWidth}x${result.imageHeight}",
                     color = Color.Gray,
                     style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
                     modifier = Modifier
                         .background(Color.Black.copy(alpha = 0.7f))
                         .padding(horizontal = 4.dp, vertical = 4.dp)
