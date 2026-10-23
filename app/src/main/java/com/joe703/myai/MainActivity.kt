@@ -584,12 +584,8 @@ fun MainStatusBar(
         }
 
         Box(modifier = Modifier.width(220.dp), contentAlignment = Alignment.CenterEnd) {
-            val skippedFrames = if (result.processingTimeMs > 0) {
-                // Annahme Kamera läuft mit 30 fps -> 33ms pro Frame
-                (result.processingTimeMs / 33f).toInt()
-            } else 0
             Text(
-                text = "${result.processingTimeMs}ms@${result.imageWidth}x${result.imageHeight} skip=${skippedFrames}",
+                text = "${result.processingTimeMs}ms@${result.imageWidth}x${result.imageHeight}",
                 color = Color.Gray,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier

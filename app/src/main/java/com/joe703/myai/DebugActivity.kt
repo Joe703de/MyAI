@@ -481,11 +481,8 @@ fun StatusBar(result: DetectionResult, targetClassIndex: Int, previewWidth: Floa
                 }
 
                 Box(modifier = Modifier.width(220.dp), contentAlignment = Alignment.CenterEnd) {
-                    val skippedFrames = if (result.processingTimeMs > 0) {
-                        (result.processingTimeMs / 33f).toInt()
-                    } else 0
                     Text(
-                        text = "${result.processingTimeMs}ms@${result.imageWidth}x${result.imageHeight} skip=${skippedFrames}",
+                        text = "${result.processingTimeMs}ms@${result.imageWidth}x${result.imageHeight}",
                         color = Color.Gray,
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier
