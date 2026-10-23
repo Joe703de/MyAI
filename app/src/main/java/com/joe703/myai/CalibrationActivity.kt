@@ -202,6 +202,10 @@ fun CalibrationScreen() {
             var ratioMinText by remember { mutableStateOf("%.2f".format(pendingRatioMin)) }
             var ratioMaxText by remember { mutableStateOf("%.2f".format(pendingRatioMax)) }
 
+            // Eingefrorene Kalibrierungsobjekte mit Bitmap-Kopien.
+            // Bleiben erhalten, solange der Kalibrierungsmodus aktiv ist.
+            var frozenItems by remember { mutableStateOf<List<FrozenCalibrationItem>>(emptyList()) }
+
             // Bei Klassenwechsel die gespeicherten Werte der neuen Klasse laden und eingefrorene Objekte zurücksetzen
             LaunchedEffect(app.calibrationTargetClassIndex, inCalibrationMode) {
                 pendingMinDistanceM = app.calibrationMinDistanceM
@@ -214,10 +218,6 @@ fun CalibrationScreen() {
                     frozenItems = emptyList()
                 }
             }
-
-            // Eingefrorene Kalibrierungsobjekte mit Bitmap-Kopien.
-            // Bleiben erhalten, solange der Kalibrierungsmodus aktiv ist.
-            var frozenItems by remember { mutableStateOf<List<FrozenCalibrationItem>>(emptyList()) }
 
             // Gültige Objekte innerhalb des klassenspezifischen Seitenverhältnis-Fensters
             val ratioMin = pendingRatioMin
