@@ -405,19 +405,18 @@ fun CalibrationScreen() {
 
                     // Debug-Daten unter den SV-Grenzen anzeigen, auch bei genau einem Objekt
                     Spacer(modifier = Modifier.height(8.dp))
-                    if (classFilteredObjects.isEmpty()) {
+                    val displayObjects = if (frozenItems.isNotEmpty()) frozenItems.map { it.obj } else emptyList()
+                    if (displayObjects.isEmpty()) {
                         Text(
-                            text = "Keine Objekte der Klasse erkannt",
+                            text = "Keine eingefrorenen Objekte",
                             color = Color.Gray,
                             style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp)
                         )
                     } else {
-                        classFilteredObjects.forEachIndexed { index, obj ->
+                        displayObjects.forEachIndexed { index, obj ->
                             val aspectRatio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
                             val outOfRange = aspectRatio < ratioMin || aspectRatio > ratioMax
-                            val thumbnail = missCandidates.firstOrNull { it === obj }?.let { candidate ->
-                                cropBitmap(rawBitmap, imageWidth, imageHeight, candidate)
-                            }
+                            val thumbnail = cropBitmap(rawBitmap, imageWidth, imageHeight, obj)
 
                             Row(
                                 modifier = Modifier
@@ -449,7 +448,7 @@ fun CalibrationScreen() {
                     }
                 }
 
-                // Debug-Anzeige der aktuell erkannten Objekte ausblenden, wenn Kalibrierung aktiv
+                // Debug-Anzeige der aktuell erkannten Objekte nur wenn Kalibrierung AUS ist
                 if (!inCalibrationMode) {
                     if (classFilteredObjects.isEmpty()) {
                         Spacer(modifier = Modifier.height(8.dp))
