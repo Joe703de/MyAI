@@ -101,6 +101,23 @@ fun ChatResultScreen(onFinish: () -> Unit) {
                                 .fillMaxSize()
                                 .clipToBounds()
                         ) {
+                            val matchedSet = matchedObjects.toSet()
+                            val otherObjects = result.objects.filter { it !in matchedSet }
+
+                            otherObjects.forEach { obj ->
+                                val left = obj.x * scale + offsetX
+                                val top = obj.y * scale + offsetY
+                                val right = (obj.x + obj.width) * scale + offsetX
+                                val bottom = (obj.y + obj.height) * scale + offsetY
+
+                                drawRect(
+                                    color = Color.Yellow,
+                                    topLeft = Offset(left, top),
+                                    size = Size(right - left, bottom - top),
+                                    style = Stroke(width = 3f)
+                                )
+                            }
+
                             matchedObjects.forEach { obj ->
                                 val left = obj.x * scale + offsetX
                                 val top = obj.y * scale + offsetY
