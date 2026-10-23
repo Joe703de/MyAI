@@ -326,15 +326,7 @@ private fun interpretQuestion(question: String, result: DetectionResult?, app: M
     val objects = result.objects
     if (objects.isEmpty()) return ChatAnswer("Aktuell sind keine Objekte erkannt.", emptyList())
 
-    val q = question.lowercase()
-        .replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
-        .replace(Regex("(?<=\\d)m\\b"), " ")
-        .replace("?", " ")
-        .replace(".", " ")
-        .replace(",", " ")
-        .split(Regex("\\s+"))
-        .filter { it.isNotBlank() }
-        .toMutableList()
+    val q = ChatVocabulary.tokens(question)
 
     // Zwei-Wort-Phrasen zusammenfassen, damit "ganz links" und "ganz rechts" erkannt werden
     var i = 0
@@ -375,14 +367,7 @@ private fun interpretQuestion(question: String, result: DetectionResult?, app: M
     )
     var requestedColor = colorMap.entries.firstOrNull { q.contains(it.key) }?.value
 
-    val classMap = mapOf(
-        "auto" to 2, "autos" to 2, "wagen" to 2, "fahrzeug" to 2, "fahrzeuge" to 2, "pkw" to 2,
-        "bus" to 5, "busse" to 5,
-        "lkw" to 7, "lastwagen" to 7, "lastkraftwagen" to 7, "sattelzug" to 7, "sattelschlepper" to 7,
-        "ampel" to 9, "ampeln" to 9, "verkehrsampel" to 9,
-        "stoppschild" to 11, "stopschild" to 11, "stop" to 11, "stopschilder" to 11
-    )
-    var requestedClassId = classMap.entries.firstOrNull { q.contains(it.key) }?.value
+    var requestedClassId = ChatVocabulary.classId(q)
 
     val isOverview = q.contains("was") && q.contains("siehst") || q.contains("alles")
     val isFollowUp = !isOverview && q.any { it in listOf(

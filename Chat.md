@@ -34,11 +34,17 @@ alle anderen erkannten Objekte werden mit einem **gelben** Rahmen angezeigt.
 
 | Schlüsselwörter | COCO-Klasse |
 |---|---|
-| Auto, Autos, Wagen, Fahrzeug, Fahrzeuge, PKW | Auto (2) |
-| Bus, Busse | Bus (5) |
-| LKW, Lastwagen, Lastkraftwagen, Sattelzug, Sattelschlepper | LKW (7) |
-| Ampel, Ampeln, Verkehrsampel | Ampel (9) |
-| Stoppschild, Stopschild, Stop, Stopschilder | Stoppschild (11) |
+| Auto, Autos, Wagen, Fahrzeug, Fahrzeuge, Fahrzeugen, PKW, PKWs, Personenkraftwagen | Auto (2) |
+| Bus, Busse, Bussen, Busses, Omnibus, Omnibusse, Omnibussen | Bus (5) |
+| LKW, LKWs, Lastwagen, Lastkraftwagen, Sattelzug, Sattelzüge, Sattelzügen, Sattelschlepper, Sattelschleppern | LKW (7) |
+| Ampel, Ampeln, Verkehrsampel, Verkehrsampeln | Ampel (9) |
+| Stoppschild, Stoppschilder, Stoppschildern, Stopschild, Stopschilder, Stopschildern, Stop, Stopp | Stoppschild (11) |
+
+Groß-/Kleinschreibung und Anführungszeichen spielen keine Rolle. Zusammengesetzte
+Begriffe wie **Stop Schilder**, **Stopp Schilder**, **Stop-Schild**, **Stopp-Schilder**,
+**Verkehrs-Ampeln**, **Last-Wagen** und **Sattel-Züge** werden zusammengeführt.
+Auch Unicode-Bindestriche werden unterstützt. Es werden ganze Wörter abgeglichen:
+„Busch“ ist kein Bus und „Autobahn“ kein Auto.
 
 ## Erkannte Farben
 
