@@ -536,25 +536,27 @@ private fun CalibrateView(
                             onDistanceChange = { pendingMaxDistanceM = it },
                             app = app,
                             onSaveMin = { pendingM ->
+                                // Wert des Max-Blocks als Min speichern: Breite/Höhe des Max-Objekts, Entfernung = Max-Slider
                                 app.updateCalibrationObjects(
                                     minWidth = it.obj.width,
                                     minHeight = it.obj.height,
-                                    maxWidth = frozenItems.find { item -> item.label == "Max" }?.obj?.width ?: app.calibrationMaxWidthPx,
-                                    maxHeight = frozenItems.find { item -> item.label == "Max" }?.obj?.height ?: app.calibrationMaxHeightPx,
+                                    maxWidth = app.calibrationMaxWidthPx,
+                                    maxHeight = app.calibrationMaxHeightPx,
                                     classIndex = app.calibrationTargetClassIndex
                                 )
-                                app.updateCalibrationMinDistance(pendingM, app.calibrationTargetClassIndex)
+                                app.updateCalibrationMinDistance(pendingMaxDistanceM, app.calibrationTargetClassIndex)
                                 app.saveCalibration()
                             },
                             onSaveMax = { pendingM ->
+                                // Wert des Max-Blocks als Max speichern
                                 app.updateCalibrationObjects(
-                                    minWidth = frozenItems.find { item -> item.label == "Min" }?.obj?.width ?: app.calibrationMinWidthPx,
-                                    minHeight = frozenItems.find { item -> item.label == "Min" }?.obj?.height ?: app.calibrationMinHeightPx,
+                                    minWidth = app.calibrationMinWidthPx,
+                                    minHeight = app.calibrationMinHeightPx,
                                     maxWidth = it.obj.width,
                                     maxHeight = it.obj.height,
                                     classIndex = app.calibrationTargetClassIndex
                                 )
-                                app.updateCalibrationMaxDistance(pendingM, app.calibrationTargetClassIndex)
+                                app.updateCalibrationMaxDistance(pendingMaxDistanceM, app.calibrationTargetClassIndex)
                                 app.saveCalibration()
                             }
                         )
@@ -572,25 +574,27 @@ private fun CalibrateView(
                             onDistanceChange = { pendingMinDistanceM = it },
                             app = app,
                             onSaveMin = { pendingM ->
+                                // Wert des Min-Blocks als Min speichern
                                 app.updateCalibrationObjects(
                                     minWidth = it.obj.width,
                                     minHeight = it.obj.height,
-                                    maxWidth = frozenItems.find { item -> item.label == "Max" }?.obj?.width ?: app.calibrationMaxWidthPx,
-                                    maxHeight = frozenItems.find { item -> item.label == "Max" }?.obj?.height ?: app.calibrationMaxHeightPx,
+                                    maxWidth = app.calibrationMaxWidthPx,
+                                    maxHeight = app.calibrationMaxHeightPx,
                                     classIndex = app.calibrationTargetClassIndex
                                 )
-                                app.updateCalibrationMinDistance(pendingM, app.calibrationTargetClassIndex)
+                                app.updateCalibrationMinDistance(pendingMinDistanceM, app.calibrationTargetClassIndex)
                                 app.saveCalibration()
                             },
                             onSaveMax = { pendingM ->
+                                // Wert des Min-Blocks als Max speichern: Breite/Höhe des Min-Objekts, Entfernung = Min-Slider
                                 app.updateCalibrationObjects(
-                                    minWidth = frozenItems.find { item -> item.label == "Min" }?.obj?.width ?: app.calibrationMinWidthPx,
-                                    minHeight = frozenItems.find { item -> item.label == "Min" }?.obj?.height ?: app.calibrationMinHeightPx,
+                                    minWidth = app.calibrationMinWidthPx,
+                                    minHeight = app.calibrationMinHeightPx,
                                     maxWidth = it.obj.width,
                                     maxHeight = it.obj.height,
                                     classIndex = app.calibrationTargetClassIndex
                                 )
-                                app.updateCalibrationMaxDistance(pendingM, app.calibrationTargetClassIndex)
+                                app.updateCalibrationMaxDistance(pendingMinDistanceM, app.calibrationTargetClassIndex)
                                 app.saveCalibration()
                             }
                         )
