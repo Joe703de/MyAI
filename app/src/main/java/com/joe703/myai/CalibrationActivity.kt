@@ -464,7 +464,18 @@ private fun CalibrateView(
                             thumbnail = it.thumbnail,
                             initialDistanceM = pendingMaxDistanceM,
                             otherProvider = { pendingMinDistanceM },
-                            onDistanceChange = { pendingMaxDistanceM = it }
+                            onDistanceChange = { pendingMaxDistanceM = it },
+                            saveButtonLabel = "als Max speichern",
+                            onSave = {
+                                app.updateCalibrationObjects(
+                                    minWidth = frozenItems.find { item -> item.label == "Min" }?.obj?.width ?: app.calibrationMinWidthPx,
+                                    minHeight = frozenItems.find { item -> item.label == "Min" }?.obj?.height ?: app.calibrationMinHeightPx,
+                                    maxWidth = it.obj.width,
+                                    maxHeight = it.obj.height,
+                                    classIndex = app.calibrationTargetClassIndex
+                                )
+                                app.saveCalibration()
+                            }
                         )
                     }
                     // 2. Min
@@ -476,7 +487,18 @@ private fun CalibrateView(
                             thumbnail = it.thumbnail,
                             initialDistanceM = pendingMinDistanceM,
                             otherProvider = { pendingMaxDistanceM },
-                            onDistanceChange = { pendingMinDistanceM = it }
+                            onDistanceChange = { pendingMinDistanceM = it },
+                            saveButtonLabel = "als Min speichern",
+                            onSave = {
+                                app.updateCalibrationObjects(
+                                    minWidth = it.obj.width,
+                                    minHeight = it.obj.height,
+                                    maxWidth = frozenItems.find { item -> item.label == "Max" }?.obj?.width ?: app.calibrationMaxWidthPx,
+                                    maxHeight = frozenItems.find { item -> item.label == "Max" }?.obj?.height ?: app.calibrationMaxHeightPx,
+                                    classIndex = app.calibrationTargetClassIndex
+                                )
+                                app.saveCalibration()
+                            }
                         )
                     }
 
@@ -511,6 +533,23 @@ private fun CalibrateView(
                                 singleLine = true
                             )
                         }
+                    }
+                    Button(
+                        onClick = {
+                            val parsedMin = ratioMinText.replace(",", ".").toFloatOrNull()?.coerceIn(0.1f, 10f) ?: pendingRatioMin
+                            val parsedMax = ratioMaxText.replace(",", ".").toFloatOrNull()?.coerceIn(0.1f, 10f) ?: pendingRatioMax
+                            pendingRatioMin = kotlin.math.min(parsedMin, parsedMax - 0.01f).coerceAtLeast(0.1f)
+                            pendingRatioMax = kotlin.math.max(parsedMax, pendingRatioMin + 0.01f).coerceAtMost(10f)
+                            ratioMinText = "%.2f".format(pendingRatioMin)
+                            ratioMaxText = "%.2f".format(pendingRatioMax)
+                            app.updateCalibrationRatios(pendingRatioMin, pendingRatioMax, app.calibrationTargetClassIndex)
+                            app.saveCalibration()
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth(0.9f)
+                            .padding(top = 4.dp)
+                    ) {
+                        Text("SV-Grenzen speichern")
                     }
 
                     // 4. Debug-Werte (aus Min/Max-Karten ausgelagert)
@@ -557,7 +596,7 @@ private fun CalibrateView(
                 }
             }
 
-            // Fußzeile: Schwellen im Suchen-Format und Speichern-Button
+            // Fußzeile: Schwellen im Suchen-Format
             Row(
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
@@ -578,34 +617,6 @@ private fun CalibrateView(
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.background(Color.Black.copy(alpha = 0.7f))
                     )
-                }
-
-                Button(
-                    onClick = {
-                        val currentMin = frozenItems.find { it.label == "Min" }?.obj
-                        val currentMax = frozenItems.find { it.label == "Max" }?.obj
-                        if (currentMin != null && currentMax != null) {
-                            app.updateCalibrationObjects(
-                                minWidth = currentMin.width,
-                                minHeight = currentMin.height,
-                                maxWidth = currentMax.width,
-                                maxHeight = currentMax.height,
-                                classIndex = app.calibrationTargetClassIndex
-                            )
-                        }
-                        val parsedMin = ratioMinText.replace(",", ".").toFloatOrNull()?.coerceIn(0.1f, 10f) ?: pendingRatioMin
-                        val parsedMax = ratioMaxText.replace(",", ".").toFloatOrNull()?.coerceIn(0.1f, 10f) ?: pendingRatioMax
-                        pendingRatioMin = kotlin.math.min(parsedMin, parsedMax - 0.01f).coerceAtLeast(0.1f)
-                        pendingRatioMax = kotlin.math.max(parsedMax, pendingRatioMin + 0.01f).coerceAtMost(10f)
-
-                        app.updateCalibrationDistances(minM = pendingMinDistanceM, maxM = pendingMaxDistanceM, classIndex = app.calibrationTargetClassIndex)
-                        app.updateCalibrationRatios(pendingRatioMin, pendingRatioMax, app.calibrationTargetClassIndex)
-                        app.saveCalibration()
-                        onBack()
-                    },
-                    modifier = Modifier.align(Alignment.Bottom)
-                ) {
-                    Text("Speichern")
                 }
             }
         }
@@ -667,8 +678,11 @@ private fun CalibrationItemCard(
     thumbnail: Bitmap?,
     initialDistanceM: Float,
     otherProvider: () -> Float,
-    onDistanceChange: (Float) -> Unit
+    onDistanceChange: (Float) -> Unit,
+    saveButtonLabel: String? = null,
+    onSave: ((FrozenCalibrationItem) -> Unit)? = null
 ) {
+    val item = remember(obj, thumbnail) { FrozenCalibrationItem(label, obj, thumbnail) }
     val aspectRatio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
 
     var distanceM by remember(label, initialDistanceM) {
@@ -737,6 +751,17 @@ private fun CalibrationItemCard(
                 valueRange = 10f..300f,
                 modifier = Modifier.weight(1f)
             )
+        }
+
+        if (saveButtonLabel != null && onSave != null) {
+            Button(
+                onClick = { onSave(item) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp)
+            ) {
+                Text(saveButtonLabel)
+            }
         }
     }
 }
