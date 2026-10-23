@@ -499,15 +499,17 @@ fun CalibrationScreen() {
                 }
             }
 
-            // Klassenauswahl nur für das aktuelle Set (Kalibrierklasse)
-            SimpleClassDropdown(
-                selectedIndex = app.calibrationTargetClassIndex,
-                onSelectionChanged = { app.updateTargetClass(it) },
-                allowedIndices = app.targetClassSet,
-                modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .padding(vertical = 4.dp)
-            )
+            // Klassenauswahl: nur im Set-Modus Dropdown anzeigen
+            if (app.targetClassIndex == app.SET_MODE_CLASS_INDEX) {
+                SimpleClassDropdown(
+                    selectedIndex = app.calibrationTargetClassIndex,
+                    onSelectionChanged = { app.updateCalibrationTargetClass(it) },
+                    allowedIndices = app.targetClassSet,
+                    modifier = Modifier
+                        .fillMaxWidth(0.9f)
+                        .padding(vertical = 4.dp)
+                )
+            }
         }
     }
 }

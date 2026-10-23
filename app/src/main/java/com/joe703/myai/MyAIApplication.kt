@@ -110,6 +110,13 @@ class MyAIApplication : Application() {
         notifyListeners()
     }
 
+    fun updateCalibrationTargetClass(index: Int) {
+        if (targetClassSet.contains(index)) {
+            calibrationTargetClassIndex = index
+        }
+        notifyListeners()
+    }
+
     fun updateConfidenceThreshold(value: Float) {
         confidenceThreshold = value
         notifyListeners()
