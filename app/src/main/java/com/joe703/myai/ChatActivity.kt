@@ -200,7 +200,7 @@ private fun interpretQuestion(question: String, result: DetectionResult?, app: M
         .split(Regex("\\s+"))
         .filter { it.isNotBlank() }
 
-    if (q.any { it in listOf("was", "siehst", "gibt", "alles", "objekte", "liste") }) {
+    if (q.any { it in listOf("was", "siehst", "gibt", "alles", "objekte", "liste") } && requestedClassId == null && requestedColor == null) {
         return ChatAnswer(describeAllObjects(objects, app), objects)
     }
 
@@ -232,7 +232,7 @@ private fun interpretQuestion(question: String, result: DetectionResult?, app: M
     val requestedColor = colorMap.entries.firstOrNull { q.contains(it.key) }?.value
 
     val classMap = mapOf(
-        "auto" to 2, "autos" to 2, "wagen" to 2, "wagen" to 2, "fahrzeug" to 2, "fahrzeuge" to 2, "pkw" to 2,
+        "auto" to 2, "autos" to 2, "wagen" to 2, "fahrzeug" to 2, "fahrzeuge" to 2, "pkw" to 2,
         "bus" to 5, "busse" to 5,
         "lkw" to 7, "lastwagen" to 7, "lastkraftwagen" to 7, "sattelzug" to 7, "sattelschlepper" to 7,
         "ampel" to 9, "ampeln" to 9, "verkehrsampel" to 9,
@@ -421,13 +421,19 @@ private fun colorName(name: String?): String {
     return when (name.lowercase()) {
         "rot" -> "rotes"
         "blau" -> "blaues"
-        "gruen" -> "grünes"
+        "gruen", "grün" -> "grünes"
         "gelb" -> "gelbes"
         "schwarz" -> "schwarzes"
-        "weiss" -> "weißes"
+        "weiss", "weiß" -> "weißes"
         "grau" -> "graues"
         "silber" -> "silbernes"
         "orange" -> "oranges"
+        "braun" -> "braunes"
+        "lila", "violett" -> "violettes"
+        "pink", "rosa" -> "rosanes"
+        "beige" -> "beiges"
+        "gold" -> "goldenes"
+        "tuerkis", "türkis" -> "türkises"
         else -> name
     }
 }
