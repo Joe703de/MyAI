@@ -207,26 +207,36 @@ private fun interpretQuestion(question: String, result: DetectionResult?, app: M
     val targetDistance = q.mapNotNull { it.toIntOrNull() }.firstOrNull()
 
     val colorMap = mapOf(
-        "rot" to "Rot",
-        "blau" to "Blau",
-        "gruen" to "Gruen",
-        "gelb" to "Gelb",
-        "schwarz" to "Schwarz",
-        "weiss" to "Weiss",
-        "grau" to "Grau",
-        "silber" to "Silber",
-        "orange" to "Orange"
+        "rot" to "Rot", "rote" to "Rot", "roter" to "Rot", "rotes" to "Rot",
+        "blau" to "Blau", "blaue" to "Blau", "blauer" to "Blau", "blaues" to "Blau",
+        "gruen" to "Gruen", "gruene" to "Gruen", "gruener" to "Gruen", "gruenes" to "Gruen",
+        "gruen" to "Gruen", "gruene" to "Gruen", "gruener" to "Gruen", "gruenes" to "Gruen",
+        "gelb" to "Gelb", "gelbe" to "Gelb", "gelber" to "Gelb", "gelbes" to "Gelb",
+        "schwarz" to "Schwarz", "schwarze" to "Schwarz", "schwarzer" to "Schwarz", "schwarzes" to "Schwarz",
+        "weiss" to "Weiss", "weisse" to "Weiss", "weisser" to "Weiss", "weisses" to "Weiss",
+        "grau" to "Grau", "graue" to "Grau", "grauer" to "Grau", "graues" to "Grau",
+        "silber" to "Silber", "silberne" to "Silber", "silberner" to "Silber", "silbernes" to "Silber",
+        "orange" to "Orange", "orangene" to "Orange", "orangener" to "Orange", "oranges" to "Orange",
+        "braun" to "Braun", "braune" to "Braun", "brauner" to "Braun", "braunes" to "Braun",
+        "lila" to "Lila", "violett" to "Lila", "violette" to "Lila", "violetter" to "Lila", "violettes" to "Lila",
+        "pink" to "Pink", "rosa" to "Pink", "rosane" to "Pink", "rosaner" to "Pink", "rosanes" to "Pink",
+        "beige" to "Beige", "beiger" to "Beige", "beiges" to "Beige",
+        "gold" to "Gold", "goldene" to "Gold", "goldener" to "Gold", "goldenes" to "Gold",
+        "tuerkis" to "Tuerkis", "tuerkise" to "Tuerkis", "tuerkiser" to "Tuerkis", "tuerkises" to "Tuerkis",
+        "weinrot" to "Rot", "weinrote" to "Rot", "bordeaux" to "Rot",
+        "dunkelblau" to "Blau", "hellblau" to "Blau",
+        "dunkelgruen" to "Gruen", "hellgruen" to "Gruen",
+        "dunkelrot" to "Rot", "hellrot" to "Rot",
+        "dunkelgrau" to "Grau", "hellgrau" to "Grau"
     )
     val requestedColor = colorMap.entries.firstOrNull { q.contains(it.key) }?.value
 
     val classMap = mapOf(
-        "auto" to 2,
-        "bus" to 5,
-        "lkw" to 7,
-        "ampel" to 9,
-        "stoppschild" to 11,
-        "stopschild" to 11,
-        "stop" to 11
+        "auto" to 2, "autos" to 2, "wagen" to 2, "wagen" to 2, "fahrzeug" to 2, "fahrzeuge" to 2, "pkw" to 2,
+        "bus" to 5, "busse" to 5,
+        "lkw" to 7, "lastwagen" to 7, "lastkraftwagen" to 7, "sattelzug" to 7, "sattelschlepper" to 7,
+        "ampel" to 9, "ampeln" to 9, "verkehrsampel" to 9,
+        "stoppschild" to 11, "stopschild" to 11, "stop" to 11, "stopschilder" to 11
     )
     val requestedClassId = classMap.entries.firstOrNull { q.contains(it.key) }?.value
 

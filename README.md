@@ -23,8 +23,18 @@ Für jede erkannte Auto-Box wird die dominante Farbe ermittelt. Unterstützt wer
 - Gelb
 - Grün
 - Blau
+- Weiß
+- Schwarz
+- Grau (unsichere/unbunte Bereiche)
 
-Die Farben werden über den mittleren Bildbereich der Box per HSV-Voting klassifiziert. Unsichere oder unbunte Bereiche werden als Grau markiert.
+Die Farben werden über den mittleren Bildbereich der Box per HSV-Voting klassifiziert.
+Im Chat versteht das Regelmodell zusätzliche Farbbegriffe und deren Flektionsformen
+(z. B. „rotes“, „rote“, „blauer“). Eine vollständige Liste der Synonyme steht in [`Chat.md`](Chat.md).
+
+## Chat
+
+Die App enthält eine experimentelle `ChatActivity` mit einem regelbasierten Chatbot.
+Details zu den unterstützten Schlüsselwörtern, Nachfragen und Farbsynonymen findest du in [`Chat.md`](Chat.md).
 
 ## Technischer Stack
 
