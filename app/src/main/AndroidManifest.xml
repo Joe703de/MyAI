@@ -52,6 +52,14 @@
             android:screenOrientation="portrait"
             android:configChanges="orientation|screenSize|keyboardHidden" />
 
+        <activity
+            android:name=".ChatActivity"
+            android:exported="false"
+            android:label="Chat"
+            android:theme="@style/Theme.MyAI"
+            android:screenOrientation="portrait"
+            android:configChanges="orientation|screenSize|keyboardHidden" />
+
     </application>
 
 </manifest>

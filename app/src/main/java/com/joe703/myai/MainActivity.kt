@@ -407,6 +407,19 @@ fun MainCameraScreen() {
                 ) {
                     Text("OCR")
                 }
+
+                Button(
+                    onClick = {
+                        val intent = Intent(context, ChatActivity::class.java)
+                        context.startActivity(intent)
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.DarkGray,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("Chat")
+                }
             }
         }
     }
