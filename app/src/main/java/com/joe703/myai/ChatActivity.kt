@@ -9,10 +9,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -68,7 +71,7 @@ fun ChatScreen() {
     val keyboardController = LocalSoftwareKeyboardController.current
 
     var detectionResult by remember { mutableStateOf(app.currentDetectionResult) }
-    val messages = remember { mutableStateListOf(ChatMessage("Assistant", "Frag mich zum aktuellen Bild. Zum Beispiel: \"Wo ist das blaue Auto?\" oder \"Welche Objekte sind 100m entfernt?\"")) }
+    val messages = remember { app.chatMessages }
     var inputText by remember { mutableStateOf("") }
 
     DisposableEffect(app) {
@@ -81,9 +84,11 @@ fun ChatScreen() {
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
+            .statusBarsPadding()
             .navigationBarsPadding()
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
+            Spacer(modifier = Modifier.height(8.dp))
             LazyColumn(
                 state = listState,
                 modifier = Modifier

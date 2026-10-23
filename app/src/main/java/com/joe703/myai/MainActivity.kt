@@ -342,46 +342,11 @@ fun MainCameraScreen() {
                 }
             }
 
-            // Schalter "Hinweis anzeigen" und Chat-Button
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .padding(vertical = 4.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "Hinweis anzeigen",
-                        color = Color.White,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Switch(
-                        checked = showHint,
-                        onCheckedChange = { showHint = it },
-                        modifier = Modifier.padding(start = 8.dp)
-                    )
-                }
-
-                Button(
-                    onClick = {
-                        val intent = Intent(context, ChatActivity::class.java)
-                        context.startActivity(intent)
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.DarkGray,
-                        contentColor = Color.White
-                    )
-                ) {
-                    Text("Chat")
-                }
-            }
-
             // Buttons oberhalb der Android-Navigationsleiste
             Row(
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
-                    .padding(top = 8.dp, bottom = 16.dp),
+                    .padding(top = 8.dp, bottom = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.Start),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -422,6 +387,28 @@ fun MainCameraScreen() {
                     )
                 ) {
                     Text("OCR")
+                }
+            }
+
+            // Schalter "Hinweis anzeigen" und Chat-Button
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .padding(top = 4.dp, bottom = 16.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Hinweis anzeigen",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Switch(
+                        checked = showHint,
+                        onCheckedChange = { showHint = it },
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
                 }
 
                 Button(
