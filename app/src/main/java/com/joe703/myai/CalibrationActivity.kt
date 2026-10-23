@@ -187,10 +187,6 @@ private fun SearchView(
     detectionResult: DetectionResult?,
     onCalibrate: () -> Unit
 ) {
-    BackHandler {
-        // System back: leave CalibrationActivity (handled by default activity back)
-    }
-
     val currentClass = app.calibrationTargetClassIndex
     val allObjects: List<DetectedObject> = detectionResult?.objects ?: emptyList()
     val classFilteredObjects = remember(allObjects, currentClass) {
@@ -201,6 +197,12 @@ private fun SearchView(
     val rawBitmap = detectionResult?.rawBitmap
     val imageWidth = detectionResult?.imageWidth ?: 0
     val imageHeight = detectionResult?.imageHeight ?: 0
+    val averageAspectRatio by remember(classFilteredObjects) {
+        mutableFloatStateOf(
+            if (classFilteredObjects.isEmpty()) 0f
+            else classFilteredObjects.map { if (it.height > 0) it.width.toFloat() / it.height.toFloat() else 0f }.filter { it > 0f }.average().toFloat()
+        )
+    }
 
     val missCandidates = classFilteredObjects
         .filter { obj ->
@@ -294,13 +296,39 @@ private fun SearchView(
                     .padding(vertical = 4.dp)
             )
 
-            Button(
-                onClick = onCalibrate,
+            // Fußzeile mit Durchschnitt und Kalibrieren-Button
+            Row(
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
-                    .padding(bottom = 8.dp)
+                    .padding(top = 4.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("Kalibrieren")
+                Column {
+                    Text(
+                        text = if (averageAspectRatio > 0f) {
+                            "Ø SV: ${"%.2f".format(averageAspectRatio)}:1"
+                        } else {
+                            "Ø SV: -"
+                        },
+                        color = Color.White,
+                        style = MaterialTheme.typography.headlineMedium,
+                        modifier = Modifier.background(Color.Black.copy(alpha = 0.7f))
+                    )
+                    Text(
+                        text = "SV<${"%.2f".format(ratioMin)}|>${"%.2f".format(ratioMax)}",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.background(Color.Black.copy(alpha = 0.7f))
+                    )
+                }
+
+                Button(
+                    onClick = onCalibrate,
+                    modifier = Modifier.align(Alignment.Bottom)
+                ) {
+                    Text("Kalibrieren")
+                }
             }
         }
     }
@@ -529,7 +557,7 @@ private fun CalibrateView(
                 }
             }
 
-            // Fußzeile: nur SV-Grenzen und Speichern/Zurück
+            // Fußzeile: Schwellen im Suchen-Format und Speichern-Button
             Row(
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
@@ -539,6 +567,12 @@ private fun CalibrateView(
             ) {
                 Column {
                     Text(
+                        text = "Ø SV: -",
+                        color = Color.White,
+                        style = MaterialTheme.typography.headlineMedium,
+                        modifier = Modifier.background(Color.Black.copy(alpha = 0.7f))
+                    )
+                    Text(
                         text = "SV<${"%.2f".format(pendingRatioMin)}|>${"%.2f".format(pendingRatioMax)}",
                         color = Color.White,
                         style = MaterialTheme.typography.bodyMedium,
@@ -546,13 +580,8 @@ private fun CalibrateView(
                     )
                 }
 
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(onClick = onBack) {
-                        Text("Zurück")
-                    }
-                    Button(onClick = {
+                Button(
+                    onClick = {
                         val currentMin = frozenItems.find { it.label == "Min" }?.obj
                         val currentMax = frozenItems.find { it.label == "Max" }?.obj
                         if (currentMin != null && currentMax != null) {
@@ -573,9 +602,10 @@ private fun CalibrateView(
                         app.updateCalibrationRatios(pendingRatioMin, pendingRatioMax, app.calibrationTargetClassIndex)
                         app.saveCalibration()
                         onBack()
-                    }) {
-                        Text("Speichern")
-                    }
+                    },
+                    modifier = Modifier.align(Alignment.Bottom)
+                ) {
+                    Text("Speichern")
                 }
             }
         }
