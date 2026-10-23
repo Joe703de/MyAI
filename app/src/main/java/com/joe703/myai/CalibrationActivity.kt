@@ -403,7 +403,7 @@ fun CalibrationScreen() {
                         }
                     }
 
-                    // Debug-Daten unter den SV-Grenzen anzeigen, auch bei genau einem Objekt
+                    // Eingefrorene Debug-Daten unter den SV-Grenzen anzeigen
                     Spacer(modifier = Modifier.height(8.dp))
                     val displayObjects = if (frozenItems.isNotEmpty()) frozenItems.map { it.obj } else emptyList()
                     if (displayObjects.isEmpty()) {
@@ -446,19 +446,15 @@ fun CalibrationScreen() {
                             }
                         }
                     }
-                }
-
-                // Debug-Anzeige der aktuell erkannten Objekte nur wenn Kalibrierung AUS ist
-                if (!inCalibrationMode) {
+                } else {
+                    // Debug-Anzeige der aktuell erkannten Objekte nur wenn Kalibrierung AUS ist
                     if (classFilteredObjects.isEmpty()) {
-                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "Keine Objekte der Klasse erkannt",
                             color = Color.Gray,
                             style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp)
                         )
                     } else {
-                        Spacer(modifier = Modifier.height(8.dp))
                         classFilteredObjects.forEachIndexed { index, obj ->
                             val aspectRatio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
                             val outOfRange = aspectRatio < ratioMin || aspectRatio > ratioMax
