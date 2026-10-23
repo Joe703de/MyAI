@@ -473,78 +473,7 @@ private fun CalibrateView(
                     val currentMinWidth = frozenItems.find { it.label == "Min" }?.obj?.width ?: 0
                     val currentMaxWidth = frozenItems.find { it.label == "Max" }?.obj?.width ?: 0
 
-                    // 1. Max
-                    val maxItem = frozenItems.find { it.label == "Max" }
-                    maxItem?.let {
-                        CalibrationItemCard(
-                            label = it.label,
-                            obj = it.obj,
-                            thumbnail = it.thumbnail,
-                            initialDistanceM = pendingMaxDistanceM,
-                            otherProvider = { pendingMinDistanceM },
-                            onDistanceChange = { pendingMaxDistanceM = it },
-                            app = app,
-                            onSaveMin = { pendingM ->
-                                app.updateCalibrationObjects(
-                                    minWidth = it.obj.width,
-                                    minHeight = it.obj.height,
-                                    maxWidth = frozenItems.find { item -> item.label == "Max" }?.obj?.width ?: app.calibrationMaxWidthPx,
-                                    maxHeight = frozenItems.find { item -> item.label == "Max" }?.obj?.height ?: app.calibrationMaxHeightPx,
-                                    classIndex = app.calibrationTargetClassIndex
-                                )
-                                app.updateCalibrationMinDistance(pendingM, app.calibrationTargetClassIndex)
-                                app.saveCalibration()
-                            },
-                            onSaveMax = { pendingM ->
-                                app.updateCalibrationObjects(
-                                    minWidth = frozenItems.find { item -> item.label == "Min" }?.obj?.width ?: app.calibrationMinWidthPx,
-                                    minHeight = frozenItems.find { item -> item.label == "Min" }?.obj?.height ?: app.calibrationMinHeightPx,
-                                    maxWidth = it.obj.width,
-                                    maxHeight = it.obj.height,
-                                    classIndex = app.calibrationTargetClassIndex
-                                )
-                                app.updateCalibrationMaxDistance(pendingM, app.calibrationTargetClassIndex)
-                                app.saveCalibration()
-                            }
-                        )
-                    }
-                    // 2. Min
-                    val minItem = frozenItems.find { it.label == "Min" }
-                    minItem?.let {
-                        CalibrationItemCard(
-                            label = it.label,
-                            obj = it.obj,
-                            thumbnail = it.thumbnail,
-                            initialDistanceM = pendingMinDistanceM,
-                            otherProvider = { pendingMaxDistanceM },
-                            onDistanceChange = { pendingMinDistanceM = it },
-                            app = app,
-                            onSaveMin = { pendingM ->
-                                app.updateCalibrationObjects(
-                                    minWidth = it.obj.width,
-                                    minHeight = it.obj.height,
-                                    maxWidth = frozenItems.find { item -> item.label == "Max" }?.obj?.width ?: app.calibrationMaxWidthPx,
-                                    maxHeight = frozenItems.find { item -> item.label == "Max" }?.obj?.height ?: app.calibrationMaxHeightPx,
-                                    classIndex = app.calibrationTargetClassIndex
-                                )
-                                app.updateCalibrationMinDistance(pendingM, app.calibrationTargetClassIndex)
-                                app.saveCalibration()
-                            },
-                            onSaveMax = { pendingM ->
-                                app.updateCalibrationObjects(
-                                    minWidth = frozenItems.find { item -> item.label == "Min" }?.obj?.width ?: app.calibrationMinWidthPx,
-                                    minHeight = frozenItems.find { item -> item.label == "Min" }?.obj?.height ?: app.calibrationMinHeightPx,
-                                    maxWidth = it.obj.width,
-                                    maxHeight = it.obj.height,
-                                    classIndex = app.calibrationTargetClassIndex
-                                )
-                                app.updateCalibrationMaxDistance(pendingM, app.calibrationTargetClassIndex)
-                                app.saveCalibration()
-                            }
-                        )
-                    }
-
-                    // 3. SV-Grenzen
+                    // 1. SV-Grenzen
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -594,7 +523,79 @@ private fun CalibrateView(
                         Text("SV-Grenzen speichern")
                     }
 
-                    // 4. Debug-Werte (aus Min/Max-Karten ausgelagert)
+                    // 2. Max
+                    val maxItem = frozenItems.find { it.label == "Max" }
+                    maxItem?.let {
+                        CalibrationItemCard(
+                            label = it.label,
+                            obj = it.obj,
+                            thumbnail = it.thumbnail,
+                            initialDistanceM = pendingMaxDistanceM,
+                            otherProvider = { pendingMinDistanceM },
+                            onDistanceChange = { pendingMaxDistanceM = it },
+                            app = app,
+                            onSaveMin = { pendingM ->
+                                app.updateCalibrationObjects(
+                                    minWidth = it.obj.width,
+                                    minHeight = it.obj.height,
+                                    maxWidth = frozenItems.find { item -> item.label == "Max" }?.obj?.width ?: app.calibrationMaxWidthPx,
+                                    maxHeight = frozenItems.find { item -> item.label == "Max" }?.obj?.height ?: app.calibrationMaxHeightPx,
+                                    classIndex = app.calibrationTargetClassIndex
+                                )
+                                app.updateCalibrationMinDistance(pendingM, app.calibrationTargetClassIndex)
+                                app.saveCalibration()
+                            },
+                            onSaveMax = { pendingM ->
+                                app.updateCalibrationObjects(
+                                    minWidth = frozenItems.find { item -> item.label == "Min" }?.obj?.width ?: app.calibrationMinWidthPx,
+                                    minHeight = frozenItems.find { item -> item.label == "Min" }?.obj?.height ?: app.calibrationMinHeightPx,
+                                    maxWidth = it.obj.width,
+                                    maxHeight = it.obj.height,
+                                    classIndex = app.calibrationTargetClassIndex
+                                )
+                                app.updateCalibrationMaxDistance(pendingM, app.calibrationTargetClassIndex)
+                                app.saveCalibration()
+                            }
+                        )
+                    }
+
+                    // 3. Min
+                    val minItem = frozenItems.find { it.label == "Min" }
+                    minItem?.let {
+                        CalibrationItemCard(
+                            label = it.label,
+                            obj = it.obj,
+                            thumbnail = it.thumbnail,
+                            initialDistanceM = pendingMinDistanceM,
+                            otherProvider = { pendingMaxDistanceM },
+                            onDistanceChange = { pendingMinDistanceM = it },
+                            app = app,
+                            onSaveMin = { pendingM ->
+                                app.updateCalibrationObjects(
+                                    minWidth = it.obj.width,
+                                    minHeight = it.obj.height,
+                                    maxWidth = frozenItems.find { item -> item.label == "Max" }?.obj?.width ?: app.calibrationMaxWidthPx,
+                                    maxHeight = frozenItems.find { item -> item.label == "Max" }?.obj?.height ?: app.calibrationMaxHeightPx,
+                                    classIndex = app.calibrationTargetClassIndex
+                                )
+                                app.updateCalibrationMinDistance(pendingM, app.calibrationTargetClassIndex)
+                                app.saveCalibration()
+                            },
+                            onSaveMax = { pendingM ->
+                                app.updateCalibrationObjects(
+                                    minWidth = frozenItems.find { item -> item.label == "Min" }?.obj?.width ?: app.calibrationMinWidthPx,
+                                    minHeight = frozenItems.find { item -> item.label == "Min" }?.obj?.height ?: app.calibrationMinHeightPx,
+                                    maxWidth = it.obj.width,
+                                    maxHeight = it.obj.height,
+                                    classIndex = app.calibrationTargetClassIndex
+                                )
+                                app.updateCalibrationMaxDistance(pendingM, app.calibrationTargetClassIndex)
+                                app.saveCalibration()
+                            }
+                        )
+                    }
+
+                    // 4. Debug-Werte
                     Spacer(modifier = Modifier.height(8.dp))
                     val savedMinW = app.calibrationMinWidthPx
                     val savedMinD = app.calibrationMinDistanceM
@@ -817,6 +818,10 @@ private fun CalibrationItemCard(
                     Button(
                         onClick = { onMin(distanceM) },
                         enabled = canSaveMin,
+                        colors = ButtonDefaults.buttonColors(
+                            disabledContainerColor = Color.DarkGray,
+                            disabledContentColor = Color.LightGray
+                        ),
                         modifier = Modifier.weight(1f)
                     ) {
                         Text("als Min speichern")
@@ -826,6 +831,10 @@ private fun CalibrationItemCard(
                     Button(
                         onClick = { onMax(distanceM) },
                         enabled = canSaveMax,
+                        colors = ButtonDefaults.buttonColors(
+                            disabledContainerColor = Color.DarkGray,
+                            disabledContentColor = Color.LightGray
+                        ),
                         modifier = Modifier.weight(1f)
                     ) {
                         Text("als Max speichern")
