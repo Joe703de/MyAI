@@ -204,6 +204,16 @@ private fun SearchView(
         )
     }
 
+    val validObjects = remember(classFilteredObjects, ratioMin, ratioMax) {
+        classFilteredObjects.filter { obj ->
+            val r = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
+            r in ratioMin..ratioMax
+        }
+    }
+    val minCandidate = remember(validObjects) { validObjects.maxByOrNull { it.width } }
+    val maxCandidate = remember(validObjects) { validObjects.minByOrNull { it.width } }
+    val minMaxCandidates = listOfNotNull(minCandidate, maxCandidate).distinct()
+
     val missCandidates = classFilteredObjects
         .filter { obj ->
             val r = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
@@ -253,8 +263,15 @@ private fun SearchView(
                     classFilteredObjects.forEachIndexed { index, obj ->
                         val aspectRatio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
                         val outOfRange = aspectRatio < ratioMin || aspectRatio > ratioMax
-                        val thumbnail = missCandidates.firstOrNull { it === obj }?.let { candidate ->
-                            cropBitmap(rawBitmap, imageWidth, imageHeight, candidate)
+                        val thumbnail = when {
+                            minMaxCandidates.any { it === obj } -> cropBitmap(rawBitmap, imageWidth, imageHeight, obj)
+                            missCandidates.any { it === obj } -> cropBitmap(rawBitmap, imageWidth, imageHeight, obj)
+                            else -> null
+                        }
+                        val borderColor = when {
+                            minMaxCandidates.any { it === obj } -> Color.Green
+                            missCandidates.any { it === obj } -> Color.Yellow
+                            else -> null
                         }
 
                         Row(
@@ -272,14 +289,15 @@ private fun SearchView(
                                 modifier = Modifier.weight(1f)
                             )
                             thumbnail?.let { bitmap ->
+                                val color = borderColor ?: Color.Yellow
                                 Image(
                                     bitmap = bitmap.asImageBitmap(),
-                                    contentDescription = "Knappes Objekt",
+                                    contentDescription = if (borderColor == Color.Green) "Min/Max Kandidat" else "Knappes Objekt",
                                     modifier = Modifier
                                         .padding(start = 4.dp)
                                         .height(56.dp)
                                         .width(84.dp)
-                                        .border(1.dp, Color.Yellow)
+                                        .border(1.dp, color)
                                 )
                             }
                         }
