@@ -565,9 +565,9 @@ fun DetectionOverlay(
         objects.forEach { obj ->
             val color = when {
                 useThresholdColors && app != null -> {
-                    val cal = app.calibrationByClass.getOrNull(obj.classId)?.value
-                    val ratioMin = cal?.ratioMin ?: 1.1f
-                    val ratioMax = cal?.ratioMax ?: 1.35f
+                    val cal = app.getCalibrationForClass(obj.classId)
+                    val ratioMin = cal.ratioMin
+                    val ratioMax = cal.ratioMax
                     val ratio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
                     if (ratio in ratioMin..ratioMax) Color.Green else Color.Yellow
                 }

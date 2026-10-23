@@ -183,6 +183,10 @@ class MyAIApplication : Application() {
         notifyListeners()
     }
 
+    fun getCalibrationForClass(classIndex: Int): Calibration {
+        return calibrationByClass[classIndex.coerceIn(0, 79)].value
+    }
+
     /** Speichert die Kalibrierwerte persistent. Wird beim sauberen Beenden der Kalibrierung aufgerufen. */
     fun saveCalibration() {
         val editor = prefs.edit()
