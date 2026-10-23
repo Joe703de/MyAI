@@ -398,7 +398,7 @@ fun CalibrationScreen() {
                 }
             }
 
-            // Fußzeile mit Durchschnitt, Schwellen und Kalibrierung-Schalter
+            // Fußzeile mit Durchschnitt, Schwellen (nur im Kalibrierungsmodus) und Kalibrierung-Schalter
             Row(
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
@@ -429,33 +429,35 @@ fun CalibrationScreen() {
                     horizontalAlignment = Alignment.End,
                     modifier = Modifier.background(Color.Black.copy(alpha = 0.7f)).padding(horizontal = 4.dp, vertical = 2.dp)
                 ) {
-                    Text(text = "SV-Grenzen", color = Color.White, style = MaterialTheme.typography.bodySmall)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedTextField(
-                            value = "%.2f".format(pendingRatioMin),
-                            onValueChange = { text ->
-                                text.replace(",", ".").toFloatOrNull()?.let {
-                                    pendingRatioMin = it.coerceIn(0.1f, pendingRatioMax - 0.01f)
-                                }
-                            },
-                            label = { Text("Min", color = Color.White, style = MaterialTheme.typography.bodySmall) },
-                            textStyle = MaterialTheme.typography.bodyMedium.copy(color = Color.White),
-                            modifier = Modifier.width(80.dp),
-                            singleLine = true
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        OutlinedTextField(
-                            value = "%.2f".format(pendingRatioMax),
-                            onValueChange = { text ->
-                                text.replace(",", ".").toFloatOrNull()?.let {
-                                    pendingRatioMax = it.coerceIn(pendingRatioMin + 0.01f, 10f)
-                                }
-                            },
-                            label = { Text("Max", color = Color.White, style = MaterialTheme.typography.bodySmall) },
-                            textStyle = MaterialTheme.typography.bodyMedium.copy(color = Color.White),
-                            modifier = Modifier.width(80.dp),
-                            singleLine = true
-                        )
+                    if (inCalibrationMode) {
+                        Text(text = "SV-Grenzen", color = Color.White, style = MaterialTheme.typography.bodySmall)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            OutlinedTextField(
+                                value = "%.2f".format(pendingRatioMin),
+                                onValueChange = { text ->
+                                    text.replace(",", ".").toFloatOrNull()?.let {
+                                        pendingRatioMin = it.coerceIn(0.1f, pendingRatioMax - 0.01f)
+                                    }
+                                },
+                                label = { Text("Min", color = Color.White, style = MaterialTheme.typography.bodySmall) },
+                                textStyle = MaterialTheme.typography.bodyMedium.copy(color = Color.White),
+                                modifier = Modifier.width(80.dp),
+                                singleLine = true
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            OutlinedTextField(
+                                value = "%.2f".format(pendingRatioMax),
+                                onValueChange = { text ->
+                                    text.replace(",", ".").toFloatOrNull()?.let {
+                                        pendingRatioMax = it.coerceIn(pendingRatioMin + 0.01f, 10f)
+                                    }
+                                },
+                                label = { Text("Max", color = Color.White, style = MaterialTheme.typography.bodySmall) },
+                                textStyle = MaterialTheme.typography.bodyMedium.copy(color = Color.White),
+                                modifier = Modifier.width(80.dp),
+                                singleLine = true
+                            )
+                        }
                     }
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
