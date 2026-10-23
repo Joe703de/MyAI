@@ -47,6 +47,8 @@ import kotlinx.coroutines.launch
 
 data class ChatMessage(val sender: String, val text: String)
 
+data class ChatAnswer(val text: String, val matchedObjects: List<DetectedObject>)
+
 class ChatActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -119,8 +121,13 @@ fun ChatScreen() {
                     keyboardActions = KeyboardActions(onSend = {
                         if (inputText.isNotBlank()) {
                             messages.add(ChatMessage("Du", inputText))
-                            val answer = interpretQuestion(inputText, detectionResult, app)
+                            val (answer, matchedObjects) = interpretQuestion(inputText, detectionResult, app)
                             messages.add(ChatMessage("Assistant", answer))
+                            if (matchedObjects.isNotEmpty()) {
+                                app.chatResultSnapshot = detectionResult
+                                val intent = Intent(context, ChatResultActivity::class.java)
+                                context.startActivity(intent)
+                            }
                             inputText = ""
                             keyboardController?.hide()
                             scope.launch { listState.animateScrollToItem(messages.size - 1) }
@@ -131,8 +138,13 @@ fun ChatScreen() {
                 Button(onClick = {
                     if (inputText.isNotBlank()) {
                         messages.add(ChatMessage("Du", inputText))
-                        val answer = interpretQuestion(inputText, detectionResult, app)
+                        val (answer, matchedObjects) = interpretQuestion(inputText, detectionResult, app)
                         messages.add(ChatMessage("Assistant", answer))
+                        if (matchedObjects.isNotEmpty()) {
+                            app.setChatResultSnapshot(detectionResult)
+                            val intent = Intent(context, ChatResultActivity::class.java)
+                            context.startActivity(intent)
+                        }
                         inputText = ""
                         keyboardController?.hide()
                         scope.launch { listState.animateScrollToItem(messages.size - 1) }
@@ -169,10 +181,10 @@ private fun ChatBubble(msg: ChatMessage) {
     }
 }
 
-private fun interpretQuestion(question: String, result: DetectionResult?, app: MyAIApplication): String {
-    if (result == null) return "Ich sehe gerade kein Bild."
+private fun interpretQuestion(question: String, result: DetectionResult?, app: MyAIApplication): ChatAnswer {
+    if (result == null) return ChatAnswer("Ich sehe gerade kein Bild.", emptyList())
     val objects = result.objects
-    if (objects.isEmpty()) return "Aktuell sind keine Objekte erkannt."
+    if (objects.isEmpty()) return ChatAnswer("Aktuell sind keine Objekte erkannt.", emptyList())
 
     val q = question.lowercase()
         .replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
@@ -184,7 +196,7 @@ private fun interpretQuestion(question: String, result: DetectionResult?, app: M
         .filter { it.isNotBlank() }
 
     if (q.any { it in listOf("was", "siehst", "gibt", "alles", "objekte", "liste") }) {
-        return describeAllObjects(objects, app)
+        return ChatAnswer(describeAllObjects(objects, app), objects)
     }
 
     val targetDistance = q.mapNotNull { it.toIntOrNull() }.firstOrNull()
@@ -221,11 +233,11 @@ private fun interpretQuestion(question: String, result: DetectionResult?, app: M
             val est = app.estimateDistance(obj.width, obj.classId)
             if (est >= 0f && kotlin.math.abs(est - targetDistance) <= 25f) obj to est else null
         }
-        if (matches.isEmpty()) return "Kein Objekt ist ungefähr ${targetDistance}m entfernt."
-        return matches.joinToString("\n") { (obj, est) ->
+        if (matches.isEmpty()) return ChatAnswer("Kein Objekt ist ungefähr ${targetDistance}m entfernt.", emptyList())
+        return ChatAnswer(matches.joinToString("\n") { (obj, est) ->
             val name = CocoClassNames.getOrElse(obj.classId) { "Objekt" }
             "• ${colorName(obj.colorName)} $name bei ${est.toInt()}m"
-        }
+        }, matches.map { it.first })
     }
 
     val candidates = objects.filter { obj ->
@@ -237,7 +249,7 @@ private fun interpretQuestion(question: String, result: DetectionResult?, app: M
     if (candidates.isEmpty()) {
         val className = requestedClassId?.let { CocoClassNames.getOrElse(it) { "Objekt" } }
         val colorPart = requestedColor?.let { " in $it" } ?: ""
-        return "Ich sehe gerade kein${if (requestedClassId == 11) "" else "e"} ${className ?: "Objekt"}${colorPart}."
+        return ChatAnswer("Ich sehe gerade kein${if (requestedClassId == 11) "" else "e"} ${className ?: "Objekt"}${colorPart}.", emptyList())
     }
 
     val obj = candidates.first()
@@ -257,15 +269,15 @@ private fun interpretQuestion(question: String, result: DetectionResult?, app: M
                 obj.y + obj.height / 2 > 2 * result.imageHeight / 3 -> "unten"
                 else -> "in der Mitte"
             }
-            "Das $colorPart$className ist $xPos $yPos."
+            ChatAnswer("Das $colorPart$className ist $xPos $yPos.", candidates)
         }
         askingDistance -> {
-            if (est >= 0f) "Das $colorPart$className ist ungefähr ${est.toInt()}m entfernt."
-            else "Für das $colorPart$className fehlen Kalibrierdaten, ich kann die Entfernung nicht schätzen."
+            if (est >= 0f) ChatAnswer("Das $colorPart$className ist ungefähr ${est.toInt()}m entfernt.", candidates)
+            else ChatAnswer("Für das $colorPart$className fehlen Kalibrierdaten, ich kann die Entfernung nicht schätzen.", candidates)
         }
         else -> {
             val distPart = if (est >= 0f) " bei ungefähr ${est.toInt()}m" else ""
-            "Ich sehe ein$colorPart $className$distPart."
+            ChatAnswer("Ich sehe ein$colorPart $className$distPart.", candidates)
         }
     }
 }

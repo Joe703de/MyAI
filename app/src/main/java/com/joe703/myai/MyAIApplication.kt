@@ -17,12 +17,19 @@ import androidx.compose.runtime.setValue
  */
 class MyAIApplication : Application() {
 
+    /** Snapshot des Ergebnisbilds für die Chat-Result-Ansicht. */
+    var chatResultSnapshot: DetectionResult? by mutableStateOf(null)
+        private set
+
+    fun setChatResultSnapshot(result: DetectionResult?) {
+        chatResultSnapshot = result
+    }
+
     /** Persistierter Chat-Verlauf, der Activity-Lebenszyklen überdauert. */
     val chatMessages = mutableStateListOf(
         ChatMessage("Assistant", "Frag mich zum aktuellen Bild. Zum Beispiel: \"Wo ist das blaue Auto?\" oder \"Welche Objekte sind 100m entfernt?\"")
     )
 
-    /** Aktives Set von COCO-Klassen, die gleichzeitig erkannt werden sollen. */
     val targetClassSet = listOf(2, 5, 7, 9, 11)
 
     /** Magic Index, der den Set-Erkennungsmodus repräsentiert. */
