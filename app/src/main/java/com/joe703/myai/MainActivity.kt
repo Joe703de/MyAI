@@ -431,15 +431,16 @@ fun DistanceHintBadge(
     val offsetX = (previewWidth - scaledWidth) / 2
     val offsetY = (previewHeight - scaledHeight) / 2
 
-    // Nur Objekte im Seitenverhältnis-Bereich 1.1..1.35 berücksichtigen
+    // Nur Objekte innerhalb ihrer klassenspezifischen SV-Schwellen berücksichtigen
     val validObjects = objects.filter { obj ->
+        val cal = app.getCalibrationForClass(obj.classId)
         val ratio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
-        ratio in 1.1f..1.35f
+        ratio in cal.ratioMin..cal.ratioMax
     }
 
-    // Geschätzte Entfernungen berechnen und nach Entfernung sortieren (nächstes zuerst)
+    // Geschätzte Entfernungen pro Objektklasse berechnen und nach Entfernung sortieren
     val candidates = validObjects.mapNotNull { obj ->
-        val estimated = app.estimateDistance(obj.width)
+        val estimated = app.estimateDistance(obj.width, obj.classId)
         if (estimated >= 0f) obj to estimated else null
     }.sortedBy { (_, estimated) -> estimated }
 
