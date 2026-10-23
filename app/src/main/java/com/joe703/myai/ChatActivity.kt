@@ -125,7 +125,7 @@ fun ChatScreen() {
                             val (answer, matchedObjects) = interpretQuestion(inputText, detectionResult, app)
                             messages.add(ChatMessage("Assistant", answer))
                             if (matchedObjects.isNotEmpty()) {
-                                app.setChatResultSnapshot(detectionResult)
+                                app.chatResultSnapshot = detectionResult
                                 val intent = Intent(context, ChatResultActivity::class.java)
                                 context.startActivity(intent)
                             }

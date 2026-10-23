@@ -19,11 +19,6 @@ class MyAIApplication : Application() {
 
     /** Snapshot des Ergebnisbilds für die Chat-Result-Ansicht. */
     var chatResultSnapshot: DetectionResult? by mutableStateOf(null)
-        private set
-
-    fun setChatResultSnapshot(result: DetectionResult?) {
-        chatResultSnapshot = result
-    }
 
     /** Persistierter Chat-Verlauf, der Activity-Lebenszyklen überdauert. */
     val chatMessages = mutableStateListOf(
