@@ -375,19 +375,6 @@ fun DebugCameraScreen() {
                 }
             }
 
-            Text(
-                text = "Set: ${app.targetClassSet.joinToString(", ") { idx ->
-                    CocoClassNames.getOrElse(idx) { "?" }.let { if (it == "Stoppschild") "Stop" else it }
-                }}",
-                color = Color.White,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .padding(vertical = 4.dp)
-                    .background(Color.Black.copy(alpha = 0.7f))
-                    .padding(horizontal = 4.dp, vertical = 4.dp)
-            )
-
             ClassDropdown(
                 selectedIndex = targetClassIndex,
                 onSelectionChanged = {
