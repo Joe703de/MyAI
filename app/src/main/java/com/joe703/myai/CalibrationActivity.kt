@@ -365,48 +365,52 @@ fun CalibrationScreen() {
                                 )
                             }
                         }
-                        // SV-Grenzen-Eingabefelder direkt unter den Kalibrierungs-Slidern
-                        if (inCalibrationMode) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = "SV-Grenzen",
-                                    color = Color.White,
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    OutlinedTextField(
-                                        value = ratioMinText,
-                                        onValueChange = { ratioMinText = it },
-                                        label = { Text("Min", color = Color.White, style = MaterialTheme.typography.bodySmall) },
-                                        textStyle = MaterialTheme.typography.bodyMedium.copy(color = Color.White),
-                                        modifier = Modifier.width(100.dp),
-                                        singleLine = true
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    OutlinedTextField(
-                                        value = ratioMaxText,
-                                        onValueChange = { ratioMaxText = it },
-                                        label = { Text("Max", color = Color.White, style = MaterialTheme.typography.bodySmall) },
-                                        textStyle = MaterialTheme.typography.bodyMedium.copy(color = Color.White),
-                                        modifier = Modifier.width(100.dp),
-                                        singleLine = true
-                                    )
-                                }
-                            }
+                    }
+
+                    // SV-Grenzen-Eingabefelder immer im Kalibrierungsmodus, auch ohne erkannte Objekte
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "SV-Grenzen",
+                            color = Color.White,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            OutlinedTextField(
+                                value = ratioMinText,
+                                onValueChange = { ratioMinText = it },
+                                label = { Text("Min", color = Color.White, style = MaterialTheme.typography.bodySmall) },
+                                textStyle = MaterialTheme.typography.bodyMedium.copy(color = Color.White),
+                                modifier = Modifier.width(100.dp),
+                                singleLine = true
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            OutlinedTextField(
+                                value = ratioMaxText,
+                                onValueChange = { ratioMaxText = it },
+                                label = { Text("Max", color = Color.White, style = MaterialTheme.typography.bodySmall) },
+                                textStyle = MaterialTheme.typography.bodyMedium.copy(color = Color.White),
+                                modifier = Modifier.width(100.dp),
+                                singleLine = true
+                            )
                         }
                     }
-                } else if (classFilteredObjects.isEmpty()) {
+                }
+
+                // Debug-Anzeige immer unter den SV-Grenzen (bzw. unter dem Kalibrierungsmodus)
+                if (classFilteredObjects.isEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "Keine Objekte der Klasse erkannt",
                         color = Color.Gray,
                         style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp)
                     )
                 } else {
+                    Spacer(modifier = Modifier.height(8.dp))
                     classFilteredObjects.forEachIndexed { index, obj ->
                         val aspectRatio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
                         val outOfRange = aspectRatio < ratioMin || aspectRatio > ratioMax
