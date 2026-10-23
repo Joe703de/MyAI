@@ -21,6 +21,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,8 +55,9 @@ class ChatResultActivity : ComponentActivity() {
 fun ChatResultScreen(onFinish: () -> Unit) {
     val context = LocalContext.current
     val app = context.applicationContext as MyAIApplication
-    val result = app.chatResultSnapshot
-    val matchedObjects = app.chatMatchedObjects
+    val scene = remember { app.chatScene }
+    val result = scene?.frame
+    val matchedObjects = scene?.matches.orEmpty()
 
     Box(
         modifier = Modifier

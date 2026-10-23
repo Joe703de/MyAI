@@ -85,6 +85,15 @@ class YoloObjectAnalyzer(
         }
     }
 
+    /** Call on the analysis executor after the final frame. */
+    fun close() {
+        interpreter?.close()
+        interpreter = null
+        gpuDelegate?.close()
+        gpuDelegate = null
+        textRecognizer?.close()
+    }
+
     private fun loadModel(context: Context): ByteBuffer {
         context.assets.openFd("yolo_objects.tflite").use { fileDescriptor ->
             FileInputStream(fileDescriptor.fileDescriptor).use { inputStream ->

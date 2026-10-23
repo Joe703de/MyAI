@@ -34,6 +34,9 @@ Im Chat versteht das Regelmodell zusätzliche Farbbegriffe und deren Flektionsfo
 ## Chat
 
 Die App enthält eine experimentelle `ChatActivity` mit einem regelbasierten Chatbot.
+Eine kleine Live-Kameravorschau steht oben rechts. Jede Anfrage wird mit einem neuen
+Frame verarbeitet; passende Treffer öffnen per Zoom die eingefrorene Ergebnisansicht
+mit exakt zu diesem Frame gehörenden Overlays.
 Details zu den unterstützten Schlüsselwörtern, Nachfragen und Farbsynonymen findest du in [`Chat.md`](Chat.md).
 
 ## Technischer Stack

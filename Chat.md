@@ -1,15 +1,23 @@
 # Chat – Regelbasiertes Sprachmodell
 
 Die `ChatActivity` beantwortet Fragen zum aktuell von der Kamera erfassten Bild.
-Sie nutzt das letzte `DetectionResult` aus der laufenden Objekterkennung.
-Beim Absenden einer Anfrage wird ein Snapshot des Bilds gespeichert.
-Wenn die Anfrage passende Objekte findet, öffnet sich `ChatResultActivity` mit dem Bild.
+Der Chat betreibt eine eigene, an seinen Activity-Lebenszyklus gebundene Kameraanalyse.
+Oben rechts ist eine kleine Live-Vorschau des zuletzt analysierten Frames sichtbar.
+Beim Absenden (Senden-Button oder Tastatur) wartet die Anfrage auf einen neu analysierten
+Frame. Das alte Bild aus der Hauptansicht wird nicht verwendet. Währenddessen ist
+weiteres Senden gesperrt. Ohne neues Kamerabild gibt es nach spätestens acht Sekunden
+einen Hinweis statt einer Antwort auf ein veraltetes Bild.
+Beim Verlassen des Chats pausiert die Kamera; nach der Rückkehr startet sie erneut.
+Wenn die Anfrage passende Objekte findet, öffnet sich `ChatResultActivity` mit einem
+Zoom-Übergang aus der kleinen Vorschau (abhängig von Androids Animationseinstellungen).
+Antwort, Ergebnisbild und alle Overlay-Koordinaten stammen aus demselben Frame und
+werden gemeinsam eingefroren. Die Ergebnisansicht bleibt absichtlich ein Standbild.
 Darin werden passende Objekte mit einem **grünen** Rahmen hervorgehoben;
 alle anderen erkannten Objekte werden mit einem **gelben** Rahmen angezeigt.
 
 ## Wie das Regelmodell arbeitet
 
-1. **Text normalisieren** – Umlaute werden aufgelöst, Satzzeichen und das „m“ für Meter entfernt.
+1. **Text normalisieren** – Umlaute werden aufgelöst, Satzzeichen und das direkt auf eine Zahl folgende „m“ für Meter entfernt.
 2. **Intent erkennen** – Der Bot sucht nach Schlüsselwörtern für:
    - komplette Übersicht („Was siehst du?“)
    - Ort („Wo ist…?“)
@@ -84,7 +92,11 @@ Mögliche Antworten auf diese Nachfrage:
 - „nur das linke“ / „ganz links“ – Objekt(e) links bzw. das am weitesten links
 - „nur das weiteste“ / „weit weg“ – das am weitesten entfernte Objekt
 
-Diese Folgeanfragen greifen auf die letzten Kandidaten zurück und filtern sie erneut.
+Folgeanfragen merken sich nur Klasse und Farbe, niemals alte Objektpositionen.
+Nach „blaue Autos“ filtert „das Auto ganz rechts“ deshalb die blauen Autos des **neuen**
+Frames und markiert das aktuell rechte. „Komplette Liste“ verwendet ebenfalls diese
+Filter auf dem neuen Frame. Ein verschwundenes Objekt wird nicht im neuen Bild markiert.
+„Was siehst du?“ beginnt wieder eine allgemeine Übersicht.
 
 ## Nah/Fern-Regel für den Fahrer
 
@@ -101,3 +113,14 @@ Daher verwendet der Chat für die Entfernungsbeschreibung folgende Regel:
    - mittig im Bild → „mittlere Entfernung“
 
 Beispiel: „Das rote Auto ist links und nah."
+
+## Geräteprüfung
+
+1. Chat öffnen, Kamera schwenken: Die Vorschau muss ohne erneutes Öffnen folgen.
+2. Eine Frage senden und danach die Kamera bewegen: Die Ergebnisansicht behält den
+   beantworteten Frame; grüne und gelbe Rahmen passen weiterhin zu diesem Bild.
+3. Nach einer Nachfrage zu blauen Autos die Kamera schwenken und „ganz rechts“ senden:
+   Nur ein aktuell erkanntes blaues Auto darf grün markiert werden.
+4. Ergebnis schließen, erneut fragen; außerdem Hintergrund/Vordergrund und Drehung
+   prüfen. Jede neue Frage braucht wieder einen neuen Frame.
+5. Kamera blockieren/entziehen: Keine Antwort mit einem alten Bild; stattdessen Hinweis.

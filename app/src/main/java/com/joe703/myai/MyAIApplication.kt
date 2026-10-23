@@ -17,14 +17,12 @@ import androidx.compose.runtime.setValue
  */
 class MyAIApplication : Application() {
 
-    /** Snapshot des Ergebnisbilds für die Chat-Result-Ansicht. */
-    var chatResultSnapshot: DetectionResult? by mutableStateOf(null)
+    /** Atomic, frozen frame and matching overlays for ChatResultActivity. */
+    var chatScene: ChatScene? by mutableStateOf(null)
 
-    /** Gefilterte Objekte, die zur aktuellen Chat-Anfrage gehören. */
-    var chatMatchedObjects: List<DetectedObject> by mutableStateOf(emptyList())
-
-    /** Letzte Kandidatenliste für Folgeanfragen im Chat. */
-    var chatLastCandidates: List<DetectedObject> by mutableStateOf(emptyList())
+    /** Only semantic filters survive a question; object coordinates never cross frames. */
+    var chatRequestedClassId: Int? = null
+    var chatRequestedColor: String? = null
 
     /** Persistierter Chat-Verlauf, der Activity-Lebenszyklen überdauert. */
     val chatMessages = mutableStateListOf(

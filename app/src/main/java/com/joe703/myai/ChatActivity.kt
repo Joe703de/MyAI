@@ -1,6 +1,25 @@
 package com.joe703.myai
 
 import android.content.Intent
+import android.app.ActivityOptions
+import android.os.SystemClock
+import android.util.Size
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.core.content.ContextCompat
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
+import androidx.lifecycle.Lifecycle
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.withTimeoutOrNull
+import java.util.concurrent.Executors
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -10,10 +29,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -28,9 +45,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -50,7 +65,102 @@ data class ChatMessage(val sender: String, val text: String)
 
 data class ChatAnswer(val text: String, val matchedObjects: List<DetectedObject>)
 
+/** A single immutable publication keeps image, boxes and selected matches together. */
+data class ChatScene(val frame: DetectionResult, val matches: List<DetectedObject>) {
+    init { require(matches.all { it in frame.objects }) }
+}
+
 class ChatActivity : ComponentActivity() {
+    // Only this Activity's analyzer may supply chat frames; never reuse MainActivity's cache.
+    var liveResult: DetectionResult? by mutableStateOf(null)
+        private set
+    var cameraError: String? by mutableStateOf(null)
+        private set
+    private val analysisExecutor = Executors.newSingleThreadExecutor()
+    private var analyzer: YoloObjectAnalyzer? = null
+    private var provider: ProcessCameraProvider? = null
+    private var analysis: ImageAnalysis? = null
+    private var frameStartedNanos = 0L
+    private var generation = 0
+    private var pendingFrame: Pair<Long, CompletableDeferred<DetectionResult>>? = null
+
+    suspend fun captureFrame(): DetectionResult? {
+        if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) return null
+        val request = CompletableDeferred<DetectionResult>()
+        pendingFrame = SystemClock.elapsedRealtimeNanos() to request
+        return try {
+            withTimeoutOrNull(8000) { request.await() }
+        } finally {
+            if (pendingFrame?.second === request) pendingFrame = null
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        liveResult = null
+        cameraError = null
+        val session = ++generation
+        val future = ProcessCameraProvider.getInstance(this)
+        future.addListener({
+            if (session != generation || isFinishing) return@addListener
+            try {
+                val cameraProvider = future.get()
+                provider = cameraProvider
+                val app = application as MyAIApplication
+                val useCase = ImageAnalysis.Builder()
+                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                    .setTargetRotation(window.decorView.display?.rotation ?: 0)
+                    .setResolutionSelector(ResolutionSelector.Builder()
+                        .setResolutionStrategy(ResolutionStrategy(Size(1920, 1080),
+                            ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER))
+                        .build())
+                    .build()
+                analysis = useCase
+                useCase.setAnalyzer(analysisExecutor) { proxy ->
+                    frameStartedNanos = SystemClock.elapsedRealtimeNanos()
+                    // Initialize and invoke the GPU delegate on the same executor thread.
+                    val detector = analyzer ?: YoloObjectAnalyzer(
+                        applicationContext,
+                        targetClassProvider = { app.activeDetectionClasses },
+                        confThresholdProvider = { app.confidenceThreshold }
+                    ) { result ->
+                        val started = frameStartedNanos
+                        runOnUiThread {
+                            if (session == generation) {
+                                liveResult = result
+                                pendingFrame?.let { (requested, deferred) ->
+                                    if (started >= requested && result.rawBitmap != null) deferred.complete(result)
+                                }
+                            }
+                        }
+                    }.also { analyzer = it }
+                    detector.analyze(proxy)
+                }
+                cameraProvider.unbindAll()
+                cameraProvider.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA, useCase)
+            } catch (e: Exception) {
+                cameraError = "Kamera nicht verfügbar: ${e.localizedMessage}"
+            }
+        }, ContextCompat.getMainExecutor(this))
+    }
+
+    override fun onPause() {
+        ++generation
+        pendingFrame?.second?.cancel()
+        pendingFrame = null
+        liveResult = null
+        analysis?.let { it.clearAnalyzer(); provider?.unbind(it) }
+        analysis = null
+        // Queued behind the last inference, so native resources are not closed mid-frame.
+        analysisExecutor.execute { analyzer?.close(); analyzer = null }
+        super.onPause()
+    }
+
+    override fun onDestroy() {
+        analysisExecutor.shutdown()
+        super.onDestroy()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -73,14 +183,53 @@ fun ChatScreen() {
     val listState = rememberLazyListState()
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    var detectionResult by remember { mutableStateOf(app.currentDetectionResult) }
+    val activity = context as ChatActivity
+    val detectionResult = activity.liveResult
+    var sending by remember { mutableStateOf(false) }
+    var previewX by remember { mutableStateOf(0) }
+    var previewY by remember { mutableStateOf(0) }
+    var previewWidth by remember { mutableStateOf(1) }
+    var previewHeight by remember { mutableStateOf(1) }
+    var frozenPreview by remember { mutableStateOf<DetectionResult?>(null) }
     val messages = remember { app.chatMessages }
     var inputText by remember { mutableStateOf("") }
 
-    DisposableEffect(app) {
-        val listener = { detectionResult = app.currentDetectionResult }
-        app.addListener(listener)
-        onDispose { app.removeListener(listener) }
+    fun sendMessage() {
+        if (sending || inputText.isBlank()) return
+        val question = inputText
+        inputText = ""
+        sending = true
+        frozenPreview = null
+        messages.add(ChatMessage("Du", question))
+        keyboardController?.hide()
+        scope.launch {
+            try {
+                val snapshot = activity.captureFrame()
+                if (snapshot == null) {
+                    messages.add(ChatMessage("Assistant", activity.cameraError
+                        ?: "Kein aktuelles Kamerabild verfügbar. Bitte erneut versuchen."))
+                } else {
+                    val (answer, matchedObjects) = interpretQuestion(question, snapshot, app)
+                    messages.add(ChatMessage("Assistant", answer))
+                    if (matchedObjects.isNotEmpty()) {
+                        frozenPreview = snapshot
+                        app.chatScene = ChatScene(snapshot, matchedObjects.toList())
+                        // Let Compose display the exact snapshot before the scale-up transition.
+                        androidx.compose.runtime.withFrameNanos { }
+                        androidx.compose.runtime.withFrameNanos { }
+                        val options = ActivityOptions.makeScaleUpAnimation(
+                            activity.window.decorView, previewX, previewY, previewWidth, previewHeight)
+                        if (activity.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                            context.startActivity(Intent(context, ChatResultActivity::class.java), options.toBundle())
+                        }
+                    }
+                }
+                listState.animateScrollToItem(messages.size - 1)
+            } finally {
+                sending = false
+                frozenPreview = null
+            }
+        }
     }
 
     Box(
@@ -91,7 +240,25 @@ fun ChatScreen() {
             .navigationBarsPadding()
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            Spacer(modifier = Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.End) {
+                Column(horizontalAlignment = Alignment.End) {
+                    val preview = frozenPreview ?: detectionResult
+                    Box(Modifier.size(112.dp, 84.dp).background(Color.DarkGray)
+                        .onGloballyPositioned {
+                            previewX = it.positionInWindow().x.toInt()
+                            previewY = it.positionInWindow().y.toInt()
+                            previewWidth = it.size.width
+                            previewHeight = it.size.height
+                        }, contentAlignment = Alignment.Center) {
+                        val bitmap = preview?.rawBitmap
+                        if (bitmap != null) Image(bitmap.asImageBitmap(), "Aktuelles Kamerabild",
+                            modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                        else Text("Kamera startet …", color = Color.White, fontSize = 11.sp)
+                    }
+                    Text(activity.cameraError ?: if (sending) "Bild wird ausgewertet …" else "Live-Kamera",
+                        color = Color.LightGray, fontSize = 11.sp)
+                }
+            }
             LazyColumn(
                 state = listState,
                 modifier = Modifier
@@ -119,42 +286,10 @@ fun ChatScreen() {
                     textStyle = MaterialTheme.typography.bodyMedium.copy(color = Color.White),
                     modifier = Modifier.weight(1f),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                    keyboardActions = KeyboardActions(onSend = {
-                        if (inputText.isNotBlank()) {
-                            messages.add(ChatMessage("Du", inputText))
-                            val snapshot = app.currentDetectionResult
-                            val (answer, matchedObjects) = interpretQuestion(inputText, snapshot, app)
-                            messages.add(ChatMessage("Assistant", answer))
-                            if (matchedObjects.isNotEmpty() && snapshot != null) {
-                                app.chatResultSnapshot = snapshot
-                                app.chatMatchedObjects = matchedObjects
-                                val intent = Intent(context, ChatResultActivity::class.java)
-                                context.startActivity(intent)
-                            }
-                            inputText = ""
-                            keyboardController?.hide()
-                            scope.launch { listState.animateScrollToItem(messages.size - 1) }
-                        }
-                    }),
+                    keyboardActions = KeyboardActions(onSend = { sendMessage() }),
                     singleLine = true
                 )
-                Button(onClick = {
-                    if (inputText.isNotBlank()) {
-                        messages.add(ChatMessage("Du", inputText))
-                        val snapshot = app.currentDetectionResult
-                        val (answer, matchedObjects) = interpretQuestion(inputText, snapshot, app)
-                        messages.add(ChatMessage("Assistant", answer))
-                        if (matchedObjects.isNotEmpty() && snapshot != null) {
-                            app.chatResultSnapshot = snapshot
-                            app.chatMatchedObjects = matchedObjects
-                            val intent = Intent(context, ChatResultActivity::class.java)
-                            context.startActivity(intent)
-                        }
-                        inputText = ""
-                        keyboardController?.hide()
-                        scope.launch { listState.animateScrollToItem(messages.size - 1) }
-                    }
-                }) {
+                Button(onClick = { sendMessage() }, enabled = !sending) {
                     Text("Senden")
                 }
             }
@@ -193,7 +328,7 @@ private fun interpretQuestion(question: String, result: DetectionResult?, app: M
 
     val q = question.lowercase()
         .replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
-        .replace("m", " ")
+        .replace(Regex("(?<=\\d)m\\b"), " ")
         .replace("?", " ")
         .replace(".", " ")
         .replace(",", " ")
@@ -238,7 +373,7 @@ private fun interpretQuestion(question: String, result: DetectionResult?, app: M
         "dunkelrot" to "Rot", "hellrot" to "Rot",
         "dunkelgrau" to "Grau", "hellgrau" to "Grau"
     )
-    val requestedColor = colorMap.entries.firstOrNull { q.contains(it.key) }?.value
+    var requestedColor = colorMap.entries.firstOrNull { q.contains(it.key) }?.value
 
     val classMap = mapOf(
         "auto" to 2, "autos" to 2, "wagen" to 2, "fahrzeug" to 2, "fahrzeuge" to 2, "pkw" to 2,
@@ -247,7 +382,23 @@ private fun interpretQuestion(question: String, result: DetectionResult?, app: M
         "ampel" to 9, "ampeln" to 9, "verkehrsampel" to 9,
         "stoppschild" to 11, "stopschild" to 11, "stop" to 11, "stopschilder" to 11
     )
-    val requestedClassId = classMap.entries.firstOrNull { q.contains(it.key) }?.value
+    var requestedClassId = classMap.entries.firstOrNull { q.contains(it.key) }?.value
+
+    val isOverview = q.contains("was") && q.contains("siehst") || q.contains("alles")
+    val isFollowUp = !isOverview && q.any { it in listOf(
+        "liste", "links", "rechts", "linke", "linkes", "rechte", "rechtes", "ganzlinks", "ganzrechts",
+        "mitte", "mittlere", "nah", "nahes", "nahe", "naechste", "naechsten", "fern", "weit", "weitweg") }
+    if (isFollowUp) {
+        requestedClassId = requestedClassId ?: app.chatRequestedClassId
+        requestedColor = requestedColor ?: app.chatRequestedColor
+    }
+    app.chatRequestedClassId = requestedClassId
+    app.chatRequestedColor = requestedColor
+    val currentCandidates = objects.filter { obj ->
+        (requestedClassId == null || obj.classId == requestedClassId) &&
+            (requestedColor == null || obj.colorName.equals(requestedColor, ignoreCase = true))
+    }
+    if (q.contains("liste")) return ChatAnswer(describeAllObjects(currentCandidates, app), currentCandidates)
 
     if (q.any { it in listOf("was", "siehst", "gibt", "alles", "objekte", "liste") } && requestedClassId == null && requestedColor == null) {
         return ChatAnswer(describeAllObjects(objects, app), objects)
@@ -263,8 +414,8 @@ private fun interpretQuestion(question: String, result: DetectionResult?, app: M
         q.any { it in listOf("nah", "nahes", "nahe") } ||
         q.any { it in listOf("fern", "weit", "weites", "weiter", "weitweg", "weit weg") }
     ) {
-        val last = app.chatLastCandidates
-        if (last.size > 1) {
+        val last = currentCandidates
+        if (last.isNotEmpty()) {
             val filtered = when {
                 q.any { it in listOf("naechste", "naechsten", "nächste", "nächsten", "n") } ->
                     last.sortedBy { app.estimateDistance(it.width, it.classId) }.take(1)
@@ -284,6 +435,7 @@ private fun interpretQuestion(question: String, result: DetectionResult?, app: M
                     last.sortedByDescending { app.estimateDistance(it.width, it.classId) }.take(1)
                 else -> last
             }
+            if (filtered.isEmpty()) return ChatAnswer("Dort sehe ich aktuell kein passendes Objekt.", emptyList())
             if (filtered.isNotEmpty()) {
                 return if (askingWhere) {
                     ChatAnswer(describePositions(filtered, result, app), filtered)
@@ -308,13 +460,7 @@ private fun interpretQuestion(question: String, result: DetectionResult?, app: M
         }, matches.map { it.first })
     }
 
-    val candidates = objects.filter { obj ->
-        val classOk = requestedClassId == null || obj.classId == requestedClassId
-        val colorOk = requestedColor == null || obj.colorName.equals(requestedColor, ignoreCase = true)
-        classOk && colorOk
-    }
-
-    app.chatLastCandidates = candidates
+    val candidates = currentCandidates
 
     if (candidates.isEmpty()) {
         val className = requestedClassId?.let { CocoClassNames.getOrElse(it) { "Objekt" } }
