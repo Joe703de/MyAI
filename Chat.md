@@ -60,26 +60,44 @@ Der Chat versteht aber viele weitere Farbbegriffe und ordnet sie der nächsten b
 
 ## Beispielanfragen
 
-- „Was siehst du?“
 - „Wo ist das blaue Auto?“
 - „Wie weit ist das rote Auto?“
 - „Welche Objekte sind 100m entfernt?“
 - „Ich sehe ein rotes Auto“
 - „Gibt es einen Bus?“
+- „Das Auto ganz links“
+- „Das weiteste Auto“
+- „Das nächste Auto"
 
 ## Nachfragen bei mehr als drei Treffern
 
 Wenn eine Anfrage mehr als drei passende Objekte findet, antwortet der Bot z. B.:
 
 > „Ich sehe 5 autos. Das nächste ist 42m entfernt.
-> Soll ich dir die komplette Liste zeigen, nur das nächste, nur das rechte oder nur die drei nächsten?“
+> Soll ich Dir die komplette Liste zeigen oder nur ein bestimmtes Auto?“
 
 Mögliche Antworten auf diese Nachfrage:
 
 - „komplette Liste“ – zeigt alle Treffer an
-- „nur das nächste“ – nur das nächste Objekt
-- „nur das rechte“ – nur Objekte rechts
-- „nur das linke“ – nur Objekte links
-- „nur die drei nächsten“ – die drei nächsten Objekte (derzeit implizit über „nächste“)
+- „nur das nächste“ / „nah“ – nur das nächste Objekt
+- „nur das rechte“ / „ganz rechts“ – Objekt(e) rechts bzw. das am weitesten rechts
+- „nur das linke“ / „ganz links“ – Objekt(e) links bzw. das am weitesten links
+- „nur das weiteste“ / „weit weg“ – das am weitesten entfernte Objekt
 
 Diese Folgeanfragen greifen auf die letzten Kandidaten zurück und filtern sie erneut.
+
+## Nah/Fern-Regel für den Fahrer
+
+Für den Fahrer sind „oben“ und „unten“ im Bild keine sinnvollen Beschreibungen.
+Daher verwendet der Chat für die Entfernungsbeschreibung folgende Regel:
+
+1. **Primär: Kalibrierung** – Wenn für die erkannte Klasse Kalibrierdaten vorhanden sind,
+   wird `estimateDistance(...)` verwendet.
+   - unter 60 m → „nah“
+   - ab 60 m → „weit weg“
+2. **Fallback: Bildposition** – Wenn keine Kalibrierdaten vorhanden sind:
+   - Objekt unten im Bild → „nah“
+   - Objekt oben im Bild → „weit weg“
+   - mittig im Bild → „mittlere Entfernung“
+
+Beispiel: „Das rote Auto ist links und nah."

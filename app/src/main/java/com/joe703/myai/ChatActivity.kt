@@ -244,26 +244,36 @@ private fun interpretQuestion(question: String, result: DetectionResult?, app: M
     val askingDistance = q.any { it in listOf("weit", "entfernung", "entfernt", "distanz") }
 
     if (q.any { it in listOf("naechste", "naechsten", "nächste", "nächsten", "n") } ||
-        q.any { it in listOf("linke", "linkes", "links") } ||
-        q.any { it in listOf("rechte", "rechtes", "rechts") } ||
-        q.any { it in listOf("mitte", "mittlere") }
+        q.any { it in listOf("linke", "linkes", "links", "ganzlinks") } ||
+        q.any { it in listOf("rechte", "rechtes", "rechts", "ganzrechts") } ||
+        q.any { it in listOf("mitte", "mittlere") } ||
+        q.any { it in listOf("nah", "nahes", "nahe") } ||
+        q.any { it in listOf("fern", "weit", "weites", "weiter", "weitweg", "weit weg") }
     ) {
         val last = app.chatLastCandidates
         if (last.size > 1) {
             val filtered = when {
                 q.any { it in listOf("naechste", "naechsten", "nächste", "nächsten", "n") } ->
                     last.sortedBy { app.estimateDistance(it.width, it.classId) }.take(1)
+                q.any { it in listOf("ganzlinks") } ->
+                    listOf(last.minByOrNull { it.x + it.width / 2 }!!)
+                q.any { it in listOf("ganzrechts") } ->
+                    listOf(last.maxByOrNull { it.x + it.width / 2 }!!)
                 q.any { it in listOf("linke", "linkes", "links") } ->
                     last.filter { it.x + it.width / 2 < result.imageWidth / 3 }
                 q.any { it in listOf("rechte", "rechtes", "rechts") } ->
                     last.filter { it.x + it.width / 2 > 2 * result.imageWidth / 3 }
                 q.any { it in listOf("mitte", "mittlere") } ->
                     last.filter { (it.x + it.width / 2) in (result.imageWidth / 3)..(2 * result.imageWidth / 3) }
+                q.any { it in listOf("nah", "nahes", "nahe") } ->
+                    last.sortedBy { app.estimateDistance(it.width, it.classId) }.take(1)
+                q.any { it in listOf("fern", "weit", "weites", "weiter", "weitweg") } ->
+                    last.sortedByDescending { app.estimateDistance(it.width, it.classId) }.take(1)
                 else -> last
             }
             if (filtered.isNotEmpty()) {
                 return if (askingWhere) {
-                    ChatAnswer(describePositions(filtered, result), filtered)
+                    ChatAnswer(describePositions(filtered, result, app), filtered)
                 } else if (askingDistance) {
                     ChatAnswer(describeDistances(filtered, app), filtered)
                 } else {
@@ -306,13 +316,13 @@ private fun interpretQuestion(question: String, result: DetectionResult?, app: M
         val est = app.estimateDistance(first.width, first.classId)
         val distHint = if (est >= 0f) " Das nächste ist ${est.toInt()}m entfernt." else ""
         return ChatAnswer(
-            "Ich sehe ${candidates.size} ${className.lowercase()}${colorPart}.${distHint}\n\nSoll ich dir die komplette Liste zeigen, nur das nächste, nur das rechte oder nur die drei nächsten?",
+            "Ich sehe ${candidates.size} ${className.lowercase()}${colorPart}.${distHint}\n\nSoll ich Dir die komplette Liste zeigen oder nur ein bestimmtes Auto?",
             emptyList()
         )
     }
 
     return when {
-        askingWhere -> ChatAnswer(describePositions(candidates, result), candidates)
+        askingWhere -> ChatAnswer(describePositions(candidates, result, app), candidates)
         askingDistance -> ChatAnswer(describeDistances(candidates, app), candidates)
         else -> ChatAnswer(describeObjects(candidates, app), candidates)
     }
@@ -335,7 +345,7 @@ private fun describeObjects(objects: List<DetectedObject>, app: MyAIApplication)
     }
 }
 
-private fun describePositions(objects: List<DetectedObject>, result: DetectionResult): String {
+private fun describePositions(objects: List<DetectedObject>, result: DetectionResult, app: MyAIApplication): String {
     return if (objects.size == 1) {
         val obj = objects.first()
         val xPos = when {
@@ -343,13 +353,15 @@ private fun describePositions(objects: List<DetectedObject>, result: DetectionRe
             obj.x + obj.width / 2 > 2 * result.imageWidth / 3 -> "rechts"
             else -> "in der Mitte"
         }
+        val distM = app.estimateDistance(obj.width, obj.classId)
         val yPos = when {
-            obj.y + obj.height / 2 < result.imageHeight / 3 -> "oben"
-            obj.y + obj.height / 2 > 2 * result.imageHeight / 3 -> "unten"
-            else -> "in der Mitte"
+            distM >= 0f -> if (distM < 60f) "nah" else "weit weg"
+            obj.y + obj.height / 2 > 2 * result.imageHeight / 3 -> "nah"
+            obj.y + obj.height / 2 < result.imageHeight / 3 -> "weit weg"
+            else -> "mittlere Entfernung"
         }
         val className = CocoClassNames.getOrElse(obj.classId) { "Objekt" }
-        "Das ${colorName(obj.colorName)} $className ist $xPos $yPos."
+        "Das ${colorName(obj.colorName)} $className ist $xPos und $yPos."
     } else {
         "Ich sehe ${objects.size} Objekte:\n" + objects.joinToString("\n") { obj ->
             val xPos = when {
@@ -357,13 +369,15 @@ private fun describePositions(objects: List<DetectedObject>, result: DetectionRe
                 obj.x + obj.width / 2 > 2 * result.imageWidth / 3 -> "rechts"
                 else -> "Mitte"
             }
+            val distM = app.estimateDistance(obj.width, obj.classId)
             val yPos = when {
-                obj.y + obj.height / 2 < result.imageHeight / 3 -> "oben"
-                obj.y + obj.height / 2 > 2 * result.imageHeight / 3 -> "unten"
-                else -> "Mitte"
+                distM >= 0f -> if (distM < 60f) "nah" else "weit weg"
+                obj.y + obj.height / 2 > 2 * result.imageHeight / 3 -> "nah"
+                obj.y + obj.height / 2 < result.imageHeight / 3 -> "weit weg"
+                else -> "mittlere Entfernung"
             }
             val className = CocoClassNames.getOrElse(obj.classId) { "Objekt" }
-            "• ${colorName(obj.colorName)} $className $xPos $yPos"
+            "• ${colorName(obj.colorName)} $className $xPos, $yPos"
         }
     }
 }
