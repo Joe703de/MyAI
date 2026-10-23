@@ -625,8 +625,9 @@ fun CalibrationStatusBar(
     ) {
         Box(modifier = Modifier.width(180.dp), contentAlignment = Alignment.CenterStart) {
             val className = CocoClassNames.getOrElse(targetClassIndex) { "Objekt" }
+            val classCount = result?.objects?.count { it.classId == targetClassIndex } ?: 0
             Text(
-                text = "Set: ${targetClassSet.joinToString(", ")}\n$className: ${result?.eggCount ?: 0}",
+                text = "Set: ${targetClassSet.joinToString(", ")}\n$className: $classCount",
                 color = Color.Yellow,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier
