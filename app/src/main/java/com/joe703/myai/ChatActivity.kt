@@ -11,7 +11,8 @@ import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -251,14 +252,17 @@ fun ChatScreen() {
             Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.End) {
                 Column(horizontalAlignment = Alignment.End) {
                     val preview = frozenPreview ?: detectionResult
-                    Box(Modifier.size(112.dp, 84.dp).background(Color.DarkGray)
+                    val bitmap = preview?.rawBitmap
+                    // Use the rotated frame's ratio, just like the result image; no cropping.
+                    val previewAspectRatio = bitmap?.let { it.width.toFloat() / it.height }
+                        ?: (3f / 4f)
+                    Box(Modifier.width(84.dp).aspectRatio(previewAspectRatio).background(Color.Black)
                         .onGloballyPositioned {
                             previewX = it.positionInWindow().x.toInt()
                             previewY = it.positionInWindow().y.toInt()
                             previewWidth = it.size.width
                             previewHeight = it.size.height
                         }, contentAlignment = Alignment.Center) {
-                        val bitmap = preview?.rawBitmap
                         if (bitmap != null) Image(bitmap.asImageBitmap(), "Aktuelles Kamerabild",
                             modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
                         else Text("Kamera startet …", color = Color.White, fontSize = 11.sp)
