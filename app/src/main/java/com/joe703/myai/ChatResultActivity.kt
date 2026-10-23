@@ -9,6 +9,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -29,6 +30,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.joe703.myai.ui.theme.MyAITheme
@@ -53,6 +55,7 @@ fun ChatResultScreen(onFinish: () -> Unit) {
     val context = LocalContext.current
     val app = context.applicationContext as MyAIApplication
     val result = app.chatResultSnapshot
+    val matchedObjects = app.chatMatchedObjects
 
     Box(
         modifier = Modifier
@@ -67,35 +70,38 @@ fun ChatResultScreen(onFinish: () -> Unit) {
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             if (result != null && result.rawBitmap != null) {
-                Box(
+                BoxWithConstraints(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth(0.9f)
                         .padding(vertical = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Image(
-                        bitmap = result.rawBitmap.asImageBitmap(),
-                        contentDescription = "Ergebnisbild",
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clipToBounds()
-                    )
-
-                    val previewWidth = result.imageWidth.toFloat()
-                    val previewHeight = result.imageHeight.toFloat()
+                    val containerWidth = constraints.maxWidth.toFloat()
+                    val containerHeight = constraints.maxHeight.toFloat()
                     val imageWidth = result.imageWidth.toFloat()
                     val imageHeight = result.imageHeight.toFloat()
 
-                    if (previewWidth > 0f && previewHeight > 0f && imageWidth > 0f && imageHeight > 0f) {
-                        val scaleX = previewWidth / imageWidth
-                        val scaleY = previewHeight / imageHeight
-                        val scale = minOf(scaleX, scaleY)
-                        val offsetX = (previewWidth - imageWidth * scale) / 2f
-                        val offsetY = (previewHeight - imageHeight * scale) / 2f
+                    Image(
+                        bitmap = result.rawBitmap.asImageBitmap(),
+                        contentDescription = "Ergebnisbild",
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxSize()
+                    )
 
-                        Canvas(modifier = Modifier.fillMaxSize()) {
-                            result.objects.forEach { obj ->
+                    if (containerWidth > 0f && containerHeight > 0f && imageWidth > 0f && imageHeight > 0f) {
+                        val scaleX = containerWidth / imageWidth
+                        val scaleY = containerHeight / imageHeight
+                        val scale = minOf(scaleX, scaleY)
+                        val offsetX = (containerWidth - imageWidth * scale) / 2f
+                        val offsetY = (containerHeight - imageHeight * scale) / 2f
+
+                        Canvas(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clipToBounds()
+                        ) {
+                            matchedObjects.forEach { obj ->
                                 val left = obj.x * scale + offsetX
                                 val top = obj.y * scale + offsetY
                                 val right = (obj.x + obj.width) * scale + offsetX

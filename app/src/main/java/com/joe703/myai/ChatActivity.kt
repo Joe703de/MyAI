@@ -122,10 +122,12 @@ fun ChatScreen() {
                     keyboardActions = KeyboardActions(onSend = {
                         if (inputText.isNotBlank()) {
                             messages.add(ChatMessage("Du", inputText))
-                            val (answer, matchedObjects) = interpretQuestion(inputText, detectionResult, app)
+                            val snapshot = app.currentDetectionResult
+                            val (answer, matchedObjects) = interpretQuestion(inputText, snapshot, app)
                             messages.add(ChatMessage("Assistant", answer))
-                            if (matchedObjects.isNotEmpty()) {
-                                app.chatResultSnapshot = detectionResult
+                            if (matchedObjects.isNotEmpty() && snapshot != null) {
+                                app.chatResultSnapshot = snapshot
+                                app.chatMatchedObjects = matchedObjects
                                 val intent = Intent(context, ChatResultActivity::class.java)
                                 context.startActivity(intent)
                             }
@@ -139,10 +141,12 @@ fun ChatScreen() {
                 Button(onClick = {
                     if (inputText.isNotBlank()) {
                         messages.add(ChatMessage("Du", inputText))
-                        val (answer, matchedObjects) = interpretQuestion(inputText, detectionResult, app)
+                        val snapshot = app.currentDetectionResult
+                        val (answer, matchedObjects) = interpretQuestion(inputText, snapshot, app)
                         messages.add(ChatMessage("Assistant", answer))
-                        if (matchedObjects.isNotEmpty()) {
-                            app.chatResultSnapshot = detectionResult
+                        if (matchedObjects.isNotEmpty() && snapshot != null) {
+                            app.chatResultSnapshot = snapshot
+                            app.chatMatchedObjects = matchedObjects
                             val intent = Intent(context, ChatResultActivity::class.java)
                             context.startActivity(intent)
                         }
