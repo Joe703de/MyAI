@@ -233,6 +233,36 @@ private fun interpretQuestion(question: String, result: DetectionResult?, app: M
     val askingWhere = q.any { it in listOf("wo", "position", "seite", "links", "rechts") }
     val askingDistance = q.any { it in listOf("weit", "entfernung", "entfernt", "distanz") }
 
+    if (q.any { it in listOf("naechste", "naechsten", "nächste", "nächsten", "n") } ||
+        q.any { it in listOf("linke", "linkes", "links") } ||
+        q.any { it in listOf("rechte", "rechtes", "rechts") } ||
+        q.any { it in listOf("mitte", "mittlere") }
+    ) {
+        val last = app.chatLastCandidates
+        if (last.size > 1) {
+            val filtered = when {
+                q.any { it in listOf("naechste", "naechsten", "nächste", "nächsten", "n") } ->
+                    last.sortedBy { app.estimateDistance(it.width, it.classId) }.take(1)
+                q.any { it in listOf("linke", "linkes", "links") } ->
+                    last.filter { it.x + it.width / 2 < result.imageWidth / 3 }
+                q.any { it in listOf("rechte", "rechtes", "rechts") } ->
+                    last.filter { it.x + it.width / 2 > 2 * result.imageWidth / 3 }
+                q.any { it in listOf("mitte", "mittlere") } ->
+                    last.filter { (it.x + it.width / 2) in (result.imageWidth / 3)..(2 * result.imageWidth / 3) }
+                else -> last
+            }
+            if (filtered.isNotEmpty()) {
+                return if (askingWhere) {
+                    ChatAnswer(describePositions(filtered, result), filtered)
+                } else if (askingDistance) {
+                    ChatAnswer(describeDistances(filtered, app), filtered)
+                } else {
+                    ChatAnswer(describeObjects(filtered, app), filtered)
+                }
+            }
+        }
+    }
+
     if (targetDistance != null && !askingDistance && !askingWhere && requestedClassId == null && requestedColor == null) {
         val matches = objects.mapNotNull { obj ->
             val est = app.estimateDistance(obj.width, obj.classId)
@@ -251,38 +281,96 @@ private fun interpretQuestion(question: String, result: DetectionResult?, app: M
         classOk && colorOk
     }
 
+    app.chatLastCandidates = candidates
+
     if (candidates.isEmpty()) {
         val className = requestedClassId?.let { CocoClassNames.getOrElse(it) { "Objekt" } }
         val colorPart = requestedColor?.let { " in $it" } ?: ""
         return ChatAnswer("Ich sehe gerade kein${if (requestedClassId == 11) "" else "e"} ${className ?: "Objekt"}${colorPart}.", emptyList())
     }
 
-    val obj = candidates.first()
-    val est = app.estimateDistance(obj.width, obj.classId)
-    val className = CocoClassNames.getOrElse(obj.classId) { "Objekt" }
-    val colorPart = if (obj.colorName.isNotBlank()) " ${colorName(obj.colorName)}" else ""
+    if (candidates.size > 3) {
+        val className = requestedClassId?.let { CocoClassNames.getOrElse(it) { "Objekte" } } ?: "Objekte"
+        val colorPart = requestedColor?.let { " $it" } ?: ""
+        val first = candidates.first()
+        val est = app.estimateDistance(first.width, first.classId)
+        val distHint = if (est >= 0f) " Das nächste ist ${est.toInt()}m entfernt." else ""
+        return ChatAnswer(
+            "Ich sehe ${candidates.size} ${className.lowercase()}${colorPart}.${distHint}\n\nSoll ich dir die komplette Liste zeigen, nur das nächste, nur das rechte oder nur die drei nächsten?",
+            emptyList()
+        )
+    }
 
     return when {
-        askingWhere -> {
+        askingWhere -> ChatAnswer(describePositions(candidates, result), candidates)
+        askingDistance -> ChatAnswer(describeDistances(candidates, app), candidates)
+        else -> ChatAnswer(describeObjects(candidates, app), candidates)
+    }
+}
+
+private fun describeObjects(objects: List<DetectedObject>, app: MyAIApplication): String {
+    return if (objects.size == 1) {
+        val obj = objects.first()
+        val est = app.estimateDistance(obj.width, obj.classId)
+        val className = CocoClassNames.getOrElse(obj.classId) { "Objekt" }
+        val distPart = if (est >= 0f) " bei ungefähr ${est.toInt()}m" else ""
+        "Ich sehe ein ${colorName(obj.colorName)} $className$distPart."
+    } else {
+        "Ich sehe ${objects.size} Objekte:\n" + objects.joinToString("\n") { obj ->
+            val est = app.estimateDistance(obj.width, obj.classId)
+            val className = CocoClassNames.getOrElse(obj.classId) { "Objekt" }
+            val distPart = if (est >= 0f) " ~${est.toInt()}m" else ""
+            "• ${colorName(obj.colorName)} $className$distPart"
+        }
+    }
+}
+
+private fun describePositions(objects: List<DetectedObject>, result: DetectionResult): String {
+    return if (objects.size == 1) {
+        val obj = objects.first()
+        val xPos = when {
+            obj.x + obj.width / 2 < result.imageWidth / 3 -> "links"
+            obj.x + obj.width / 2 > 2 * result.imageWidth / 3 -> "rechts"
+            else -> "in der Mitte"
+        }
+        val yPos = when {
+            obj.y + obj.height / 2 < result.imageHeight / 3 -> "oben"
+            obj.y + obj.height / 2 > 2 * result.imageHeight / 3 -> "unten"
+            else -> "in der Mitte"
+        }
+        val className = CocoClassNames.getOrElse(obj.classId) { "Objekt" }
+        "Das ${colorName(obj.colorName)} $className ist $xPos $yPos."
+    } else {
+        "Ich sehe ${objects.size} Objekte:\n" + objects.joinToString("\n") { obj ->
             val xPos = when {
                 obj.x + obj.width / 2 < result.imageWidth / 3 -> "links"
                 obj.x + obj.width / 2 > 2 * result.imageWidth / 3 -> "rechts"
-                else -> "in der Mitte"
+                else -> "Mitte"
             }
             val yPos = when {
                 obj.y + obj.height / 2 < result.imageHeight / 3 -> "oben"
                 obj.y + obj.height / 2 > 2 * result.imageHeight / 3 -> "unten"
-                else -> "in der Mitte"
+                else -> "Mitte"
             }
-            ChatAnswer("Das $colorPart$className ist $xPos $yPos.", candidates)
+            val className = CocoClassNames.getOrElse(obj.classId) { "Objekt" }
+            "• ${colorName(obj.colorName)} $className $xPos $yPos"
         }
-        askingDistance -> {
-            if (est >= 0f) ChatAnswer("Das $colorPart$className ist ungefähr ${est.toInt()}m entfernt.", candidates)
-            else ChatAnswer("Für das $colorPart$className fehlen Kalibrierdaten, ich kann die Entfernung nicht schätzen.", candidates)
-        }
-        else -> {
-            val distPart = if (est >= 0f) " bei ungefähr ${est.toInt()}m" else ""
-            ChatAnswer("Ich sehe ein$colorPart $className$distPart.", candidates)
+    }
+}
+
+private fun describeDistances(objects: List<DetectedObject>, app: MyAIApplication): String {
+    return if (objects.size == 1) {
+        val obj = objects.first()
+        val est = app.estimateDistance(obj.width, obj.classId)
+        val className = CocoClassNames.getOrElse(obj.classId) { "Objekt" }
+        if (est >= 0f) "Das ${colorName(obj.colorName)} $className ist ungefähr ${est.toInt()}m entfernt."
+        else "Für das ${colorName(obj.colorName)} $className fehlen Kalibrierdaten, ich kann die Entfernung nicht schätzen."
+    } else {
+        "Ich sehe ${objects.size} Objekte:\n" + objects.joinToString("\n") { obj ->
+            val est = app.estimateDistance(obj.width, obj.classId)
+            val className = CocoClassNames.getOrElse(obj.classId) { "Objekt" }
+            val distPart = if (est >= 0f) "${est.toInt()}m" else "unbekannt"
+            "• ${colorName(obj.colorName)} $className: $distPart"
         }
     }
 }
@@ -295,7 +383,7 @@ private fun describeAllObjects(objects: List<DetectedObject>, app: MyAIApplicati
         val distPart = if (est >= 0f) " bei ungefähr ${est.toInt()}m" else ""
         "Ich sehe ein ${colorName(obj.colorName)} $className$distPart."
     } else {
-        objects.joinToString("\n") { obj ->
+        "Ich sehe ${objects.size} Objekte:\n" + objects.joinToString("\n") { obj ->
             val est = app.estimateDistance(obj.width, obj.classId)
             val className = CocoClassNames.getOrElse(obj.classId) { "Objekt" }
             val distPart = if (est >= 0f) " ~${est.toInt()}m" else ""

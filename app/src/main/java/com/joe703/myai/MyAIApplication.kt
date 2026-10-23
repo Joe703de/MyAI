@@ -23,6 +23,9 @@ class MyAIApplication : Application() {
     /** Gefilterte Objekte, die zur aktuellen Chat-Anfrage gehören. */
     var chatMatchedObjects: List<DetectedObject> by mutableStateOf(emptyList())
 
+    /** Letzte Kandidatenliste für Folgeanfragen im Chat. */
+    var chatLastCandidates: List<DetectedObject> by mutableStateOf(emptyList())
+
     /** Persistierter Chat-Verlauf, der Activity-Lebenszyklen überdauert. */
     val chatMessages = mutableStateListOf(
         ChatMessage("Assistant", "Frag mich zum aktuellen Bild. Zum Beispiel: \"Wo ist das blaue Auto?\" oder \"Welche Objekte sind 100m entfernt?\"")
