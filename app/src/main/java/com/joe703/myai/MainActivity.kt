@@ -219,7 +219,7 @@ fun MainCameraScreen() {
             // Leerer Abstand oben wie in DebugActivity
             Box(modifier = Modifier.weight(0.1f))
 
-            // Status-Zeile oben
+            // Status-Zeile oben: Set oben rechts, Klassenzähler darunter
             MainStatusBar(
                 result = detectionResult,
                 targetClassIndex = app.targetClassIndex,
@@ -232,7 +232,7 @@ fun MainCameraScreen() {
             // Kamera-Preview genau wie in DebugActivity
             Box(
                 modifier = Modifier
-                    .weight(0.7f)
+                    .weight(1f)
                     .fillMaxWidth(0.9f)
                     .border(1.dp, Color.White),
                 contentAlignment = Alignment.Center
@@ -307,14 +307,7 @@ fun MainCameraScreen() {
                 }
             }
 
-            // Freier Platz für zukünftige Anzeigen
-            Box(
-                modifier = Modifier
-                    .weight(0.15f)
-                    .fillMaxWidth(0.9f)
-            )
-
-            // Entfernungs-Slider unter dem Camera Preview
+            // Entfernungs-Slider direkt unter dem Camera Preview
             Column(
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
@@ -569,29 +562,47 @@ fun MainStatusBar(
     targetClassSet: List<Int>,
     modifier: Modifier = Modifier
 ) {
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Box(modifier = Modifier.width(180.dp), contentAlignment = Alignment.CenterStart) {
-            val label = if (targetClassIndex == -1) {
-                targetClassSet.joinToString(", ") { idx ->
-                    CocoClassNames.getOrElse(idx) { "?" }.let { if (it == "Stoppschild") "Stop" else it }
-                }.let { if (it.length > 20) it.take(17) + "..." else it }
-            } else {
-                CocoClassNames.getOrElse(targetClassIndex) { "Objekt" }.let { if (it == "Stoppschild") "Stop" else it }
-            }
-            Text(
-                text = "$label: ${result.eggCount}",
-                color = Color.Yellow,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier
-                    .background(Color.Black.copy(alpha = 0.7f))
-                    .padding(horizontal = 4.dp, vertical = 4.dp)
-            )
-        }
+    val countsByClass = result.objects.groupingBy { it.classId }.eachCount()
 
-        Box(modifier = Modifier.width(220.dp), contentAlignment = Alignment.CenterEnd) {
+    Column(
+        modifier = modifier,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top
+        ) {
+            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                val classLabels = targetClassSet.map { idx ->
+                    val name = CocoClassNames.getOrElse(idx) { "?" }.let { if (it == "Stoppschild") "Stop" else it }
+                    val count = countsByClass[idx] ?: 0
+                    "$name: $count"
+                }
+                Text(
+                    text = classLabels.joinToString(", "),
+                    color = Color.Yellow,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    modifier = Modifier
+                        .background(Color.Black.copy(alpha = 0.7f))
+                        .padding(horizontal = 4.dp, vertical = 4.dp)
+                )
+            }
+            Box(modifier = Modifier.width(120.dp), contentAlignment = Alignment.CenterEnd) {
+                Text(
+                    text = "Set: ${targetClassSet.joinToString(", ")}",
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier
+                        .background(Color.Black.copy(alpha = 0.7f))
+                        .padding(horizontal = 4.dp, vertical = 4.dp)
+                )
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
+        ) {
             Text(
                 text = "${result.processingTimeMs}ms@${result.imageWidth}x${result.imageHeight}",
                 color = Color.Gray,
