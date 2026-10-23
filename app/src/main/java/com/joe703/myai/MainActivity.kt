@@ -447,7 +447,7 @@ fun DistanceHintBadge(
     }
 
     val (obj, estimatedM) = closest ?: return
-    if (kotlin.math.abs(estimatedM - targetDistanceM) > 10f) return
+    if (kotlin.math.abs(estimatedM - targetDistanceM) > 25f) return
 
     val rank = candidates.indexOf(closest) + 1
 
