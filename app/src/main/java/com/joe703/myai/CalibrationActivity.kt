@@ -28,12 +28,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -173,9 +178,9 @@ fun CalibrationScreen() {
             Box(modifier = Modifier.weight(0.1f))
 
             // Meta-Daten für alle erkannten Objekte der aktuellen Kalibrierklasse
-            val currentClass = app.targetClassIndex
-            val classFilteredObjects = remember(objects, currentClass) {
-                objects.filter { it.classId == currentClass }
+            val currentClass = app.calibrationTargetClassIndex
+            val classFilteredObjects = remember(detectionResult?.objects ?: emptyList(), currentClass) {
+                (detectionResult?.objects ?: emptyList()).filter { it.classId == currentClass }
             }
             val averageAspectRatio = if (classFilteredObjects.isNotEmpty()) {
                 classFilteredObjects.map { it.width.toFloat() / it.height.toFloat() }.average().toFloat()
@@ -195,7 +200,7 @@ fun CalibrationScreen() {
             var pendingRatioMax by remember { mutableFloatStateOf(app.calibrationRatioMax) }
 
             // Bei Klassenwechsel die gespeicherten Werte der neuen Klasse laden
-            LaunchedEffect(app.targetClassIndex) {
+            LaunchedEffect(app.calibrationTargetClassIndex) {
                 pendingMinDistanceM = app.calibrationMinDistanceM
                 pendingMaxDistanceM = app.calibrationMaxDistanceM
                 pendingRatioMin = app.calibrationRatioMin
@@ -296,7 +301,7 @@ fun CalibrationScreen() {
             // Obere Status-Zeile
             CalibrationStatusBar(
                 result = detectionResult,
-                targetClassIndex = app.targetClassIndex,
+                targetClassIndex = app.calibrationTargetClassIndex,
                 targetClassSet = app.targetClassSet,
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
@@ -470,8 +475,8 @@ fun CalibrationScreen() {
             }
 
             // Klassenauswahl nur für das aktuelle Set (Kalibrierklasse)
-            ClassDropdown(
-                selectedIndex = app.targetClassIndex,
+            SimpleClassDropdown(
+                selectedIndex = app.calibrationTargetClassIndex,
                 onSelectionChanged = { app.updateTargetClass(it) },
                 allowedIndices = app.targetClassSet,
                 modifier = Modifier
@@ -659,6 +664,52 @@ private fun CalibrationItemCard(
                     text = "Max: ${currentMaxWidth}px @ ${willSaveMaxD.toInt()}m",
                     color = Color.Cyan,
                     style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SimpleClassDropdown(
+    selectedIndex: Int,
+    onSelectionChanged: (Int) -> Unit,
+    allowedIndices: List<Int>,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedName = CocoClassNames.getOrElse(selectedIndex) { "Unbekannt" }
+    val allowedNames = allowedIndices.mapNotNull { idx -> CocoClassNames.getOrNull(idx)?.let { idx to it } }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded },
+        modifier = modifier
+    ) {
+        TextField(
+            value = "COCO #$selectedIndex: $selectedName",
+            onValueChange = {},
+            readOnly = true,
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(),
+            colors = ExposedDropdownMenuDefaults.textFieldColors(),
+            textStyle = MaterialTheme.typography.bodyMedium
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            allowedNames.forEach { (index, name) ->
+                DropdownMenuItem(
+                    text = { Text("$index: $name") },
+                    onClick = {
+                        onSelectionChanged(index)
+                        expanded = false
+                    },
+                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
                 )
             }
         }
