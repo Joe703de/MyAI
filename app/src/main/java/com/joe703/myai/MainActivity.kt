@@ -342,7 +342,7 @@ fun MainCameraScreen() {
                 }
             }
 
-            // Schalter "Hinweis anzeigen"
+            // Schalter "Hinweis anzeigen" und Chat-Button
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -350,15 +350,31 @@ fun MainCameraScreen() {
                     .fillMaxWidth(0.9f)
                     .padding(vertical = 4.dp)
             ) {
-                Text(
-                    text = "Hinweis anzeigen",
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Switch(
-                    checked = showHint,
-                    onCheckedChange = { showHint = it }
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Hinweis anzeigen",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Switch(
+                        checked = showHint,
+                        onCheckedChange = { showHint = it },
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
+
+                Button(
+                    onClick = {
+                        val intent = Intent(context, ChatActivity::class.java)
+                        context.startActivity(intent)
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.DarkGray,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("Chat")
+                }
             }
 
             // Buttons oberhalb der Android-Navigationsleiste
