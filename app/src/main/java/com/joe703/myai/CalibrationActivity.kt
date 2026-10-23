@@ -464,188 +464,194 @@ private fun CalibrateView(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(0.dp)
             ) {
+                val currentMinWidth = frozenItems.find { it.label == "Min" }?.obj?.width ?: 0
+                val currentMaxWidth = frozenItems.find { it.label == "Max" }?.obj?.width ?: 0
+
                 if (frozenItems.isEmpty()) {
                     Text(
                         text = "Keine Objekte im Bereich ${"%.2f".format(ratioMin)}..${"%.2f".format(ratioMax)}",
                         color = Color.Gray,
                         style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp)
                     )
-                } else {
-                    val currentMinWidth = frozenItems.find { it.label == "Min" }?.obj?.width ?: 0
-                    val currentMaxWidth = frozenItems.find { it.label == "Max" }?.obj?.width ?: 0
+                }
 
-                    // 1. SV-Grenzen
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = "SV-Grenzen",
-                            color = Color.White,
-                            style = MaterialTheme.typography.bodyMedium
+                // 1. SV-Grenzen (immer sichtbar)
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "SV-Grenzen",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedTextField(
+                            value = ratioMinText,
+                            onValueChange = { ratioMinText = it },
+                            label = { Text("Min", color = Color.White, style = MaterialTheme.typography.bodySmall) },
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(color = Color.White),
+                            modifier = Modifier.width(100.dp),
+                            singleLine = true
                         )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            OutlinedTextField(
-                                value = ratioMinText,
-                                onValueChange = { ratioMinText = it },
-                                label = { Text("Min", color = Color.White, style = MaterialTheme.typography.bodySmall) },
-                                textStyle = MaterialTheme.typography.bodyMedium.copy(color = Color.White),
-                                modifier = Modifier.width(100.dp),
-                                singleLine = true
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            OutlinedTextField(
-                                value = ratioMaxText,
-                                onValueChange = { ratioMaxText = it },
-                                label = { Text("Max", color = Color.White, style = MaterialTheme.typography.bodySmall) },
-                                textStyle = MaterialTheme.typography.bodyMedium.copy(color = Color.White),
-                                modifier = Modifier.width(100.dp),
-                                singleLine = true
-                            )
-                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        OutlinedTextField(
+                            value = ratioMaxText,
+                            onValueChange = { ratioMaxText = it },
+                            label = { Text("Max", color = Color.White, style = MaterialTheme.typography.bodySmall) },
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(color = Color.White),
+                            modifier = Modifier.width(100.dp),
+                            singleLine = true
+                        )
                     }
-                    Button(
-                        onClick = {
-                            val parsedMin = ratioMinText.replace(",", ".").toFloatOrNull()?.coerceIn(0.1f, 10f) ?: pendingRatioMin
-                            val parsedMax = ratioMaxText.replace(",", ".").toFloatOrNull()?.coerceIn(0.1f, 10f) ?: pendingRatioMax
-                            pendingRatioMin = kotlin.math.min(parsedMin, parsedMax - 0.01f).coerceAtLeast(0.1f)
-                            pendingRatioMax = kotlin.math.max(parsedMax, pendingRatioMin + 0.01f).coerceAtMost(10f)
-                            ratioMinText = "%.2f".format(pendingRatioMin)
-                            ratioMaxText = "%.2f".format(pendingRatioMax)
-                            app.updateCalibrationRatios(pendingRatioMin, pendingRatioMax, app.calibrationTargetClassIndex)
+                }
+                Button(
+                    onClick = {
+                        val parsedMin = ratioMinText.replace(",", ".").toFloatOrNull()?.coerceIn(0.1f, 10f) ?: pendingRatioMin
+                        val parsedMax = ratioMaxText.replace(",", ".").toFloatOrNull()?.coerceIn(0.1f, 10f) ?: pendingRatioMax
+                        pendingRatioMin = kotlin.math.min(parsedMin, parsedMax - 0.01f).coerceAtLeast(0.1f)
+                        pendingRatioMax = kotlin.math.max(parsedMax, pendingRatioMin + 0.01f).coerceAtMost(10f)
+                        ratioMinText = "%.2f".format(pendingRatioMin)
+                        ratioMaxText = "%.2f".format(pendingRatioMax)
+                        app.updateCalibrationRatios(pendingRatioMin, pendingRatioMax, app.calibrationTargetClassIndex)
+                        app.saveCalibration()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth(0.9f)
+                        .padding(top = 4.dp)
+                ) {
+                    Text("SV-Grenzen speichern")
+                }
+
+                // 2. Max (nur wenn vorhanden)
+                val maxItem = frozenItems.find { it.label == "Max" }
+                maxItem?.let {
+                    CalibrationItemCard(
+                        label = it.label,
+                        obj = it.obj,
+                        thumbnail = it.thumbnail,
+                        initialDistanceM = pendingMaxDistanceM,
+                        otherProvider = { pendingMinDistanceM },
+                        onDistanceChange = { pendingMaxDistanceM = it },
+                        app = app,
+                        onSaveMin = { _ ->
+                            app.updateCalibrationObjects(
+                                minWidth = it.obj.width,
+                                minHeight = it.obj.height,
+                                maxWidth = app.calibrationMaxWidthPx,
+                                maxHeight = app.calibrationMaxHeightPx,
+                                classIndex = app.calibrationTargetClassIndex
+                            )
+                            app.updateCalibrationMinDistance(pendingMaxDistanceM, app.calibrationTargetClassIndex)
                             app.saveCalibration()
                         },
-                        modifier = Modifier
-                            .fillMaxWidth(0.9f)
-                            .padding(top = 4.dp)
-                    ) {
-                        Text("SV-Grenzen speichern")
-                    }
+                        onSaveMax = { _ ->
+                            app.updateCalibrationObjects(
+                                minWidth = app.calibrationMinWidthPx,
+                                minHeight = app.calibrationMinHeightPx,
+                                maxWidth = it.obj.width,
+                                maxHeight = it.obj.height,
+                                classIndex = app.calibrationTargetClassIndex
+                            )
+                            app.updateCalibrationMaxDistance(pendingMaxDistanceM, app.calibrationTargetClassIndex)
+                            app.saveCalibration()
+                        }
+                    )
+                }
 
-                    // 2. Max
-                    val maxItem = frozenItems.find { it.label == "Max" }
-                    maxItem?.let {
-                        CalibrationItemCard(
-                            label = it.label,
-                            obj = it.obj,
-                            thumbnail = it.thumbnail,
-                            initialDistanceM = pendingMaxDistanceM,
-                            otherProvider = { pendingMinDistanceM },
-                            onDistanceChange = { pendingMaxDistanceM = it },
-                            app = app,
-                            onSaveMin = { pendingM ->
-                                // Wert des Max-Blocks als Min speichern: Breite/Höhe des Max-Objekts, Entfernung = Max-Slider
-                                app.updateCalibrationObjects(
-                                    minWidth = it.obj.width,
-                                    minHeight = it.obj.height,
-                                    maxWidth = app.calibrationMaxWidthPx,
-                                    maxHeight = app.calibrationMaxHeightPx,
-                                    classIndex = app.calibrationTargetClassIndex
-                                )
-                                app.updateCalibrationMinDistance(pendingMaxDistanceM, app.calibrationTargetClassIndex)
-                                app.saveCalibration()
-                            },
-                            onSaveMax = { pendingM ->
-                                // Wert des Max-Blocks als Max speichern
-                                app.updateCalibrationObjects(
-                                    minWidth = app.calibrationMinWidthPx,
-                                    minHeight = app.calibrationMinHeightPx,
-                                    maxWidth = it.obj.width,
-                                    maxHeight = it.obj.height,
-                                    classIndex = app.calibrationTargetClassIndex
-                                )
-                                app.updateCalibrationMaxDistance(pendingMaxDistanceM, app.calibrationTargetClassIndex)
-                                app.saveCalibration()
-                            }
-                        )
-                    }
+                // 3. Min (nur wenn vorhanden)
+                val minItem = frozenItems.find { it.label == "Min" }
+                minItem?.let {
+                    CalibrationItemCard(
+                        label = it.label,
+                        obj = it.obj,
+                        thumbnail = it.thumbnail,
+                        initialDistanceM = pendingMinDistanceM,
+                        otherProvider = { pendingMaxDistanceM },
+                        onDistanceChange = { pendingMinDistanceM = it },
+                        app = app,
+                        onSaveMin = { _ ->
+                            app.updateCalibrationObjects(
+                                minWidth = it.obj.width,
+                                minHeight = it.obj.height,
+                                maxWidth = app.calibrationMaxWidthPx,
+                                maxHeight = app.calibrationMaxHeightPx,
+                                classIndex = app.calibrationTargetClassIndex
+                            )
+                            app.updateCalibrationMinDistance(pendingMinDistanceM, app.calibrationTargetClassIndex)
+                            app.saveCalibration()
+                        },
+                        onSaveMax = { _ ->
+                            app.updateCalibrationObjects(
+                                minWidth = app.calibrationMinWidthPx,
+                                minHeight = app.calibrationMinHeightPx,
+                                maxWidth = it.obj.width,
+                                maxHeight = it.obj.height,
+                                classIndex = app.calibrationTargetClassIndex
+                            )
+                            app.updateCalibrationMaxDistance(pendingMinDistanceM, app.calibrationTargetClassIndex)
+                            app.saveCalibration()
+                        }
+                    )
+                }
 
-                    // 3. Min
-                    val minItem = frozenItems.find { it.label == "Min" }
-                    minItem?.let {
-                        CalibrationItemCard(
-                            label = it.label,
-                            obj = it.obj,
-                            thumbnail = it.thumbnail,
-                            initialDistanceM = pendingMinDistanceM,
-                            otherProvider = { pendingMaxDistanceM },
-                            onDistanceChange = { pendingMinDistanceM = it },
-                            app = app,
-                            onSaveMin = { pendingM ->
-                                // Wert des Min-Blocks als Min speichern
-                                app.updateCalibrationObjects(
-                                    minWidth = it.obj.width,
-                                    minHeight = it.obj.height,
-                                    maxWidth = app.calibrationMaxWidthPx,
-                                    maxHeight = app.calibrationMaxHeightPx,
-                                    classIndex = app.calibrationTargetClassIndex
-                                )
-                                app.updateCalibrationMinDistance(pendingMinDistanceM, app.calibrationTargetClassIndex)
-                                app.saveCalibration()
-                            },
-                            onSaveMax = { pendingM ->
-                                // Wert des Min-Blocks als Max speichern: Breite/Höhe des Min-Objekts, Entfernung = Min-Slider
-                                app.updateCalibrationObjects(
-                                    minWidth = app.calibrationMinWidthPx,
-                                    minHeight = app.calibrationMinHeightPx,
-                                    maxWidth = it.obj.width,
-                                    maxHeight = it.obj.height,
-                                    classIndex = app.calibrationTargetClassIndex
-                                )
-                                app.updateCalibrationMaxDistance(pendingMinDistanceM, app.calibrationTargetClassIndex)
-                                app.saveCalibration()
-                            }
-                        )
-                    }
-
-                    // 4. Debug-Werte
-                    Spacer(modifier = Modifier.height(8.dp))
-                    val savedMinW = app.calibrationMinWidthPx
-                    val savedMinD = app.calibrationMinDistanceM
-                    val savedMaxW = app.calibrationMaxWidthPx
-                    val savedMaxD = app.calibrationMaxDistanceM
-                    val calcMinD = if (savedMinW > 0 && currentMinWidth > 0) savedMinD * savedMinW / currentMinWidth else -1f
-                    val calcMaxD = if (savedMaxW > 0 && currentMaxWidth > 0) savedMaxD * savedMaxW / currentMaxWidth else -1f
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Color.Black.copy(alpha = 0.7f))
-                            .padding(horizontal = 4.dp, vertical = 4.dp)
-                    ) {
+                // 4. Debug-Werte (immer sichtbar, Min/Max nur wenn vorhanden)
+                Spacer(modifier = Modifier.height(8.dp))
+                val savedMinW = app.calibrationMinWidthPx
+                val savedMinD = app.calibrationMinDistanceM
+                val savedMaxW = app.calibrationMaxWidthPx
+                val savedMaxD = app.calibrationMaxDistanceM
+                val calcMinD = if (savedMinW > 0 && currentMinWidth > 0) savedMinD * savedMinW / currentMinWidth else -1f
+                val calcMaxD = if (savedMaxW > 0 && currentMaxWidth > 0) savedMaxD * savedMaxW / currentMaxWidth else -1f
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.Black.copy(alpha = 0.7f))
+                        .padding(horizontal = 4.dp, vertical = 4.dp)
+                ) {
+                    if (currentMinWidth > 0) {
                         Text(
                             text = "aktuell Min: ${currentMinWidth}px @ ${calcMinD.toInt()}m",
                             color = Color.Yellow,
                             style = MaterialTheme.typography.bodySmall
                         )
+                    }
+                    if (currentMaxWidth > 0) {
                         Text(
                             text = "aktuell Max: ${currentMaxWidth}px @ ${calcMaxD.toInt()}m",
                             color = Color.Yellow,
                             style = MaterialTheme.typography.bodySmall
                         )
+                    }
+                    if (currentMinWidth > 0 || currentMaxWidth > 0) {
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "zu speichern:",
-                            color = Color.Cyan,
-                            style = MaterialTheme.typography.bodySmall
-                        )
+                    }
+                    Text(
+                        text = "zu speichern:",
+                        color = Color.Cyan,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    if (currentMinWidth > 0) {
                         Text(
                             text = "Min: ${currentMinWidth}px @ ${pendingMinDistanceM.toInt()}m",
                             color = Color.Cyan,
                             style = MaterialTheme.typography.bodySmall
                         )
+                    }
+                    if (currentMaxWidth > 0) {
                         Text(
                             text = "Max: ${currentMaxWidth}px @ ${pendingMaxDistanceM.toInt()}m",
                             color = Color.Cyan,
                             style = MaterialTheme.typography.bodySmall
                         )
-                        Text(
-                            text = "SV: ${"%.2f".format(pendingRatioMin)}..${"%.2f".format(pendingRatioMax)}",
-                            color = Color.Cyan,
-                            style = MaterialTheme.typography.bodySmall
-                        )
                     }
+                    Text(
+                        text = "SV: ${"%.2f".format(pendingRatioMin)}..${"%.2f".format(pendingRatioMax)}",
+                        color = Color.Cyan,
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 }
             }
 
