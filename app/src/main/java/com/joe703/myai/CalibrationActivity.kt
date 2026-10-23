@@ -6,6 +6,7 @@ import android.util.Log
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.BackHandler
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.resolutionselector.ResolutionSelector
@@ -28,6 +29,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -36,7 +38,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
@@ -107,6 +108,7 @@ fun CalibrationScreen() {
     val app = context.applicationContext as MyAIApplication
 
     var detectionResult by remember { mutableStateOf(app.currentDetectionResult) }
+    var isCalibrateView by remember { mutableStateOf(false) }
 
     DisposableEffect(app) {
         val listener = {
@@ -164,6 +166,53 @@ fun CalibrationScreen() {
         }
     }
 
+    if (isCalibrateView) {
+        CalibrateView(
+            app = app,
+            detectionResult = detectionResult,
+            onBack = { isCalibrateView = false }
+        )
+    } else {
+        SearchView(
+            app = app,
+            detectionResult = detectionResult,
+            onCalibrate = { isCalibrateView = true }
+        )
+    }
+}
+
+@Composable
+private fun SearchView(
+    app: MyAIApplication,
+    detectionResult: DetectionResult?,
+    onCalibrate: () -> Unit
+) {
+    BackHandler {
+        // System back: leave CalibrationActivity (handled by default activity back)
+    }
+
+    val currentClass = app.calibrationTargetClassIndex
+    val allObjects: List<DetectedObject> = detectionResult?.objects ?: emptyList()
+    val classFilteredObjects = remember(allObjects, currentClass) {
+        allObjects.filter { it.classId == currentClass }
+    }
+    val ratioMin = app.calibrationRatioMin
+    val ratioMax = app.calibrationRatioMax
+    val rawBitmap = detectionResult?.rawBitmap
+    val imageWidth = detectionResult?.imageWidth ?: 0
+    val imageHeight = detectionResult?.imageHeight ?: 0
+
+    val missCandidates = classFilteredObjects
+        .filter { obj ->
+            val r = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
+            r > 0f && (r < ratioMin || r > ratioMax)
+        }
+        .sortedBy { obj ->
+            val r = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
+            kotlin.math.min(kotlin.math.abs(r - ratioMin), kotlin.math.abs(r - ratioMax))
+        }
+        .take(5)
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -174,147 +223,8 @@ fun CalibrationScreen() {
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Leerer Abstand oben wie in DebugActivity
             Box(modifier = Modifier.weight(0.1f))
 
-            // Meta-Daten für alle erkannten Objekte der aktuellen Kalibrierklasse
-            val currentClass = app.calibrationTargetClassIndex
-            val allObjects: List<DetectedObject> = detectionResult?.objects ?: emptyList()
-            val classFilteredObjects = remember(allObjects, currentClass) {
-                allObjects.filter { obj -> obj.classId == currentClass }
-            }
-            val averageAspectRatio = if (classFilteredObjects.isNotEmpty()) {
-                classFilteredObjects.map { it.width.toFloat() / it.height.toFloat() }.average().toFloat()
-            } else {
-                0f
-            }
-            val imageWidth = detectionResult?.imageWidth ?: 0
-            val imageHeight = detectionResult?.imageHeight ?: 0
-            val rawBitmap = detectionResult?.rawBitmap
-
-            var inCalibrationMode by remember { mutableStateOf(false) }
-
-            // Lokale Slider-Werte, werden erst beim Verlassen gespeichert
-            var pendingMinDistanceM by remember { mutableFloatStateOf(app.calibrationMinDistanceM) }
-            var pendingMaxDistanceM by remember { mutableFloatStateOf(app.calibrationMaxDistanceM) }
-            var pendingRatioMin by remember { mutableFloatStateOf(app.calibrationRatioMin) }
-            var pendingRatioMax by remember { mutableFloatStateOf(app.calibrationRatioMax) }
-            var ratioMinText by remember { mutableStateOf("%.2f".format(pendingRatioMin)) }
-            var ratioMaxText by remember { mutableStateOf("%.2f".format(pendingRatioMax)) }
-
-            // Eingefrorene Kalibrierungsobjekte mit Bitmap-Kopien.
-            // Bleiben erhalten, solange der Kalibrierungsmodus aktiv ist.
-            var frozenItems by remember { mutableStateOf<List<FrozenCalibrationItem>>(emptyList()) }
-
-            // Bei Klassenwechsel die gespeicherten Werte der neuen Klasse laden und eingefrorene Objekte zurücksetzen
-            LaunchedEffect(app.calibrationTargetClassIndex, inCalibrationMode) {
-                pendingMinDistanceM = app.calibrationMinDistanceM
-                pendingMaxDistanceM = app.calibrationMaxDistanceM
-                pendingRatioMin = app.calibrationRatioMin
-                pendingRatioMax = app.calibrationRatioMax
-                ratioMinText = "%.2f".format(pendingRatioMin)
-                ratioMaxText = "%.2f".format(pendingRatioMax)
-                if (inCalibrationMode) {
-                    frozenItems = emptyList()
-                }
-            }
-
-            // Gültige Objekte innerhalb des klassenspezifischen Seitenverhältnis-Fensters
-            val ratioMin = pendingRatioMin
-            val ratioMax = pendingRatioMax
-            val validObjects = remember(classFilteredObjects, ratioMin, ratioMax) {
-                classFilteredObjects.filter { obj ->
-                    val ratio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
-                    ratio in ratioMin..ratioMax
-                }
-            }
-            val farthestObject = remember(validObjects) {
-                validObjects.minByOrNull { it.width }
-            }
-            val nearestObject = remember(validObjects) {
-                validObjects.maxByOrNull { it.width }
-            }
-
-            // 5 Objekte der aktuellen Klasse, die das Fenster am knappsten verfehlen
-            val missCandidates = classFilteredObjects
-                .filter { obj ->
-                    val ratio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
-                    ratio > 0f && (ratio < ratioMin || ratio > ratioMax)
-                }
-                .sortedBy { obj ->
-                    val ratio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
-                    kotlin.math.min(
-                        kotlin.math.abs(ratio - ratioMin),
-                        kotlin.math.abs(ratio - ratioMax)
-                    )
-                }
-                .take(5)
-
-            // Beim Einschalten einfrieren (inkl. Bitmap-Kopie).
-            // Beim Ausschalten die aktuellen eingefrorenen Objekte + Slider-Werte speichern.
-            LaunchedEffect(inCalibrationMode) {
-                if (inCalibrationMode) {
-                    val nearest = nearestObject
-                    val farthest = farthestObject
-                    if (nearest != null && farthest != null) {
-                        val nearestThumb = cropBitmap(rawBitmap, imageWidth, imageHeight, nearest)?.copy(Bitmap.Config.ARGB_8888, false)
-                        val farthestThumb = cropBitmap(rawBitmap, imageWidth, imageHeight, farthest)?.copy(Bitmap.Config.ARGB_8888, false)
-                        frozenItems = listOfNotNull(
-                            farthestThumb?.let { FrozenCalibrationItem("Max", farthest, it) }
-                                ?: FrozenCalibrationItem("Max", farthest, null),
-                            nearestThumb?.let { FrozenCalibrationItem("Min", nearest, it) }
-                                ?: FrozenCalibrationItem("Min", nearest, null)
-                        ).distinctBy { it.obj }
-
-                        // Slider initial über die GESPEICHERTEN Kalibrierwerte vorbelegen.
-                        val minD = app.estimateDistanceFromSavedPoint(
-                            app.calibrationMinWidthPx,
-                            app.calibrationMinDistanceM,
-                            nearest.width
-                        ).coerceIn(10f, 300f).takeIf { it >= 0f } ?: 10f
-                        val maxD = app.estimateDistanceFromSavedPoint(
-                            app.calibrationMaxWidthPx,
-                            app.calibrationMaxDistanceM,
-                            farthest.width
-                        ).coerceIn(10f, 300f).takeIf { it >= 0f } ?: 300f
-
-                        // Sicherstellen, dass Max > Min bleibt
-                        pendingMinDistanceM = minD
-                        pendingMaxDistanceM = if (maxD > minD) maxD else minD + 1f
-                        if (pendingMaxDistanceM > 300f) {
-                            pendingMaxDistanceM = 300f
-                            pendingMinDistanceM = 299f
-                        }
-                    }
-                } else {
-                    // Kalibrierung beendet -> aktuelle eingefrorene Objekte + Slider-Werte speichern
-                    val currentMin = frozenItems.find { it.label == "Min" }?.obj
-                    val currentMax = frozenItems.find { it.label == "Max" }?.obj
-                    if (currentMin != null && currentMax != null) {
-                        app.updateCalibrationObjects(
-                            minWidth = currentMin.width,
-                            minHeight = currentMin.height,
-                            maxWidth = currentMax.width,
-                            maxHeight = currentMax.height,
-                            classIndex = app.targetClassIndex
-                        )
-                    }
-                    // Texteingaben validieren und übernehmen
-                    val parsedMin = ratioMinText.replace(",", ".").toFloatOrNull()?.coerceIn(0.1f, 10f) ?: pendingRatioMin
-                    val parsedMax = ratioMaxText.replace(",", ".").toFloatOrNull()?.coerceIn(0.1f, 10f) ?: pendingRatioMax
-                    pendingRatioMin = kotlin.math.min(parsedMin, parsedMax - 0.01f).coerceAtLeast(0.1f)
-                    pendingRatioMax = kotlin.math.max(parsedMax, pendingRatioMin + 0.01f).coerceAtMost(10f)
-                    ratioMinText = "%.2f".format(pendingRatioMin)
-                    ratioMaxText = "%.2f".format(pendingRatioMax)
-
-                    app.updateCalibrationDistances(minM = pendingMinDistanceM, maxM = pendingMaxDistanceM, classIndex = app.targetClassIndex)
-                    app.updateCalibrationRatios(pendingRatioMin, pendingRatioMax, app.targetClassIndex)
-                    app.saveCalibration()
-                    frozenItems = emptyList()
-                }
-            }
-
-            // Obere Status-Zeile
             CalibrationStatusBar(
                 result = detectionResult,
                 targetClassIndex = app.calibrationTargetClassIndex,
@@ -331,46 +241,224 @@ fun CalibrationScreen() {
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(0.dp)
             ) {
-                if (inCalibrationMode) {
-                    // Kalibrierungsansicht bleibt auch bei "Keine Objekte erkannt" sichtbar
-                    if (frozenItems.isEmpty()) {
-                        Text(
-                            text = "Keine Objekte im Bereich 1,1..1,35",
-                            color = Color.Gray,
-                            style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp)
-                        )
-                    } else {
-                        val currentMinWidth = frozenItems.find { it.label == "Min" }?.obj?.width ?: 0
-                        val currentMaxWidth = frozenItems.find { it.label == "Max" }?.obj?.width ?: 0
-                        frozenItems.forEach { item ->
-                            when (item.label) {
-                                "Max" -> CalibrationItemCard(
-                                    label = item.label,
-                                    obj = item.obj,
-                                    thumbnail = item.thumbnail,
-                                    app = app,
-                                    initialDistanceM = pendingMaxDistanceM,
-                                    currentMinWidth = currentMinWidth,
-                                    currentMaxWidth = currentMaxWidth,
-                                    otherProvider = { pendingMinDistanceM },
-                                    onDistanceChange = { pendingMaxDistanceM = it }
-                                )
-                                else -> CalibrationItemCard(
-                                    label = item.label,
-                                    obj = item.obj,
-                                    thumbnail = item.thumbnail,
-                                    app = app,
-                                    initialDistanceM = pendingMinDistanceM,
-                                    currentMinWidth = currentMinWidth,
-                                    currentMaxWidth = currentMaxWidth,
-                                    otherProvider = { pendingMaxDistanceM },
-                                    onDistanceChange = { pendingMinDistanceM = it }
+                if (classFilteredObjects.isEmpty()) {
+                    Text(
+                        text = "Keine Objekte der Klasse erkannt",
+                        color = Color.Gray,
+                        style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp)
+                    )
+                } else {
+                    classFilteredObjects.forEachIndexed { index, obj ->
+                        val aspectRatio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
+                        val outOfRange = aspectRatio < ratioMin || aspectRatio > ratioMax
+                        val thumbnail = missCandidates.firstOrNull { it === obj }?.let { candidate ->
+                            cropBitmap(rawBitmap, imageWidth, imageHeight, candidate)
+                        }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color.Black.copy(alpha = 0.7f))
+                                .padding(horizontal = 4.dp, vertical = 1.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "${index + 1}: ${obj.width}×${obj.height}px, SV ${"%.2f".format(aspectRatio)}:1",
+                                color = if (outOfRange) Color.Red else Color.Cyan,
+                                style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp),
+                                modifier = Modifier.weight(1f)
+                            )
+                            thumbnail?.let { bitmap ->
+                                Image(
+                                    bitmap = bitmap.asImageBitmap(),
+                                    contentDescription = "Knappes Objekt",
+                                    modifier = Modifier
+                                        .padding(start = 4.dp)
+                                        .height(56.dp)
+                                        .width(84.dp)
+                                        .border(1.dp, Color.Yellow)
                                 )
                             }
                         }
                     }
+                }
+            }
 
-                    // SV-Grenzen-Eingabefelder immer im Kalibrierungsmodus, auch ohne erkannte Objekte
+            SimpleClassDropdown(
+                selectedIndex = app.calibrationTargetClassIndex,
+                onSelectionChanged = { app.updateCalibrationTargetClass(it) },
+                allowedIndices = app.targetClassSet,
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .padding(vertical = 4.dp)
+            )
+
+            Button(
+                onClick = onCalibrate,
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .padding(bottom = 8.dp)
+            ) {
+                Text("Kalibrieren")
+            }
+        }
+    }
+}
+
+@Composable
+private fun CalibrateView(
+    app: MyAIApplication,
+    detectionResult: DetectionResult?,
+    onBack: () -> Unit
+) {
+    BackHandler {
+        onBack()
+    }
+
+    val currentClass = app.calibrationTargetClassIndex
+    val allObjects: List<DetectedObject> = detectionResult?.objects ?: emptyList()
+    val classFilteredObjects = remember(allObjects, currentClass) {
+        allObjects.filter { it.classId == currentClass }
+    }
+
+    var pendingMinDistanceM by remember { mutableFloatStateOf(app.calibrationMinDistanceM) }
+    var pendingMaxDistanceM by remember { mutableFloatStateOf(app.calibrationMaxDistanceM) }
+    var pendingRatioMin by remember { mutableFloatStateOf(app.calibrationRatioMin) }
+    var pendingRatioMax by remember { mutableFloatStateOf(app.calibrationRatioMax) }
+    var ratioMinText by remember { mutableStateOf("%.2f".format(pendingRatioMin)) }
+    var ratioMaxText by remember { mutableStateOf("%.2f".format(pendingRatioMax)) }
+
+    var frozenItems by remember { mutableStateOf<List<FrozenCalibrationItem>>(emptyList()) }
+
+    val ratioMin = pendingRatioMin
+    val ratioMax = pendingRatioMax
+    val validObjects = remember(classFilteredObjects, ratioMin, ratioMax) {
+        classFilteredObjects.filter { obj ->
+            val r = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
+            r in ratioMin..ratioMax
+        }
+    }
+    val farthestObject = remember(validObjects) { validObjects.minByOrNull { it.width } }
+    val nearestObject = remember(validObjects) { validObjects.maxByOrNull { it.width } }
+
+    val rawBitmap = detectionResult?.rawBitmap
+    val imageWidth = detectionResult?.imageWidth ?: 0
+    val imageHeight = detectionResult?.imageHeight ?: 0
+
+    // Einmalig Objekte einfrieren beim Aufruf der Kalibrier-Ansicht
+    LaunchedEffect(Unit) {
+        pendingMinDistanceM = app.calibrationMinDistanceM
+        pendingMaxDistanceM = app.calibrationMaxDistanceM
+        pendingRatioMin = app.calibrationRatioMin
+        pendingRatioMax = app.calibrationRatioMax
+        ratioMinText = "%.2f".format(pendingRatioMin)
+        ratioMaxText = "%.2f".format(pendingRatioMax)
+
+        val nearest = nearestObject
+        val farthest = farthestObject
+        if (nearest != null && farthest != null) {
+            val nearestThumb = cropBitmap(rawBitmap, imageWidth, imageHeight, nearest)?.copy(Bitmap.Config.ARGB_8888, false)
+            val farthestThumb = cropBitmap(rawBitmap, imageWidth, imageHeight, farthest)?.copy(Bitmap.Config.ARGB_8888, false)
+            frozenItems = listOfNotNull(
+                farthestThumb?.let { FrozenCalibrationItem("Max", farthest, it) }
+                    ?: FrozenCalibrationItem("Max", farthest, null),
+                nearestThumb?.let { FrozenCalibrationItem("Min", nearest, it) }
+                    ?: FrozenCalibrationItem("Min", nearest, null)
+            ).distinctBy { it.obj }
+
+            val minD = app.estimateDistanceFromSavedPoint(
+                app.calibrationMinWidthPx,
+                app.calibrationMinDistanceM,
+                nearest.width
+            ).coerceIn(10f, 300f).takeIf { it >= 0f } ?: 10f
+            val maxD = app.estimateDistanceFromSavedPoint(
+                app.calibrationMaxWidthPx,
+                app.calibrationMaxDistanceM,
+                farthest.width
+            ).coerceIn(10f, 300f).takeIf { it >= 0f } ?: 300f
+
+            pendingMinDistanceM = minD
+            pendingMaxDistanceM = if (maxD > minD) maxD else minD + 1f
+            if (pendingMaxDistanceM > 300f) {
+                pendingMaxDistanceM = 300f
+                pendingMinDistanceM = 299f
+            }
+        } else {
+            frozenItems = emptyList()
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            .navigationBarsPadding()
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(modifier = Modifier.weight(0.05f))
+
+            CalibrationStatusBar(
+                result = detectionResult,
+                targetClassIndex = app.calibrationTargetClassIndex,
+                targetClassSet = app.targetClassSet,
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .padding(bottom = 4.dp)
+            )
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(0.9f)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(0.dp)
+            ) {
+                if (frozenItems.isEmpty()) {
+                    Text(
+                        text = "Keine Objekte im Bereich ${"%.2f".format(ratioMin)}..${"%.2f".format(ratioMax)}",
+                        color = Color.Gray,
+                        style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp)
+                    )
+                } else {
+                    val currentMinWidth = frozenItems.find { it.label == "Min" }?.obj?.width ?: 0
+                    val currentMaxWidth = frozenItems.find { it.label == "Max" }?.obj?.width ?: 0
+
+                    // 1. Max
+                    val maxItem = frozenItems.find { it.label == "Max" }
+                    maxItem?.let {
+                        CalibrationItemCard(
+                            label = it.label,
+                            obj = it.obj,
+                            thumbnail = it.thumbnail,
+                            app = app,
+                            initialDistanceM = pendingMaxDistanceM,
+                            currentMinWidth = currentMinWidth,
+                            currentMaxWidth = currentMaxWidth,
+                            otherProvider = { pendingMinDistanceM },
+                            onDistanceChange = { pendingMaxDistanceM = it }
+                        )
+                    }
+                    // 2. Min
+                    val minItem = frozenItems.find { it.label == "Min" }
+                    minItem?.let {
+                        CalibrationItemCard(
+                            label = it.label,
+                            obj = it.obj,
+                            thumbnail = it.thumbnail,
+                            app = app,
+                            initialDistanceM = pendingMinDistanceM,
+                            currentMinWidth = currentMinWidth,
+                            currentMaxWidth = currentMaxWidth,
+                            otherProvider = { pendingMaxDistanceM },
+                            onDistanceChange = { pendingMinDistanceM = it }
+                        )
+                    }
+
+                    // 3. SV-Grenzen
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -403,97 +491,45 @@ fun CalibrationScreen() {
                         }
                     }
 
-                    // Eingefrorene Debug-Daten unter den SV-Grenzen anzeigen
+                    // 4. Debug-Daten der eingefrorenen Objekte
                     Spacer(modifier = Modifier.height(8.dp))
-                    val displayObjects = if (frozenItems.isNotEmpty()) frozenItems.map { it.obj } else emptyList()
-                    if (displayObjects.isEmpty()) {
-                        Text(
-                            text = "Keine eingefrorenen Objekte",
-                            color = Color.Gray,
-                            style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp)
-                        )
-                    } else {
-                        displayObjects.forEachIndexed { index, obj ->
-                            val aspectRatio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
-                            val outOfRange = aspectRatio < ratioMin || aspectRatio > ratioMax
-                            val thumbnail = cropBitmap(rawBitmap, imageWidth, imageHeight, obj)
+                    frozenItems.forEachIndexed { index, item ->
+                        val obj = item.obj
+                        val aspectRatio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
+                        val outOfRange = aspectRatio < ratioMin || aspectRatio > ratioMax
+                        val thumbnail = item.thumbnail ?: cropBitmap(rawBitmap, imageWidth, imageHeight, obj)
 
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(Color.Black.copy(alpha = 0.7f))
-                                    .padding(horizontal = 4.dp, vertical = 1.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = "${index + 1}: ${obj.width}×${obj.height}px, SV ${"%.2f".format(aspectRatio)}:1",
-                                    color = if (outOfRange) Color.Red else Color.Cyan,
-                                    style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp),
-                                    modifier = Modifier.weight(1f)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color.Black.copy(alpha = 0.7f))
+                                .padding(horizontal = 4.dp, vertical = 1.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "${index + 1}: ${obj.width}×${obj.height}px, SV ${"%.2f".format(aspectRatio)}:1",
+                                color = if (outOfRange) Color.Red else Color.Cyan,
+                                style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp),
+                                modifier = Modifier.weight(1f)
+                            )
+                            thumbnail?.let { bitmap ->
+                                Image(
+                                    bitmap = bitmap.asImageBitmap(),
+                                    contentDescription = "Knappes Objekt",
+                                    modifier = Modifier
+                                        .padding(start = 4.dp)
+                                        .height(56.dp)
+                                        .width(84.dp)
+                                        .border(1.dp, Color.Yellow)
                                 )
-                                thumbnail?.let { bitmap ->
-                                    Image(
-                                        bitmap = bitmap.asImageBitmap(),
-                                        contentDescription = "Knappes Objekt",
-                                        modifier = Modifier
-                                            .padding(start = 4.dp)
-                                            .height(56.dp)
-                                            .width(84.dp)
-                                            .border(1.dp, Color.Yellow)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    // Debug-Anzeige der aktuell erkannten Objekte nur wenn Kalibrierung AUS ist
-                    if (classFilteredObjects.isEmpty()) {
-                        Text(
-                            text = "Keine Objekte der Klasse erkannt",
-                            color = Color.Gray,
-                            style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp)
-                        )
-                    } else {
-                        classFilteredObjects.forEachIndexed { index, obj ->
-                            val aspectRatio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
-                            val outOfRange = aspectRatio < ratioMin || aspectRatio > ratioMax
-                            val thumbnail = missCandidates.firstOrNull { it === obj }?.let { candidate ->
-                                cropBitmap(rawBitmap, imageWidth, imageHeight, candidate)
-                            }
-
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(Color.Black.copy(alpha = 0.7f))
-                                    .padding(horizontal = 4.dp, vertical = 1.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = "${index + 1}: ${obj.width}×${obj.height}px, SV ${"%.2f".format(aspectRatio)}:1",
-                                    color = if (outOfRange) Color.Red else Color.Cyan,
-                                    style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp),
-                                    modifier = Modifier.weight(1f)
-                                )
-                                thumbnail?.let { bitmap ->
-                                    Image(
-                                        bitmap = bitmap.asImageBitmap(),
-                                        contentDescription = "Knappes Objekt",
-                                        modifier = Modifier
-                                            .padding(start = 4.dp)
-                                            .height(56.dp)
-                                            .width(84.dp)
-                                            .border(1.dp, Color.Yellow)
-                                    )
-                                }
                             }
                         }
                     }
                 }
             }
 
-            // Fußzeile mit Durchschnitt und Kalibrierung-Schalter
+            // Fußzeile: nur SV-Grenzen und Speichern/Zurück
             Row(
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
@@ -503,16 +539,6 @@ fun CalibrationScreen() {
             ) {
                 Column {
                     Text(
-                        text = if (averageAspectRatio > 0f) {
-                            "Ø SV: ${"%.2f".format(averageAspectRatio)}:1"
-                        } else {
-                            "Ø SV: -"
-                        },
-                        color = Color.White,
-                        style = MaterialTheme.typography.headlineMedium,
-                        modifier = Modifier.background(Color.Black.copy(alpha = 0.7f))
-                    )
-                    Text(
                         text = "SV<${"%.2f".format(pendingRatioMin)}|>${"%.2f".format(pendingRatioMax)}",
                         color = Color.White,
                         style = MaterialTheme.typography.bodyMedium,
@@ -520,38 +546,37 @@ fun CalibrationScreen() {
                     )
                 }
 
-                Column(
-                    horizontalAlignment = Alignment.End,
-                    modifier = Modifier.background(Color.Black.copy(alpha = 0.7f)).padding(horizontal = 4.dp, vertical = 2.dp)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.clickable { inCalibrationMode = !inCalibrationMode }
-                    ) {
-                        Text(
-                            text = "Kalibrierung",
-                            color = Color.White,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Switch(
-                            checked = inCalibrationMode,
-                            onCheckedChange = { inCalibrationMode = it }
-                        )
+                    Button(onClick = onBack) {
+                        Text("Zurück")
+                    }
+                    Button(onClick = {
+                        val currentMin = frozenItems.find { it.label == "Min" }?.obj
+                        val currentMax = frozenItems.find { it.label == "Max" }?.obj
+                        if (currentMin != null && currentMax != null) {
+                            app.updateCalibrationObjects(
+                                minWidth = currentMin.width,
+                                minHeight = currentMin.height,
+                                maxWidth = currentMax.width,
+                                maxHeight = currentMax.height,
+                                classIndex = app.calibrationTargetClassIndex
+                            )
+                        }
+                        val parsedMin = ratioMinText.replace(",", ".").toFloatOrNull()?.coerceIn(0.1f, 10f) ?: pendingRatioMin
+                        val parsedMax = ratioMaxText.replace(",", ".").toFloatOrNull()?.coerceIn(0.1f, 10f) ?: pendingRatioMax
+                        pendingRatioMin = kotlin.math.min(parsedMin, parsedMax - 0.01f).coerceAtLeast(0.1f)
+                        pendingRatioMax = kotlin.math.max(parsedMax, pendingRatioMin + 0.01f).coerceAtMost(10f)
+
+                        app.updateCalibrationDistances(minM = pendingMinDistanceM, maxM = pendingMaxDistanceM, classIndex = app.calibrationTargetClassIndex)
+                        app.updateCalibrationRatios(pendingRatioMin, pendingRatioMax, app.calibrationTargetClassIndex)
+                        app.saveCalibration()
+                        onBack()
+                    }) {
+                        Text("Speichern")
                     }
                 }
-            }
-
-            // Klassenauswahl: nur im Set-Modus Dropdown anzeigen
-            if (app.targetClassIndex == app.SET_MODE_CLASS_INDEX) {
-                SimpleClassDropdown(
-                    selectedIndex = app.calibrationTargetClassIndex,
-                    onSelectionChanged = { app.updateCalibrationTargetClass(it) },
-                    allowedIndices = app.targetClassSet,
-                    modifier = Modifier
-                        .fillMaxWidth(0.9f)
-                        .padding(vertical = 4.dp)
-                )
             }
         }
     }
@@ -622,7 +647,6 @@ private fun CalibrationItemCard(
         mutableFloatStateOf(initialDistanceM)
     }
 
-    // Debug-Infos nur unter dem Min-Slider anzeigen
     val showDebug = label == "Min"
 
     Column(
@@ -698,17 +722,7 @@ private fun CalibrationItemCard(
             val calcMaxD = if (savedMaxW > 0 && currentMaxWidth > 0) savedMaxD * savedMaxW / currentMaxWidth else -1f
             val willSaveMaxD = otherProvider()
 
-            Column(modifier = Modifier.padding(top = 2.dp)) {
-                Text(
-                    text = "gespeichert Min: ${savedMinW}px @ ${savedMinD.toInt()}m",
-                    color = Color.Yellow,
-                    style = MaterialTheme.typography.bodySmall
-                )
-                Text(
-                    text = "gespeichert Max: ${savedMaxW}px @ ${savedMaxD.toInt()}m",
-                    color = Color.Yellow,
-                    style = MaterialTheme.typography.bodySmall
-                )
+            Column(modifier = Modifier.padding(top = 4.dp)) {
                 Text(
                     text = "aktuell Min: ${currentMinWidth}px @ ${calcMinD.toInt()}m",
                     color = Color.Yellow,
