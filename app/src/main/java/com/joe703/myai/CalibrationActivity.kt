@@ -426,7 +426,9 @@ private fun CalibrateView(
             ).coerceIn(10f, 300f).takeIf { it >= 0f } ?: 300f
 
             pendingMinDistanceM = minD
-            pendingMaxDistanceM = if (maxD > minD) maxD else minD + 1f
+            // Ohne zweite Karte darf der Max-Wert unabhängig vom Min-Wert bleiben.
+            val hasMinItem = frozenItems.any { it.label == "Min" }
+            pendingMaxDistanceM = if (!hasMinItem || maxD > minD) maxD else minD + 1f
             if (pendingMaxDistanceM > 300f) {
                 pendingMaxDistanceM = 300f
                 pendingMinDistanceM = 299f
@@ -533,7 +535,7 @@ private fun CalibrateView(
                         obj = it.obj,
                         thumbnail = it.thumbnail,
                         initialDistanceM = pendingMaxDistanceM,
-                        otherProvider = { pendingMinDistanceM },
+                        otherProvider = { pendingMinDistanceM.takeIf { frozenItems.any { it.label == "Min" } } },
                         onDistanceChange = { pendingMaxDistanceM = it },
                         app = app,
                         onSaveMin = { _ ->
@@ -597,7 +599,7 @@ private fun CalibrateView(
                     )
                 }
 
-                // 4. Debug-Werte (immer sichtbar, Min/Max nur wenn vorhanden)
+                // 4. Gespeicherte Referenzen immer anzeigen, Objektwerte nur wenn vorhanden.
                 Spacer(modifier = Modifier.height(8.dp))
                 val savedMinW = app.calibrationMinWidthPx
                 val savedMinD = app.calibrationMinDistanceM
@@ -611,6 +613,16 @@ private fun CalibrateView(
                         .background(Color.Black.copy(alpha = 0.7f))
                         .padding(horizontal = 4.dp, vertical = 4.dp)
                 ) {
+                    Text(
+                        text = "gespeichert Min: ${savedMinW}px @ ${savedMinD.toInt()}m",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Text(
+                        text = "gespeichert Max: ${savedMaxW}px @ ${savedMaxD.toInt()}m",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodySmall
+                    )
                     if (currentMinWidth > 0) {
                         Text(
                             text = "aktuell Min: ${currentMinWidth}px @ ${calcMinD.toInt()}m",
@@ -736,7 +748,7 @@ private fun CalibrationItemCard(
     obj: DetectedObject,
     thumbnail: Bitmap?,
     initialDistanceM: Float,
-    otherProvider: () -> Float,
+    otherProvider: () -> Float?,
     onDistanceChange: (Float) -> Unit,
     app: MyAIApplication,
     onSaveMin: ((Float) -> Unit)? = null,
@@ -806,7 +818,9 @@ private fun CalibrationItemCard(
                 onValueChange = { newValue ->
                     val clamped = newValue.coerceIn(10f, 300f)
                     val other = otherProvider()
-                    distanceM = if (label == "Min") {
+                    distanceM = if (other == null) {
+                        clamped
+                    } else if (label == "Min") {
                         clamped.coerceAtMost(other - 1f)
                     } else {
                         clamped.coerceAtLeast(other + 1f)
