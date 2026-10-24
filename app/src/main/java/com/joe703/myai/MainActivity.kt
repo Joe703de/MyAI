@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -342,61 +343,13 @@ fun MainCameraScreen() {
                 }
             }
 
-            // Buttons oberhalb der Android-Navigationsleiste
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .padding(top = 8.dp, bottom = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.Start),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Button(
-                    onClick = {
-                        val intent = Intent(context, DebugActivity::class.java)
-                        context.startActivity(intent)
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.DarkGray,
-                        contentColor = Color.White
-                    )
-                ) {
-                    Text("Debug")
-                }
-
-                Button(
-                    onClick = {
-                        val intent = Intent(context, CalibrationActivity::class.java)
-                        context.startActivity(intent)
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.DarkGray,
-                        contentColor = Color.White
-                    )
-                ) {
-                    Text("Kalibrierung")
-                }
-
-                Button(
-                    onClick = {
-                        val intent = Intent(context, OcrActivity::class.java)
-                        context.startActivity(intent)
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.DarkGray,
-                        contentColor = Color.White
-                    )
-                ) {
-                    Text("OCR")
-                }
-            }
-
-            // Schalter "Hinweis anzeigen" und Chat-Button
+            // Schalter "Hinweis anzeigen" und Chat-Button direkt unter dem Slider
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
-                    .padding(top = 4.dp, bottom = 16.dp)
+                    .padding(top = 8.dp, bottom = 4.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -419,9 +372,68 @@ fun MainCameraScreen() {
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color.DarkGray,
                         contentColor = Color.White
-                    )
+                    ),
+                    modifier = Modifier
+                        .width(88.dp)
+                        .height(40.dp)
                 ) {
                     Text("Chat")
+                }
+            }
+
+            // Buttons oberhalb der Android-Navigationsleiste
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .padding(top = 4.dp, bottom = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Button(
+                        onClick = {
+                            val intent = Intent(context, DebugActivity::class.java)
+                            context.startActivity(intent)
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.DarkGray,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text("Debug")
+                    }
+
+                    Button(
+                        onClick = {
+                            val intent = Intent(context, CalibrationActivity::class.java)
+                            context.startActivity(intent)
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.DarkGray,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text("Kalibrierung")
+                    }
+                }
+
+                Button(
+                    onClick = {
+                        val intent = Intent(context, OcrActivity::class.java)
+                        context.startActivity(intent)
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.DarkGray,
+                        contentColor = Color.White
+                    ),
+                    modifier = Modifier
+                        .width(88.dp)
+                        .height(40.dp)
+                ) {
+                    Text("OCR")
                 }
             }
         }
