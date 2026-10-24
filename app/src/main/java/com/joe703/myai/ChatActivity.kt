@@ -736,7 +736,7 @@ private fun indefiniteArticleAndColor(colorName: String?, className: String): St
 }
 
 /** Kept for places that only need the adjective form. */
-@Deprecated("Use articleAndColor or definiteArticleAndColor instead", ReplaceWith("articleAndColor(name, "Objekt")"))
+@Deprecated("Use articleAndColor or definiteArticleAndColor instead", ReplaceWith("articleAndColor(name, \"Objekt\")"))
 private fun colorName(name: String?): String {
     if (name.isNullOrBlank()) return ""
     val adj = coloredAdjective(canonicalColor(name), "n")
