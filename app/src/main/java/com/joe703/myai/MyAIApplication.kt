@@ -1,5 +1,10 @@
 package com.joe703.myai
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import android.app.Application
 import android.content.Context
 import android.util.Log
@@ -21,6 +26,44 @@ class MyAIApplication : Application() {
 
     lateinit var chatHistoryStore: ChatHistoryStore
         private set
+
+    private val chatStorageScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    @Volatile private var chatSessionGeneration = 0
+
+    /** Publish the answer first; saving never gates sending another question or navigating. */
+    fun saveChatImage(message: ChatMessage, scene: ChatScene) {
+        val generation = chatSessionGeneration
+        chatStorageScope.launch {
+            var failed = false
+            val imageId = try {
+                withContext(Dispatchers.IO) {
+                    synchronized(chatHistoryStore) {
+                        // Clear/reset invalidates queued saves before taking the same store lock.
+                        if (generation != chatSessionGeneration) null
+                        else chatHistoryStore.saveScene(scene)
+                    }
+                }
+            } catch (e: IOException) {
+                Log.e("ChatHistory", "Could not save chat image", e)
+                failed = true
+                null
+            }
+            if (generation != chatSessionGeneration) return@launch
+            val index = chatMessages.indexOfFirst { it === message }
+            if (index >= 0) {
+                chatMessages[index] = message.copy(imageId = imageId, imageSaving = false,
+                    imageSaveFailed = failed)
+            }
+        }
+    }
+
+    suspend fun clearChatSession() {
+        chatSessionGeneration++
+        chatMessages.clear()
+        chatRequestedClassId = null
+        chatRequestedColor = null
+        withContext(Dispatchers.IO) { chatHistoryStore.clear() }
+    }
 
     /** Only semantic filters survive a question; object coordinates never cross frames. */
     var chatRequestedClassId: Int? = null
@@ -119,6 +162,7 @@ class MyAIApplication : Application() {
 
     /** Keep history across internal screens, but not across app sessions. */
     fun resetChatSession() {
+        chatSessionGeneration++
         chatMessages.clear()
         chatRequestedClassId = null
         chatRequestedColor = null

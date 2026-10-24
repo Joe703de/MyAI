@@ -1,7 +1,6 @@
 package com.joe703.myai
 
 import android.content.Intent
-import android.app.ActivityOptions
 import android.os.SystemClock
 import android.util.Size
 import androidx.camera.core.CameraSelector
@@ -15,8 +14,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInWindow
 import androidx.lifecycle.Lifecycle
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.withTimeoutOrNull
@@ -53,7 +50,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -68,13 +64,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.joe703.myai.ui.theme.MyAITheme
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.AlertDialog
 import java.io.IOException
 
-data class ChatMessage(val sender: String, val text: String, val imageId: String? = null)
+data class ChatMessage(
+    val sender: String, val text: String, val imageId: String? = null,
+    val imageSaving: Boolean = false, val imageSaveFailed: Boolean = false
+)
 
 data class ChatAnswer(val text: String, val matchedObjects: List<DetectedObject>)
 
@@ -204,11 +201,6 @@ fun ChatScreen() {
     val activity = context as ChatActivity
     val detectionResult = activity.liveResult
     var sending by remember { mutableStateOf(false) }
-    var previewX by remember { mutableIntStateOf(0) }
-    var previewY by remember { mutableIntStateOf(0) }
-    var previewWidth by remember { mutableIntStateOf(1) }
-    var previewHeight by remember { mutableIntStateOf(1) }
-    var frozenPreview by remember { mutableStateOf<DetectionResult?>(null) }
     val messages = remember { app.chatMessages }
     var inputText by remember { mutableStateOf("") }
     var confirmDelete by remember { mutableStateOf(false) }
@@ -229,10 +221,7 @@ fun ChatScreen() {
                 sending = true
                 scope.launch {
                     try {
-                        withContext(Dispatchers.IO) { app.chatHistoryStore.clear() }
-                        messages.clear()
-                        app.chatRequestedClassId = null
-                        app.chatRequestedColor = null
+                        app.clearChatSession()
                     } catch (e: IOException) {
                         storageError = "Der Chat konnte nicht vollständig gelöscht werden. Bitte erneut versuchen."
                     } finally { sending = false }
@@ -251,7 +240,6 @@ fun ChatScreen() {
         if (sending || question.isBlank()) return
         inputText = ""
         sending = true
-        frozenPreview = null
         keyboardController?.hide()
         scope.launch {
             try {
@@ -262,32 +250,16 @@ fun ChatScreen() {
                         ?: "Kein aktuelles Kamerabild verfügbar. Bitte erneut versuchen."))
                 } else {
                     val (answer, matchedObjects) = interpretQuestion(question, snapshot, app)
-                    val imageId = if (matchedObjects.isNotEmpty()) {
-                        withContext(Dispatchers.IO) {
-                            app.chatHistoryStore.saveScene(ChatScene(snapshot, matchedObjects.toList(), answer))
-                        }
-                    } else null
-                    appendMessage(ChatMessage("Assistant", answer, imageId))
-                    if (imageId != null) {
-                        frozenPreview = snapshot
-                        // Let Compose display the exact snapshot before the scale-up transition.
-                        androidx.compose.runtime.withFrameNanos { }
-                        androidx.compose.runtime.withFrameNanos { }
-                        val options = ActivityOptions.makeScaleUpAnimation(
-                            activity.window.decorView, previewX, previewY, previewWidth, previewHeight)
-                        if (activity.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
-                            context.startActivity(Intent(context, ChatResultActivity::class.java)
-                                .putExtra(ChatResultActivity.EXTRA_IMAGE_ID, imageId), options.toBundle())
-                        }
+                    val reply = ChatMessage("Assistant", answer, imageSaving = matchedObjects.isNotEmpty())
+                    appendMessage(reply)
+                    if (reply.imageSaving) {
+                        app.saveChatImage(reply, ChatScene(snapshot, matchedObjects.toList(), answer))
                     }
                 }
-                listState.animateScrollToItem(messages.size - 1)
-            } catch (e: IOException) {
-                storageError = "Die Antwort oder das Bild konnte nicht dauerhaft gespeichert werden. Bitte Speicherplatz prüfen und erneut versuchen."
             } finally {
                 sending = false
-                frozenPreview = null
             }
+            if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex)
         }
     }
 
@@ -359,18 +331,12 @@ fun ChatScreen() {
         // Separate overlay: IME insets affect only the chat/input column, never this anchor.
         Row(Modifier.align(Alignment.TopEnd).fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.End) {
             Column(horizontalAlignment = Alignment.End) {
-                val preview = frozenPreview ?: detectionResult
-                val bitmap = preview?.rawBitmap
+                val bitmap = detectionResult?.rawBitmap
                 // Use the rotated frame's ratio, just like the result image; no cropping.
                 val previewAspectRatio = bitmap?.let { it.width.toFloat() / it.height }
                     ?: (3f / 4f)
-                Box(Modifier.width(84.dp).aspectRatio(previewAspectRatio).background(Color.Black)
-                    .onGloballyPositioned {
-                        previewX = it.positionInWindow().x.toInt()
-                        previewY = it.positionInWindow().y.toInt()
-                        previewWidth = it.size.width
-                        previewHeight = it.size.height
-                    }, contentAlignment = Alignment.Center) {
+                Box(Modifier.width(84.dp).aspectRatio(previewAspectRatio).background(Color.Black),
+                    contentAlignment = Alignment.Center) {
                     if (bitmap != null) Image(bitmap.asImageBitmap(), "Aktuelles Kamerabild",
                         modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
                     else Text("Kamera startet …", color = Color.White, fontSize = 11.sp)
@@ -403,6 +369,14 @@ private fun ChatBubble(msg: ChatMessage, imageEnabled: Boolean) {
                 color = if (isUser) MaterialTheme.colorScheme.onPrimary else Color.White,
                 style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 20.sp)
             )
+            if (msg.imageSaving) {
+                Button(onClick = {}, enabled = false) { Text("Bild") }
+                Text("Bild wird gespeichert …", color = Color.LightGray, style = MaterialTheme.typography.bodySmall)
+            }
+            if (msg.imageSaveFailed) {
+                Text("Bild konnte nicht gespeichert werden.", color = Color.LightGray,
+                    style = MaterialTheme.typography.bodySmall)
+            }
             msg.imageId?.let { imageId ->
                 val interactionSource = remember { MutableInteractionSource() }
                 val pressed by interactionSource.collectIsPressedAsState()

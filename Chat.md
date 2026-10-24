@@ -19,6 +19,13 @@ alle anderen erkannten Objekte werden mit einem **gelben** Rahmen angezeigt.
 
 ## Gespeicherte Ergebnisse
 
+Die Antwort erscheint sofort nach der Kameraanalyse im Chat. Das passende Bild wird
+anschließend verlustfrei als PNG im Hintergrund gespeichert. Währenddessen ist sein
+„Bild“-Button deaktiviert; weitere Fragen sind bereits möglich. Die Ergebnisansicht
+öffnet sich ausschließlich durch Antippen von „Bild“, nicht automatisch.
+Bei einem Speicherfehler bleibt die Antwort erhalten und erhält einen Fehlerhinweis.
+
+
 Unter dem Ergebnisbild stehen die ersten drei sichtbaren Zeilen der zugehörigen
 Chatantwort. Längere Antworten werden mit „…“ gekürzt; im Chat bleibt der volle Text.
 
