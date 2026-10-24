@@ -169,3 +169,11 @@ Beispiel: „Das rote Auto ist links und nah."
    und kurzzeitigen Hintergrund prüfen: Verlauf bleibt erhalten. App beenden und
    neu starten: Verlauf und Bilder sind entfernt. Dasselbe nach erzwungenem Stopp prüfen.
 8. „Chat löschen“ erst abbrechen, dann bestätigen: Nur beim Bestätigen wird gelöscht.
+
+## Grammatik der Antworten
+
+Jeder Aufzählungspunkt beschreibt genau ein erkanntes Objekt: „rotes Auto“,
+„weißer LKW“, „grüne Ampel“ oder „rotes Stoppschild“. Nur Zusammenfassungen
+mehrerer Objekte verwenden den Plural, etwa „3 rote Autos“. Nach „Ich sehe“
+steht der Akkusativ („einen weißen LKW“); als Satzsubjekt dagegen
+„Der weiße LKW“. `ChatGrammar` enthält explizite Formen für alle 80 COCO-Klassen.
