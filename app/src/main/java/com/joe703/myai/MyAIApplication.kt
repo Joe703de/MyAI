@@ -2,6 +2,8 @@ package com.joe703.myai
 
 import android.app.Application
 import android.content.Context
+import android.util.Log
+import java.io.IOException
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -111,9 +113,20 @@ class MyAIApplication : Application() {
         prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         loadCalibration()
         chatHistoryStore = ChatHistoryStore(this)
-        chatHistoryStore.loadMessages()?.let { saved ->
-            chatMessages.clear()
-            chatMessages.addAll(saved)
+        // Never restore a prior app session, including after an abrupt process death.
+        resetChatSession()
+    }
+
+    /** Keep history across internal screens, but not across app sessions. */
+    fun resetChatSession() {
+        chatMessages.clear()
+        chatRequestedClassId = null
+        chatRequestedColor = null
+        try {
+            chatHistoryStore.clear()
+        } catch (e: IOException) {
+            // History is never restored; retry orphan-file cleanup at the next start.
+            Log.e("ChatHistory", "Could not remove all session images", e)
         }
     }
 

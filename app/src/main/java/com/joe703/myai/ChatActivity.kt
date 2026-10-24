@@ -214,10 +214,9 @@ fun ChatScreen() {
     var confirmDelete by remember { mutableStateOf(false) }
     var storageError by remember { mutableStateOf<String?>(null) }
 
-    suspend fun appendMessage(message: ChatMessage) {
+    fun appendMessage(message: ChatMessage) {
+        // The conversation belongs only to this app session.
         messages.add(message)
-        val saved = messages.toList()
-        withContext(Dispatchers.IO) { app.chatHistoryStore.saveMessages(saved) }
     }
 
     if (confirmDelete) AlertDialog(
@@ -376,14 +375,14 @@ private fun ChatBubble(msg: ChatMessage, imageEnabled: Boolean) {
         Column(
             modifier = Modifier
                 .background(
-                    if (isUser) Color(0xFF1E88E5) else Color(0xFF424242),
+                    if (isUser) MaterialTheme.colorScheme.primary else Color(0xFF424242),
                     shape = MaterialTheme.shapes.medium
                 )
                 .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
             Text(
                 text = msg.text,
-                color = Color.White,
+                color = if (isUser) MaterialTheme.colorScheme.onPrimary else Color.White,
                 style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 20.sp)
             )
             msg.imageId?.let { imageId ->

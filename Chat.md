@@ -25,8 +25,15 @@ Chatantwort. Längere Antworten werden mit „…“ gekürzt; im Chat bleibt de
 Jede Antwort mit Ergebnisbild erhält einen kleinen **Bild**-Button. Er öffnet das
 ursprüngliche Bild mit den damaligen Markierungen und der dazugehörigen Antwort,
 auch wenn inzwischen weitere Fragen gestellt wurden. Bilder, Overlay-Koordinaten
-und Chatverlauf werden lokal im privaten App-Speicher abgelegt und bleiben über
-App-Neustarts erhalten. Bilder werden erst beim Öffnen geladen, nicht alle gleichzeitig.
+werden für die laufende App-Sitzung lokal im privaten App-Speicher abgelegt;
+der Chatverlauf bleibt im Arbeitsspeicher. Bilder werden erst beim Öffnen geladen,
+nicht alle gleichzeitig. Beim normalen Beenden der App werden Verlauf und Bilder
+entfernt. Nach einem erzwungenen Prozessabbruch ohne Android-Abschluss-Callback werden
+übrig gebliebene Bilddateien beim nächsten Start gelöscht, nie wiederhergestellt.
+Der Wechsel zwischen Chat, Ergebnisbild und Hauptansicht sowie ein vorübergehender
+Wechsel in den Hintergrund löschen den Chat nicht. Ein neuer App-Task startet leer.
+Nutzer-Nachrichten verwenden dieselbe Theme-Farbe wie der Senden-Button, mit der
+dazugehörigen kontrastreichen Textfarbe.
 
 **Chat löschen** entfernt nach Bestätigung den Verlauf und alle zugehörigen Bilder.
 Dabei werden auch die gemerkten Farb-/Klassenfilter zurückgesetzt. Nicht bestätigtes
@@ -151,6 +158,7 @@ Beispiel: „Das rote Auto ist links und nah."
 
 6. Zwei verschiedene Ergebnisse erzeugen und beide per „Bild“ wieder öffnen:
    Bild, Rahmen und Antwort müssen jeweils zur ausgewählten Nachricht gehören.
-7. App neu starten und Ergebnisse erneut öffnen; lange Antwort auf drei sichtbare
-   Zeilen mit „…“ prüfen. „Chat löschen“ erst abbrechen, dann bestätigen und nach
-   erneutem App-Start prüfen, dass Verlauf und Bilder entfernt sind.
+7. Lange Antwort auf drei sichtbare Zeilen mit „…“ prüfen. Interne Ansichtswechsel
+   und kurzzeitigen Hintergrund prüfen: Verlauf bleibt erhalten. App beenden und
+   neu starten: Verlauf und Bilder sind entfernt. Dasselbe nach erzwungenem Stopp prüfen.
+8. „Chat löschen“ erst abbrechen, dann bestätigen: Nur beim Bestätigen wird gelöscht.

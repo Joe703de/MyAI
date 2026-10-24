@@ -11,7 +11,7 @@ import java.io.File
 import java.io.IOException
 import java.util.UUID
 
-/** App-private files, not cache: results live until the chat is explicitly deleted. */
+/** App-private result files for one app session; cleared on exit and before a new session. */
 class ChatHistoryStore internal constructor(private val directory: File) {
     constructor(context: Context) : this(File(context.filesDir, "chat_history"))
 
@@ -98,9 +98,8 @@ class ChatHistoryStore internal constructor(private val directory: File) {
 
     @Synchronized
     fun clear() {
-        // First remove the visible history atomically, then its image attachments.
-        saveMessages(emptyList())
-        directory.listFiles()?.filter { it.name != history.name }?.forEach {
+        // No new file writes: cleanup must work even when storage is full.
+        directory.listFiles()?.forEach {
             if (!it.delete()) throw IOException("Chat-Bild konnte nicht gelöscht werden")
         }
     }

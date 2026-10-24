@@ -88,6 +88,10 @@ private suspend fun <T> com.google.common.util.concurrent.ListenableFuture<T>.aw
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // A new task can start in an existing process after dismissal from Recents.
+        if (isTaskRoot && savedInstanceState == null) {
+            (application as MyAIApplication).resetChatSession()
+        }
 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
@@ -101,6 +105,13 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onDestroy() {
+        if (isFinishing) {
+            (application as MyAIApplication).resetChatSession()
+        }
+        super.onDestroy()
     }
 }
 

@@ -44,8 +44,8 @@ class ChatHistoryStoreTest {
             assertEquals("Zweite Antwort", second.answer)
 
             reloaded.clear()
-            assertEquals(emptyList<ChatMessage>(), ChatHistoryStore(directory).loadMessages())
-            assertEquals(listOf("messages.json"), directory.listFiles()!!.map { it.name })
+            assertNull(ChatHistoryStore(directory).loadMessages())
+            assertTrue(directory.listFiles()!!.isEmpty())
         } finally {
             directory.deleteRecursively()
         }

@@ -38,7 +38,9 @@ Eine kleine Live-Kameravorschau steht oben rechts. Jede Anfrage wird mit einem n
 Frame verarbeitet; passende Treffer öffnen per Zoom die eingefrorene Ergebnisansicht
 mit exakt zu diesem Frame gehörenden Overlays. Ergebnisbilder zeigen bis zu drei
 Antwortzeilen und sind über „Bild“ an der jeweiligen Chatantwort erneut abrufbar.
-Verlauf und Bilder bleiben lokal gespeichert, bis „Chat löschen“ bestätigt wird.
+Verlauf und Bilder bleiben nur während der App-Sitzung erhalten und werden beim
+Beenden beziehungsweise spätestens beim nächsten Start entfernt. „Chat löschen“
+entfernt sie auf Wunsch schon vorher.
 Details zu den unterstützten Schlüsselwörtern, Nachfragen und Farbsynonymen findest du in [`Chat.md`](Chat.md).
 
 ## Technischer Stack
