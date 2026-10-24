@@ -513,7 +513,7 @@ private fun interpretQuestion(question: String, result: DetectionResult?, app: M
         if (matches.isEmpty()) return ChatAnswer("Kein Objekt ist ungefähr ${targetDistance}m entfernt.", emptyList())
         return ChatAnswer(matches.joinToString("\n") { (obj, est) ->
             val name = CocoClassNames.getOrElse(obj.classId) { "Objekt" }
-            "• ${colorName(obj.colorName)} $name bei ${est.toInt()}m"
+            "• ${indefiniteArticleAndColor(obj.colorName, name)} bei ${est.toInt()}m"
         }, matches.map { it.first })
     }
 
@@ -548,13 +548,13 @@ private fun describeObjects(objects: List<DetectedObject>, app: MyAIApplication)
         val est = app.estimateDistance(obj.width, obj.classId)
         val className = CocoClassNames.getOrElse(obj.classId) { "Objekt" }
         val distPart = if (est >= 0f) " bei ungefähr ${est.toInt()}m" else ""
-        "Ich sehe ein ${colorName(obj.colorName)} $className$distPart."
+        "Ich sehe ${articleAndColor(obj.colorName, className)}$distPart."
     } else {
         "Ich sehe ${objects.size} Objekte:\n" + objects.joinToString("\n") { obj ->
             val est = app.estimateDistance(obj.width, obj.classId)
             val className = CocoClassNames.getOrElse(obj.classId) { "Objekt" }
             val distPart = if (est >= 0f) " ~${est.toInt()}m" else ""
-            "• ${colorName(obj.colorName)} $className$distPart"
+            "• ${indefiniteArticleAndColor(obj.colorName, className)}$distPart"
         }
     }
 }
@@ -575,7 +575,7 @@ private fun describePositions(objects: List<DetectedObject>, result: DetectionRe
             else -> "mittlere Entfernung"
         }
         val className = CocoClassNames.getOrElse(obj.classId) { "Objekt" }
-        "Das ${colorName(obj.colorName)} $className ist $xPos und $yPos."
+        "${definiteArticleAndColor(obj.colorName, className)} ist $xPos und $yPos."
     } else {
         "Ich sehe ${objects.size} Objekte:\n" + objects.joinToString("\n") { obj ->
             val xPos = when {
@@ -591,7 +591,7 @@ private fun describePositions(objects: List<DetectedObject>, result: DetectionRe
                 else -> "mittlere Entfernung"
             }
             val className = CocoClassNames.getOrElse(obj.classId) { "Objekt" }
-            "• ${colorName(obj.colorName)} $className $xPos, $yPos"
+            "• ${indefiniteArticleAndColor(obj.colorName, className)} $xPos, $yPos"
         }
     }
 }
@@ -601,14 +601,14 @@ private fun describeDistances(objects: List<DetectedObject>, app: MyAIApplicatio
         val obj = objects.first()
         val est = app.estimateDistance(obj.width, obj.classId)
         val className = CocoClassNames.getOrElse(obj.classId) { "Objekt" }
-        if (est >= 0f) "Das ${colorName(obj.colorName)} $className ist ungefähr ${est.toInt()}m entfernt."
-        else "Für das ${colorName(obj.colorName)} $className fehlen Kalibrierdaten, ich kann die Entfernung nicht schätzen."
+        if (est >= 0f) "${definiteArticleAndColor(obj.colorName, className)} ist ungefähr ${est.toInt()}m entfernt."
+        else "Für ${articleAndColor(obj.colorName, className)} fehlen Kalibrierdaten, ich kann die Entfernung nicht schätzen."
     } else {
         "Ich sehe ${objects.size} Objekte:\n" + objects.joinToString("\n") { obj ->
             val est = app.estimateDistance(obj.width, obj.classId)
             val className = CocoClassNames.getOrElse(obj.classId) { "Objekt" }
             val distPart = if (est >= 0f) "${est.toInt()}m" else "unbekannt"
-            "• ${colorName(obj.colorName)} $className: $distPart"
+            "• ${indefiniteArticleAndColor(obj.colorName, className)}: $distPart"
         }
     }
 }
@@ -619,35 +619,126 @@ private fun describeAllObjects(objects: List<DetectedObject>, app: MyAIApplicati
         val est = app.estimateDistance(obj.width, obj.classId)
         val className = CocoClassNames.getOrElse(obj.classId) { "Objekt" }
         val distPart = if (est >= 0f) " bei ungefähr ${est.toInt()}m" else ""
-        "Ich sehe ein ${colorName(obj.colorName)} $className$distPart."
+        "Ich sehe ${articleAndColor(obj.colorName, className)}$distPart."
     } else {
         "Ich sehe ${objects.size} Objekte:\n" + objects.joinToString("\n") { obj ->
             val est = app.estimateDistance(obj.width, obj.classId)
             val className = CocoClassNames.getOrElse(obj.classId) { "Objekt" }
             val distPart = if (est >= 0f) " ~${est.toInt()}m" else ""
-            "• ${colorName(obj.colorName)} $className$distPart"
+            "• ${indefiniteArticleAndColor(obj.colorName, className)}$distPart"
         }
     }
 }
 
-private fun colorName(name: String?): String {
+/** Map a raw color name to a canonical key usable by the grammar helpers below. */
+private fun canonicalColor(name: String?): String {
     if (name.isNullOrBlank()) return ""
     return when (name.lowercase()) {
-        "rot" -> "rotes"
-        "blau" -> "blaues"
-        "gruen", "grün" -> "grünes"
-        "gelb" -> "gelbes"
-        "schwarz" -> "schwarzes"
-        "weiss", "weiß" -> "weißes"
-        "grau" -> "graues"
-        "silber" -> "silbernes"
-        "orange" -> "oranges"
-        "braun" -> "braunes"
-        "lila", "violett" -> "violettes"
-        "pink", "rosa" -> "rosanes"
-        "beige" -> "beiges"
-        "gold" -> "goldenes"
-        "tuerkis", "türkis" -> "türkises"
+        "rot", "rote", "roter", "rotes" -> "Rot"
+        "blau", "blaue", "blauer", "blaues" -> "Blau"
+        "gruen", "gruene", "gruener", "gruenes", "grün", "grüne", "grüner", "grünes" -> "Grün"
+        "gelb", "gelbe", "gelber", "gelbes" -> "Gelb"
+        "schwarz", "schwarze", "schwarzer", "schwarzes" -> "Schwarz"
+        "weiss", "weiß", "weisse", "weiße", "weisser", "weißer", "weisses", "weißes" -> "Weiß"
+        "grau", "graue", "grauer", "graues" -> "Grau"
+        "silber", "silberne", "silberner", "silbernes" -> "Silber"
+        "orange", "orangene", "orangener", "oranges" -> "Orange"
+        "braun", "braune", "brauner", "braunes" -> "Braun"
+        "lila", "violett", "violette", "violetter", "violettes" -> "Violett"
+        "pink", "rosa", "rosane", "rosaner", "rosanes" -> "Rosa"
+        "beige", "beiger", "beiges" -> "Beige"
+        "gold", "goldene", "goldener", "goldenes" -> "Gold"
+        "tuerkis", "türkis", "tuerkise", "türkise", "tuerkiser", "türkiser", "tuerkises", "türkises" -> "Türkis"
         else -> name
     }
+}
+
+/** Grammatical gender for the COCO class names used in chat answers. */
+private fun classGender(className: String): String = when (className) {
+    "Auto", "Fahrrad", "Motorrad", "Flugzeug", "Boot", "Zug", "LKW",
+    "Stoppschild", "Feuerhydrant", "Parkuhr", "Tisch", "Sofa", "Bett", "Toilette",
+    "Fernseher", "Laptop", "Maus", "Handy", "Tablet", "Bildschirm", "Monitor",
+    "Kühlschrank", "Ofen", "Waschbecken", "Kissen", "Spiegel", "Teppich",
+    "Schrank", "Regal", "Licht", "Signal", "Bordstein" -> "n"
+    "Person", "Bus", "Ampel", "Katze", "Hund", "Pferd", "Kuh", "Schaf", "Ziege",
+    "Elefant", "Bär", "Giraffe", "Blume", "Tasse", "Tasche", "Vase", "Flasche",
+    "Torte", "Pizza", "Donut", "Kuchen", "Orange", "Banane", "Apfel", "Birne",
+    "Traube", "Zitrone", "Pflanze", "Bank", "Vogel", "Ente", "Huhn", "Möwe",
+    "Taube", "Krähe" -> "f"
+    else -> "m"
+}
+
+private fun coloredAdjective(color: String, gender: String, case: String = "nom"): String {
+    // Strong/weak declension: after definite article use weak (-e/-en), after indefinite/no article use strong.
+    val weak = case == "akk" && gender == "m"
+    val suffix = if (weak) "en" else "e"
+    return when (color.lowercase()) {
+        "rot" -> "rot$suffix"
+        "blau" -> "blau$suffix"
+        "grün" -> "grün$suffix"
+        "gelb" -> "gelb$suffix"
+        "schwarz" -> "schwarz${suffix}"
+        "weiß" -> "weiß$suffix"
+        "grau" -> "grau$suffix"
+        "silber" -> "silbern$suffix"
+        "orange" -> "orange$suffix"
+        "braun" -> "braun$suffix"
+        "violett" -> "violett$suffix"
+        "rosa", "pink" -> "rosa"
+        "beige" -> "beige$suffix"
+        "gold" -> "golden$suffix"
+        "türkis" -> "türkise$suffix"
+        else -> color
+    }
+}
+
+/** "ein/eine" + adjective + noun, e.g. "eine grüne Ampel", "ein rotes Auto". */
+private fun articleAndColor(colorName: String?, className: String): String {
+    val color = canonicalColor(colorName)
+    if (color.isBlank()) return "ein $className"
+    val gender = classGender(className)
+    val article = when (gender) {
+        "m" -> "ein"
+        "f" -> "eine"
+        "n" -> "ein"
+        else -> "ein"
+    }
+    val adj = coloredAdjective(color, gender)
+    return "$article $adj $className"
+}
+
+/** "der/die/das" + adjective + noun, e.g. "die grüne Ampel". */
+private fun definiteArticleAndColor(colorName: String?, className: String): String {
+    val color = canonicalColor(colorName)
+    if (color.isBlank()) return when (classGender(className)) {
+        "f" -> "die $className"
+        "n" -> "das $className"
+        else -> "der $className"
+    }
+    val gender = classGender(className)
+    val article = when (gender) {
+        "m" -> "der"
+        "f" -> "die"
+        "n" -> "das"
+        else -> "der"
+    }
+    val adj = coloredAdjective(color, gender)
+    return "$article $adj $className"
+}
+
+/** Adjective + noun without article for list items, e.g. "grüne Ampel", "rotes Auto". */
+private fun indefiniteArticleAndColor(colorName: String?, className: String): String {
+    val color = canonicalColor(colorName)
+    if (color.isBlank()) return className
+    val gender = classGender(className)
+    val adj = coloredAdjective(color, gender)
+    return "$adj $className"
+}
+
+/** Kept for places that only need the adjective form. */
+@Deprecated("Use articleAndColor or definiteArticleAndColor instead", ReplaceWith("articleAndColor(name, "Objekt")"))
+private fun colorName(name: String?): String {
+    if (name.isNullOrBlank()) return ""
+    val adj = coloredAdjective(canonicalColor(name), "n")
+    return if (adj.isBlank()) name else adj
 }
