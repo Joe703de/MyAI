@@ -513,7 +513,7 @@ private fun interpretQuestion(question: String, result: DetectionResult?, app: M
         if (matches.isEmpty()) return ChatAnswer("Kein Objekt ist ungefähr ${targetDistance}m entfernt.", emptyList())
         return ChatAnswer(matches.joinToString("\n") { (obj, est) ->
             val name = CocoClassNames.getOrElse(obj.classId) { "Objekt" }
-            "• ${indefiniteArticleAndColor(obj.colorName, name)} bei ${est.toInt()}m"
+            "• ${pluralArticleAndColor(obj.colorName, name)} bei ${est.toInt()}m"
         }, matches.map { it.first })
     }
 
@@ -554,7 +554,7 @@ private fun describeObjects(objects: List<DetectedObject>, app: MyAIApplication)
             val est = app.estimateDistance(obj.width, obj.classId)
             val className = CocoClassNames.getOrElse(obj.classId) { "Objekt" }
             val distPart = if (est >= 0f) " ~${est.toInt()}m" else ""
-            "• ${indefiniteArticleAndColor(obj.colorName, className)}$distPart"
+            "• ${pluralArticleAndColor(obj.colorName, className)}$distPart"
         }
     }
 }
@@ -591,7 +591,7 @@ private fun describePositions(objects: List<DetectedObject>, result: DetectionRe
                 else -> "mittlere Entfernung"
             }
             val className = CocoClassNames.getOrElse(obj.classId) { "Objekt" }
-            "• ${indefiniteArticleAndColor(obj.colorName, className)} $xPos, $yPos"
+            "• ${pluralArticleAndColor(obj.colorName, className)} $xPos, $yPos"
         }
     }
 }
@@ -608,7 +608,7 @@ private fun describeDistances(objects: List<DetectedObject>, app: MyAIApplicatio
             val est = app.estimateDistance(obj.width, obj.classId)
             val className = CocoClassNames.getOrElse(obj.classId) { "Objekt" }
             val distPart = if (est >= 0f) "${est.toInt()}m" else "unbekannt"
-            "• ${indefiniteArticleAndColor(obj.colorName, className)}: $distPart"
+            "• ${pluralArticleAndColor(obj.colorName, className)}: $distPart"
         }
     }
 }
@@ -625,7 +625,7 @@ private fun describeAllObjects(objects: List<DetectedObject>, app: MyAIApplicati
             val est = app.estimateDistance(obj.width, obj.classId)
             val className = CocoClassNames.getOrElse(obj.classId) { "Objekt" }
             val distPart = if (est >= 0f) " ~${est.toInt()}m" else ""
-            "• ${indefiniteArticleAndColor(obj.colorName, className)}$distPart"
+            "• ${pluralArticleAndColor(obj.colorName, className)}$distPart"
         }
     }
 }
@@ -668,10 +668,92 @@ private fun classGender(className: String): String = when (className) {
     else -> "m"
 }
 
-private fun coloredAdjective(color: String, gender: String, case: String = "nom"): String {
-    // Strong/weak declension: after definite article use weak (-e/-en), after indefinite/no article use strong.
-    val weak = case == "akk" && gender == "m"
-    val suffix = if (weak) "en" else "e"
+/** Plural form for the COCO class names used in German chat answers. */
+private fun classPlural(className: String): String = when (className) {
+    "Auto" -> "Autos"
+    "Bus" -> "Busse"
+    "LKW" -> "LKWs"
+    "Ampel" -> "Ampeln"
+    "Stoppschild" -> "Stoppschilder"
+    "Person" -> "Personen"
+    "Fahrrad" -> "Fahrräder"
+    "Motorrad" -> "Motorräder"
+    "Flugzeug" -> "Flugzeuge"
+    "Zug" -> "Züge"
+    "Boot" -> "Boote"
+    "Hund" -> "Hunde"
+    "Katze" -> "Katzen"
+    "Pferd" -> "Pferde"
+    "Kuh" -> "Kühe"
+    "Schaf" -> "Schafe"
+    "Vogel" -> "Vögel"
+    "Bär" -> "Bären"
+    "Elefant" -> "Elefanten"
+    "Giraffe" -> "Giraffen"
+    "Apfel" -> "Äpfel"
+    "Banane" -> "Bananen"
+    "Orange" -> "Orangen"
+    "Birne" -> "Birnen"
+    "Traube" -> "Trauben"
+    "Zitrone" -> "Zitronen"
+    "Tisch" -> "Tische"
+    "Stuhl" -> "Stühle"
+    "Sofa" -> "Sofas"
+    "Bett" -> "Betten"
+    "Laptop" -> "Laptops"
+    "Maus" -> "Mäuse"
+    "Fernseher" -> "Fernseher"
+    "Handy" -> "Handys"
+    "Tablet" -> "Tablets"
+    "Bildschirm" -> "Bildschirme"
+    "Monitor" -> "Monitore"
+    "Kühlschrank" -> "Kühlschränke"
+    "Ofen" -> "Öfen"
+    "Waschbecken" -> "Waschbecken"
+    "Kissen" -> "Kissen"
+    "Spiegel" -> "Spiegel"
+    "Teppich" -> "Teppiche"
+    "Schrank" -> "Schränke"
+    "Regal" -> "Regale"
+    "Licht" -> "Lichter"
+    "Signal" -> "Signale"
+    "Bordstein" -> "Bordsteine"
+    "Tasse" -> "Tassen"
+    "Flasche" -> "Flaschen"
+    "Tasche" -> "Taschen"
+    "Vase" -> "Vasen"
+    "Torte" -> "Torten"
+    "Pizza" -> "Pizzen"
+    "Donut" -> "Donuts"
+    "Kuchen" -> "Kuchen"
+    "Pflanze" -> "Pflanzen"
+    "Blume" -> "Blumen"
+    "Baum" -> "Bäume"
+    "Bank" -> "Bänke"
+    "Parkuhr" -> "Parkuhren"
+    "Feuerhydrant" -> "Feuerhydranten"
+    else -> "${className}e"
+}
+
+/** Plural adjective + noun without article, e.g. "rote Autos", "grüne Ampeln". */
+private fun pluralArticleAndColor(colorName: String?, className: String): String {
+    val color = canonicalColor(colorName)
+    val pluralName = classPlural(className)
+    if (color.isBlank()) return pluralName
+    val adj = coloredAdjective(color, "p", indefinite = true)
+    return "$adj $pluralName"
+}
+
+private fun coloredAdjective(color: String, gender: String, case: String = "nom", indefinite: Boolean = false): String {
+    // Definite article -> weak (-e); indefinite/no article -> strong ending.
+    val suffix = when {
+        gender == "p" -> "e" // plural nominative/accusative strong/weak ending is "-e"
+        !indefinite -> "e" // after der/die/das weak ending
+        gender == "m" && case == "nom" -> "er"
+        gender == "f" -> "e"
+        gender == "n" && case == "nom" -> "es"
+        else -> "e"
+    }
     return when (color.lowercase()) {
         "rot" -> "rot$suffix"
         "blau" -> "blau$suffix"
@@ -703,7 +785,7 @@ private fun articleAndColor(colorName: String?, className: String): String {
         "n" -> "ein"
         else -> "ein"
     }
-    val adj = coloredAdjective(color, gender)
+    val adj = coloredAdjective(color, gender, indefinite = true)
     return "$article $adj $className"
 }
 
@@ -722,7 +804,7 @@ private fun definiteArticleAndColor(colorName: String?, className: String): Stri
         "n" -> "das"
         else -> "der"
     }
-    val adj = coloredAdjective(color, gender)
+    val adj = coloredAdjective(color, gender, indefinite = false)
     return "$article $adj $className"
 }
 
@@ -731,7 +813,7 @@ private fun indefiniteArticleAndColor(colorName: String?, className: String): St
     val color = canonicalColor(colorName)
     if (color.isBlank()) return className
     val gender = classGender(className)
-    val adj = coloredAdjective(color, gender)
+    val adj = coloredAdjective(color, gender, indefinite = true)
     return "$adj $className"
 }
 
@@ -739,6 +821,6 @@ private fun indefiniteArticleAndColor(colorName: String?, className: String): St
 @Deprecated("Use articleAndColor or definiteArticleAndColor instead", ReplaceWith("articleAndColor(name, \"Objekt\")"))
 private fun colorName(name: String?): String {
     if (name.isNullOrBlank()) return ""
-    val adj = coloredAdjective(canonicalColor(name), "n")
+    val adj = coloredAdjective(canonicalColor(name), "n", indefinite = true)
     return if (adj.isBlank()) name else adj
 }
