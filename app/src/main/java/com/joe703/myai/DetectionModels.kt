@@ -23,7 +23,12 @@ data class DetectionResult(
     val maxGlobalClassId: Int = -1,
     val timingMs: TimingBreakdown = TimingBreakdown(),
     val zoomedObject: ZoomedObject? = null,
-    val recognizedText: String = ""
+    val recognizedText: String = "",
+    val recognizedTextLines: List<String> = emptyList(),
+    /** Zeitstempel des Kamera-Frames, an dem die Analyse lief. */
+    val cameraTimestampNanos: Long = 0L,
+    /** Zeitstempel, wann das Ergebnis an den UI-Thread zurückgegeben wurde. */
+    val resultDeliveredNanos: Long = 0L
 )
 
 /**
@@ -46,6 +51,7 @@ data class TimingBreakdown(
     val postNmsMs: Long = 0,
     val postColorMs: Long = 0,
     val totalMs: Long = 0,
+    val ocrMs: Long = 0,
     val delegateName: String = "unknown"
 )
 
@@ -60,5 +66,7 @@ data class DetectedObject(
     val isValidated: Boolean = true,
     val colorR: Int = 255,
     val colorG: Int = 255,
-    val colorB: Int = 0
+    val colorB: Int = 0,
+    val colorName: String = "",
+    val classId: Int = -1
 )

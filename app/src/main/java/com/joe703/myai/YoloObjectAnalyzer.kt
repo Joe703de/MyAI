@@ -39,8 +39,9 @@ import kotlin.math.min
  */
 class YoloObjectAnalyzer(
     context: Context,
-    private val targetClassProvider: () -> Int,
+    private val targetClassProvider: () -> List<Int>,
     private val confThresholdProvider: () -> Float,
+    private val enableOcr: Boolean = false,
     private val onResult: (DetectionResult) -> Unit
 ) : ImageAnalysis.Analyzer {
 
@@ -58,8 +59,12 @@ class YoloObjectAnalyzer(
     private var yellowMissFrames: Int = 0
     private val yellowMissThreshold: Int = 1
     private var lastRecognizedText: String = ""
+    private var lastRecognizedTextLines: List<String> = emptyList()
+    private var lastOcrMs: Long = 0L
 
-    private val textRecognizer: TextRecognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+    private val textRecognizer: TextRecognizer? = if (enableOcr) {
+        TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+    } else null
 
     private val colorConfigs: List<EggColor> = loadColorConfig(context)
 
@@ -78,6 +83,15 @@ class YoloObjectAnalyzer(
         } catch (e: Exception) {
             Log.i("YoloObjectAnalyzer", "Failed to load model: ${e.message}", e)
         }
+    }
+
+    /** Call on the analysis executor after the final frame. */
+    fun close() {
+        interpreter?.close()
+        interpreter = null
+        gpuDelegate?.close()
+        gpuDelegate = null
+        textRecognizer?.close()
     }
 
     private fun loadModel(context: Context): ByteBuffer {
@@ -140,21 +154,19 @@ class YoloObjectAnalyzer(
 
     override fun analyze(imageProxy: ImageProxy) {
         val startTime = System.currentTimeMillis()
+        val cameraTimestampNanos = imageProxy.imageInfo.timestamp
+        val analyzeStartNanos = System.nanoTime()
         try {
             val rawBitmap = imageProxy.toBitmap()
             if (rawBitmap == null) {
                 Log.i("YoloObjectAnalyzer", "imageProxy.toBitmap() returned null")
-                onEmptyResult(startTime, imageProxy.width, imageProxy.height, createFallbackBitmap(imageProxy.width, imageProxy.height))
+                onEmptyResult(startTime, imageProxy.width, imageProxy.height, createFallbackBitmap(imageProxy.width, imageProxy.height), cameraTimestampNanos)
                 imageProxy.close()
                 return
             }
 
             val rotationDegrees = imageProxy.imageInfo.rotationDegrees
             val bitmap = if (rotationDegrees != 0) rotateBitmap(rawBitmap, rotationDegrees) else rawBitmap
-
-            // OCR runs asynchronously on the same bitmap and closes the ImageProxy when done.
-            // Do not call imageProxy.close() elsewhere in this path.
-            runOcr(imageProxy, bitmap)
 
             val preprocessTime = System.currentTimeMillis() - startTime
             val detections = interpreter?.let { detect(it, bitmap, bitmap.width, bitmap.height, targetClassProvider(), preprocessTime, confThresholdProvider()) }
@@ -166,15 +178,18 @@ class YoloObjectAnalyzer(
                     0f,
                     0f,
                     -1,
-                    TimingBreakdown(preprocessMs = preprocessTime, totalMs = System.currentTimeMillis() - startTime, delegateName = "no-model")
+                    TimingBreakdown(preprocessMs = preprocessTime, totalMs = System.currentTimeMillis() - startTime, ocrMs = 0L, delegateName = "no-model")
                 )
+
+            val analyzeLatencyMs = (System.nanoTime() - analyzeStartNanos) / 1_000_000
+            imageProxy.close()
 
             Log.i(
                 "YoloObjectAnalyzer",
                 "Frame OK: class=${targetClassProvider()} raw=${rawBitmap.width}x${rawBitmap.height}, rotated=${bitmap.width}x${bitmap.height}, " +
                 "scaled=${detections.scaled.width}x${detections.scaled.height}, detections=${detections.objects.size}, " +
-                "maxScore=${detections.maxScore}, topClass=${detections.topClassId}, topCarScore=${detections.topCarScore} " +
-                "timing=${detections.timing}"
+                "maxScore=${detections.maxScore}, topClass=${detections.topClassId}, topSetScore=${detections.topCarScore} " +
+                "timing=${detections.timing}, cameraLatencyMs=${analyzeLatencyMs}"
             )
 
             onResult(
@@ -196,17 +211,20 @@ class YoloObjectAnalyzer(
                     maxGlobalClassId = detections.maxGlobalClassId,
                     timingMs = detections.timing,
                     zoomedObject = detections.zoomedObject,
-                    recognizedText = lastRecognizedText
+                    recognizedText = lastRecognizedText,
+                    recognizedTextLines = lastRecognizedTextLines,
+                    cameraTimestampNanos = cameraTimestampNanos,
+                    resultDeliveredNanos = System.nanoTime()
                 )
             )
         } catch (e: Exception) {
             Log.i("YoloObjectAnalyzer", "Error during analysis: ${e.message}", e)
-            onEmptyResult(startTime, imageProxy.width, imageProxy.height, createFallbackBitmap(imageProxy.width, imageProxy.height))
+            onEmptyResult(startTime, imageProxy.width, imageProxy.height, createFallbackBitmap(imageProxy.width, imageProxy.height), cameraTimestampNanos)
             imageProxy.close()
         }
     }
 
-    private fun onEmptyResult(startTime: Long, width: Int, height: Int, bitmap: Bitmap?) {
+    private fun onEmptyResult(startTime: Long, width: Int, height: Int, bitmap: Bitmap?, cameraTimestampNanos: Long = 0L) {
         Log.i("YoloObjectAnalyzer", "Empty result: ${width}x${height}, bitmap=${bitmap?.let { "${it.width}x${it.height}" } ?: "null"}")
         onResult(
             DetectionResult(
@@ -223,7 +241,9 @@ class YoloObjectAnalyzer(
                     preprocessMs = System.currentTimeMillis() - startTime,
                     totalMs = System.currentTimeMillis() - startTime,
                     delegateName = "error"
-                )
+                ),
+                cameraTimestampNanos = cameraTimestampNanos,
+                resultDeliveredNanos = System.nanoTime()
             )
         )
     }
@@ -245,14 +265,14 @@ class YoloObjectAnalyzer(
         bitmap: Bitmap,
         originalWidth: Int,
         originalHeight: Int,
-        targetClassId: Int,
+        targetClassIds: List<Int>,
         preprocessMs: Long,
         confThreshold: Float
     ): DetectedFrame {
         val scaled = scaleToModelInput(bitmap)
         val inputBuffer = bitmapToFloatBuffer(scaled, normalize255 = true, bgr = false)
 
-        Log.i("YoloObjectAnalyzer", "Running inference for targetClass=$targetClassId")
+        Log.i("YoloObjectAnalyzer", "Running inference for targetClasses=$targetClassIds")
 
         val inferenceStart = System.currentTimeMillis()
 
@@ -314,7 +334,8 @@ class YoloObjectAnalyzer(
             }
             val classId = classScores.indices.maxByOrNull { classScores[it] } ?: 0
             val classScore = classScores.getOrElse(classId) { 0f }
-            val targetScore = classScores.getOrElse(targetClassId) { 0f }
+            val targetScore = targetClassIds.map { classScores.getOrElse(it) { 0f } }.maxOrNull() ?: 0f
+            val winningTargetClassId = targetClassIds.maxByOrNull { classScores.getOrElse(it) { 0f } } ?: targetClassIds.firstOrNull() ?: classId
 
             // Globale Top-Klasse unabhängig vom Ziel-Filter merken
             if (classScore > maxGlobalScore) {
@@ -357,7 +378,7 @@ class YoloObjectAnalyzer(
                     x2 = x2.coerceIn(0f, modelInputSize.toFloat()),
                     y2 = y2.coerceIn(0f, modelInputSize.toFloat()),
                     score = finalScore,
-                    classId = targetClassId
+                    classId = winningTargetClassId
                 )
             )
         }
@@ -396,9 +417,10 @@ class YoloObjectAnalyzer(
                 if (width <= 0 || height <= 0) return@mapNotNull null
 
                 val color = classifyColor(bitmap, x, y, width, height)
+                val colorName = colorConfigs.firstOrNull { it.rgb.r == color.r && it.rgb.g == color.g && it.rgb.b == color.b }?.name ?: ""
 
-                if (zoomedObject == null && color.r == 255 && color.g == 255 && color.b == 0) {
-                    zoomedObject = createZoomedObject(bitmap, x, y, width, height, "Gelb", raw.score)
+                if (zoomedObject == null && colorName == "Gelb") {
+                    zoomedObject = createZoomedObject(bitmap, x, y, width, height, colorName, raw.score)
                 }
 
                 DetectedObject(
@@ -409,7 +431,9 @@ class YoloObjectAnalyzer(
                     isValidated = true,
                     colorR = color.r,
                     colorG = color.g,
-                    colorB = color.b
+                    colorB = color.b,
+                    colorName = colorName,
+                    classId = raw.classId
                 )
             }.take(maxDetections)
         val postColorMs = System.currentTimeMillis() - colorStart
@@ -543,7 +567,7 @@ class YoloObjectAnalyzer(
 
         val stepX = max(1, (sampleRight - sampleLeft) / 24)
         val stepY = max(1, (sampleBottom - sampleTop) / 24)
-        val names = listOf("Rot", "Gelb", "Grün", "Blau")
+        val names = listOf("Rot", "Gelb", "Grün", "Blau", "Weiß", "Schwarz")
         val votes = IntArray(names.size)
         val hsv = FloatArray(3)
         var sampled = 0
@@ -558,13 +582,27 @@ class YoloObjectAnalyzer(
             while (pxIndex < rowPixels.size) {
                 sampled++
                 Color.colorToHSV(rowPixels[pxIndex], hsv)
+                val hue = hsv[0]
+                val sat = hsv[1]
+                val value = hsv[2]
+                // Weiß: sehr helle, fast ungesättigte Farbe
+                if (value > 0.80f && sat < 0.15f) {
+                    votes[4]++
+                    pxIndex += stepX
+                    continue
+                }
+                // Schwarz: sehr dunkle Farbe
+                if (value < 0.20f) {
+                    votes[5]++
+                    pxIndex += stepX
+                    continue
+                }
                 // Keine Abstimmung durch Grau, Weiß oder sehr dunkle Schatten.
-                if (hsv[1] < 0.30f || hsv[2] < 0.20f) {
+                if (sat < 0.30f || value < 0.20f) {
                     pxIndex += stepX
                     continue
                 }
                 chromatic++
-                val hue = hsv[0]
                 val index = when {
                     hue < 25f || hue >= 335f -> 0
                     hue >= 35f && hue < 75f -> 1
@@ -579,15 +617,18 @@ class YoloObjectAnalyzer(
 
         val winner = votes.indices.maxByOrNull { votes[it] } ?: return unknown
         if (sampled == 0 || votes[winner] < 3 ||
-            votes[winner] < sampled * 0.10f || votes[winner] <= chromatic * 0.60f
+            votes[winner] < sampled * 0.10f
         ) return unknown
+
+        // Für Weiß und Schwarz ist keine chromatische Mehrheit nötig.
+        if (names[winner] != "Weiß" && names[winner] != "Schwarz" && votes[winner] <= chromatic * 0.60f) return unknown
 
         return colorConfigs.firstOrNull { it.name == names[winner] }?.rgb ?: unknown
     }
 
     private fun loadColorConfig(context: Context): List<EggColor> {
         return try {
-            val json = context.assets.open("egg_colors.json").bufferedReader().use { it.readText() }
+            val json = context.assets.open("object_colors.json").bufferedReader().use { it.readText() }
             Json.decodeFromString<EggColorsConfig>(json).colors
         } catch (e: Exception) {
             Log.i("YoloObjectAnalyzer", "Failed to load color config: ${e.message}")
@@ -662,20 +703,27 @@ class YoloObjectAnalyzer(
         return Bitmap.createScaledBitmap(square, modelInputSize, modelInputSize, true)
     }
 
-    private fun runOcr(imageProxy: ImageProxy, bitmap: Bitmap) {
+    private fun runOcr(imageProxy: ImageProxy, bitmap: Bitmap, startMs: Long) {
+        val recognizer = textRecognizer ?: return
         // Use the already-rotated bitmap. Do not touch imageProxy.image after analyze() returns.
         val inputImage = InputImage.fromBitmap(bitmap, 0)
-        textRecognizer.process(inputImage)
+        recognizer.process(inputImage)
             .addOnSuccessListener { visionText ->
-                val text = visionText.text
+                lastOcrMs = System.currentTimeMillis() - startMs
+                val lines = visionText.textBlocks.flatMap { block ->
+                    block.lines.map { line -> line.text }
+                }.filter { it.isNotBlank() }
+                val text = lines.joinToString("\n")
                 if (text.isNotBlank()) {
                     lastRecognizedText = text
-                    Log.i("YoloObjectAnalyzer", "OCR: $text")
+                    lastRecognizedTextLines = lines
+                    Log.i("YoloObjectAnalyzer", "OCR lines: $lines (${lastOcrMs}ms)")
                 }
                 imageProxy.close()
             }
             .addOnFailureListener { e ->
-                Log.e("YoloObjectAnalyzer", "OCR failed: ${e.message}", e)
+                lastOcrMs = System.currentTimeMillis() - startMs
+                Log.e("YoloObjectAnalyzer", "OCR failed after ${lastOcrMs}ms: ${e.message}", e)
                 imageProxy.close()
             }
     }

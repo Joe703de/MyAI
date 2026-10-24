@@ -1,6 +1,7 @@
 package com.joe703.myai
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
@@ -26,30 +27,31 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -57,101 +59,31 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import com.joe703.myai.ui.theme.MyAITheme
 import java.util.concurrent.Executors
-
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlin.coroutines.suspendCoroutine
 import kotlin.math.max
 
-
-import java.util.concurrent.atomic.AtomicReference
-
-val CocoClassNames = listOf(
-    "Person",
-    "Fahrrad",
-    "Auto",
-    "Motorrad",
-    "Flugzeug",
-    "Bus",
-    "Zug",
-    "LKW",
-    "Boot",
-    "Ampel",
-    "Feuerhydrant",
-    "Stoppschild",
-    "Parkuhr",
-    "Bank",
-    "Vogel",
-    "Katze",
-    "Hund",
-    "Pferd",
-    "Schaf",
-    "Kuh",
-    "Elefant",
-    "Bär",
-    "Zebra",
-    "Giraffe",
-    "Rucksack",
-    "Regenschirm",
-    "Handtasche",
-    "Krawatte",
-    "Koffer",
-    "Frisbee",
-    "Ski",
-    "Snowboard",
-    "Sportball",
-    "Drachen",
-    "Baseballschläger",
-    "Baseballhandschuh",
-    "Skateboard",
-    "Surfbrett",
-    "Tennisball",
-    "Flasche",
-    "Weinglas",
-    "Tasse",
-    "Gabel",
-    "Messer",
-    "Löffel",
-    "Schüssel",
-    "Banane",
-    "Apfel",
-    "Sandwich",
-    "Orange",
-    "Brokkoli",
-    "Karotte",
-    "Hot Dog",
-    "Pizza",
-    "Donut",
-    "Kuchen",
-    "Stuhl",
-    "Sofa",
-    "Topfpflanze",
-    "Bett",
-    "Esstisch",
-    "Toilette",
-    "Fernseher",
-    "Laptop",
-    "Maus",
-    "Fernbedienung",
-    "Tastatur",
-    "Handy",
-    "Mikrowelle",
-    "Backofen",
-    "Toaster",
-    "Spülbecken",
-    "Kühlschrank",
-    "Buch",
-    "Uhr",
-    "Vase",
-    "Schere",
-    "Teddybär",
-    "Haartrockner",
-    "Zahnbürste"
-)
+private suspend fun <T> com.google.common.util.concurrent.ListenableFuture<T>.await(executor: java.util.concurrent.Executor): T =
+    suspendCoroutine { cont ->
+        addListener({
+            try {
+                cont.resume(get())
+            } catch (e: Throwable) {
+                cont.resumeWithException(e)
+            }
+        }, executor)
+    }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -198,7 +130,7 @@ fun MyAIApp() {
             .background(Color.Black)
     ) {
         if (hasCameraPermission) {
-            CameraScreen()
+            MainCameraScreen()
         } else {
             Text(
                 text = "Kamera-Berechtigung wird benötigt",
@@ -212,22 +144,11 @@ fun MyAIApp() {
     }
 }
 
-fun createTestBitmap(): android.graphics.Bitmap {
-    val bitmap = android.graphics.Bitmap.createBitmap(320, 320, android.graphics.Bitmap.Config.ARGB_8888)
-    val canvas = android.graphics.Canvas(bitmap)
-    canvas.drawColor(android.graphics.Color.BLUE)
-    val paint = android.graphics.Paint().apply {
-        color = android.graphics.Color.YELLOW
-        textSize = 32f
-    }
-    canvas.drawText("TEST", 20f, 170f, paint)
-    return bitmap
-}
-
 @Composable
-fun CameraScreen() {
+fun MainCameraScreen() {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val app = context.applicationContext as MyAIApplication
 
     var detectionResult by remember {
         mutableStateOf(
@@ -244,10 +165,11 @@ fun CameraScreen() {
         )
     }
     var previewViewSize by remember { mutableStateOf(android.util.Size(0, 0)) }
-    var targetClassIndex by remember { mutableStateOf(2) } // COCO-Klasse 2 = Auto
-    val confidenceThresholdRef = remember { AtomicReference(0.3f) } // thread-safe threshold
-    var confidenceThreshold by remember { mutableStateOf(0.3f) } // Default Threshold
     var frameCount by remember { mutableStateOf(0) }
+
+    // Entfernungs-Slider und Hinweis-Schalter (werden im Preview-Bereich und unten benötigt)
+    var distanceM by remember { mutableFloatStateOf(10f) }
+    var showHint by remember { mutableStateOf(false) }
 
     val imageAnalyzer = remember(context) {
         ImageAnalysis.Builder()
@@ -268,9 +190,11 @@ fun CameraScreen() {
                     Executors.newSingleThreadExecutor(),
                     YoloObjectAnalyzer(
                         context,
-                        targetClassProvider = { targetClassIndex },
-                        confThresholdProvider = { confidenceThresholdRef.get() }
+                        targetClassProvider = { app.activeDetectionClasses },
+                        confThresholdProvider = { app.confidenceThreshold },
+                        enableOcr = false
                     ) { result ->
+                        app.updateCurrentDetectionResult(result)
                         val activity = context as? ComponentActivity
                         activity?.runOnUiThread {
                             detectionResult = result
@@ -288,55 +212,67 @@ fun CameraScreen() {
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
+            .navigationBarsPadding()
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Leerer Abstand oben wie in DebugActivity
             Box(modifier = Modifier.weight(0.1f))
-            StatusBar(detectionResult, targetClassIndex, previewViewSize.width.toFloat(), previewViewSize.height.toFloat())
 
+            // Status-Zeile oben: Set oben rechts, Klassenzähler darunter
+            MainStatusBar(
+                result = detectionResult,
+                targetClassIndex = app.targetClassIndex,
+                targetClassSet = app.targetClassSet,
+                setModeClassIndex = app.SET_MODE_CLASS_INDEX,
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .padding(bottom = 4.dp)
+            )
+
+            // Kamera-Preview genau wie in DebugActivity
             Box(
                 modifier = Modifier
-                    .weight(0.7f)
+                    .weight(1f)
                     .fillMaxWidth(0.9f)
                     .border(1.dp, Color.White),
                 contentAlignment = Alignment.Center
             ) {
                 val zoomedBitmap = detectionResult.zoomedObject?.bitmap
 
-                AndroidView(
-                    factory = { ctx ->
-                        val previewView = PreviewView(ctx)
-                        previewView.scaleType = PreviewView.ScaleType.FILL_CENTER
-                        previewView.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+                val previewView = remember { PreviewView(context) }
+                previewView.scaleType = PreviewView.ScaleType.FILL_CENTER
+                previewView.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
 
-                        previewView.post {
-                            previewViewSize = android.util.Size(previewView.width, previewView.height)
+                previewView.post {
+                    previewViewSize = android.util.Size(previewView.width, previewView.height)
+                }
+
+                LaunchedEffect(lifecycleOwner) {
+                    lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                        val cameraProvider = ProcessCameraProvider.getInstance(context).await(ContextCompat.getMainExecutor(context))
+                        val preview = CameraPreview.Builder()
+                            .build()
+                            .also { it.setSurfaceProvider(previewView.surfaceProvider) }
+
+                        try {
+                            cameraProvider.unbindAll()
+                            cameraProvider.bindToLifecycle(
+                                lifecycleOwner,
+                                CameraSelector.DEFAULT_BACK_CAMERA,
+                                preview,
+                                imageAnalyzer
+                            )
+                        } catch (e: Exception) {
+                            Log.e("MyAI", "Camera binding failed", e)
                         }
+                    }
+                }
 
-                        val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
-                        cameraProviderFuture.addListener({
-                            try {
-                                val cameraProvider = cameraProviderFuture.get()
-                                val preview = CameraPreview.Builder()
-                                    .build()
-                                    .also { it.setSurfaceProvider(previewView.surfaceProvider) }
-
-                                cameraProvider.unbindAll()
-                                cameraProvider.bindToLifecycle(
-                                    lifecycleOwner,
-                                    CameraSelector.DEFAULT_BACK_CAMERA,
-                                    preview,
-                                    imageAnalyzer
-                                )
-                            } catch (e: Exception) {
-                                Log.e("MyAI", "Camera binding failed", e)
-                            }
-                        }, ContextCompat.getMainExecutor(ctx))
-
-                        previewView
-                    },
+                AndroidView(
+                    factory = { previewView },
                     modifier = Modifier.fillMaxSize().clipToBounds()
                 )
 
@@ -346,166 +282,173 @@ fun CameraScreen() {
                         previewWidth = previewViewSize.width.toFloat(),
                         previewHeight = previewViewSize.height.toFloat(),
                         imageWidth = detectionResult.imageWidth.toFloat(),
-                        imageHeight = detectionResult.imageHeight.toFloat()
+                        imageHeight = detectionResult.imageHeight.toFloat(),
+                        app = app,
+                        useThresholdColors = showHint
                     )
                 }
 
-                if (zoomedBitmap != null) {
-                    Image(
-                        bitmap = zoomedBitmap.asImageBitmap(),
-                        contentDescription = "Zoomed yellow car",
-                        modifier = Modifier.fillMaxSize(0.96f)
-                    )
+                // Badges: entweder Hinweis auf nächste Entfernung oder rote Autos
+                if (previewViewSize.width > 0 && detectionResult.imageWidth > 0) {
+                    if (showHint) {
+                        DistanceHintBadge(
+                            objects = detectionResult.objects,
+                            targetDistanceM = distanceM,
+                            previewWidth = previewViewSize.width.toFloat(),
+                            previewHeight = previewViewSize.height.toFloat(),
+                            imageWidth = detectionResult.imageWidth.toFloat(),
+                            imageHeight = detectionResult.imageHeight.toFloat(),
+                            app = app
+                        )
+                    } else {
+                        ObjectBadges(
+                            objects = detectionResult.objects,
+                            previewWidth = previewViewSize.width.toFloat(),
+                            previewHeight = previewViewSize.height.toFloat(),
+                            imageWidth = detectionResult.imageWidth.toFloat(),
+                            imageHeight = detectionResult.imageHeight.toFloat(),
+                            app = app
+                        )
+                    }
                 }
             }
 
-            ClassDropdown(
-                selectedIndex = targetClassIndex,
-                onSelectionChanged = { targetClassIndex = it },
+            // Entfernungs-Slider direkt unter dem Camera Preview
+            Column(
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
                     .padding(vertical = 4.dp)
-            )
-
-            ThresholdSlider(
-                value = confidenceThreshold,
-                onValueChange = {
-                    confidenceThreshold = it
-                    confidenceThresholdRef.set(it)
-                },
-                modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .padding(vertical = 4.dp)
-            )
-
-            RecognizedTextBar(
-                text = detectionResult.recognizedText,
-                modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .padding(vertical = 4.dp)
-            )
-
-            Box(modifier = Modifier.weight(0.05f))
-        }
-    }
-}
-
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ClassDropdown(
-    selectedIndex: Int,
-    onSelectionChanged: (Int) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val selectedName = CocoClassNames.getOrElse(selectedIndex) { "Unbekannt" }
-
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = !expanded },
-        modifier = modifier
-    ) {
-        TextField(
-            value = "COCO #$selectedIndex: $selectedName",
-            onValueChange = {},
-            readOnly = true,
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchor(),
-            colors = ExposedDropdownMenuDefaults.textFieldColors(),
-            textStyle = MaterialTheme.typography.bodyMedium
-        )
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            CocoClassNames.forEachIndexed { index, name ->
-                DropdownMenuItem(
-                    text = { Text("$index: $name") },
-                    onClick = {
-                        onSelectionChanged(index)
-                        expanded = false
-                    },
-                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
-                )
-            }
-        }
-    }
-}
-@Composable
-fun StatusBar(result: DetectionResult, targetClassIndex: Int, previewWidth: Float, previewHeight: Float) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth(0.9f)
-            .padding(horizontal = 3.dp, vertical = 4.dp)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Box(modifier = Modifier.width(120.dp), contentAlignment = Alignment.CenterStart) {
-                    val className = CocoClassNames.getOrElse(targetClassIndex) { "Objekt" }
+                Text(
+                    text = "Entfernung",
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Text(
-                        text = "$className: ${result.eggCount}",
-                        color = Color.Yellow,
+                        text = "${distanceM.toInt()}m",
+                        color = Color.White,
                         style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier
-                            .background(Color.Black.copy(alpha = 0.7f))
-                            .padding(horizontal = 4.dp, vertical = 4.dp)
+                        modifier = Modifier.width(64.dp)
                     )
-                }
-
-                Box(modifier = Modifier.width(220.dp), contentAlignment = Alignment.CenterEnd) {
-                    Text(
-                        text = "${result.processingTimeMs}ms@${result.imageWidth}x${result.imageHeight}",
-                        color = Color.Gray,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier
-                            .background(Color.Black.copy(alpha = 0.7f))
-                            .padding(horizontal = 4.dp, vertical = 4.dp)
+                    Slider(
+                        value = distanceM,
+                        onValueChange = { distanceM = it },
+                        valueRange = 10f..300f,
+                        modifier = Modifier.weight(1f)
                     )
                 }
             }
-            Text(
-                text = "Target: ${"%.3f".format(result.topCarScore)} Global: ${"%.3f".format(result.maxGlobalScore)} class=${result.maxGlobalClassId}",
-                color = Color.Cyan,
-                style = MaterialTheme.typography.bodySmall,
+
+            // Schalter "Hinweis anzeigen" und Chat-Button direkt unter dem Slider
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier
-                    .background(Color.Black.copy(alpha = 0.7f))
-                    .padding(horizontal = 4.dp, vertical = 2.dp)
-            )
-            Text(
-                text = "prep=${result.timingMs.preprocessMs} inf=${result.timingMs.inferenceMs} post=${result.timingMs.postprocessMs} [${result.timingMs.delegateName}]",
-                color = Color.Cyan,
-                style = MaterialTheme.typography.bodySmall,
+                    .fillMaxWidth(0.9f)
+                    .padding(top = 8.dp, bottom = 4.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Hinweis anzeigen",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Switch(
+                        checked = showHint,
+                        onCheckedChange = { showHint = it },
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
+
+                Button(
+                    onClick = {
+                        val intent = Intent(context, ChatActivity::class.java)
+                        context.startActivity(intent)
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.DarkGray,
+                        contentColor = Color.White
+                    ),
+                    modifier = Modifier
+                        .width(88.dp)
+                        .height(40.dp)
+                ) {
+                    Text("Chat")
+                }
+            }
+
+            // Buttons oberhalb der Android-Navigationsleiste
+            Row(
                 modifier = Modifier
-                    .background(Color.Black.copy(alpha = 0.7f))
-                    .padding(horizontal = 4.dp, vertical = 2.dp)
-            )
-            Text(
-                text = "post: read=${result.timingMs.postReadMs} nms=${result.timingMs.postNmsMs} color=${result.timingMs.postColorMs}",
-                color = Color.Cyan,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier
-                    .background(Color.Black.copy(alpha = 0.7f))
-                    .padding(horizontal = 4.dp, vertical = 2.dp)
-            )
+                    .fillMaxWidth(0.9f)
+                    .padding(top = 4.dp, bottom = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Button(
+                        onClick = {
+                            val intent = Intent(context, DebugActivity::class.java)
+                            context.startActivity(intent)
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.DarkGray,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text("Debug")
+                    }
+
+                    Button(
+                        onClick = {
+                            val intent = Intent(context, CalibrationActivity::class.java)
+                            context.startActivity(intent)
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.DarkGray,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text("Kalibrierung")
+                    }
+                }
+
+                Button(
+                    onClick = {
+                        val intent = Intent(context, OcrActivity::class.java)
+                        context.startActivity(intent)
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.DarkGray,
+                        contentColor = Color.White
+                    ),
+                    modifier = Modifier
+                        .width(88.dp)
+                        .height(40.dp)
+                ) {
+                    Text("OCR")
+                }
+            }
         }
     }
 }
 
 @Composable
-fun DetectionOverlay(
+fun DistanceHintBadge(
     objects: List<DetectedObject>,
+    targetDistanceM: Float,
     previewWidth: Float,
     previewHeight: Float,
     imageWidth: Float,
-    imageHeight: Float
+    imageHeight: Float,
+    app: MyAIApplication
 ) {
     val scaleX = previewWidth / imageWidth
     val scaleY = previewHeight / imageHeight
@@ -516,96 +459,205 @@ fun DetectionOverlay(
     val offsetX = (previewWidth - scaledWidth) / 2
     val offsetY = (previewHeight - scaledHeight) / 2
 
-    Canvas(modifier = Modifier.fillMaxSize()) {
-        objects.forEach { obj ->
-            val color = Color(obj.colorR, obj.colorG, obj.colorB)
+    // Nur Objekte innerhalb ihrer klassenspezifischen SV-Schwellen berücksichtigen
+    val validObjects = objects.filter { obj ->
+        val cal = app.getCalibrationForClass(obj.classId)
+        val ratio = if (obj.height > 0) obj.width.toFloat() / obj.height.toFloat() else 0f
+        ratio in cal.ratioMin..cal.ratioMax
+    }
 
-            val finalX = (obj.x.toFloat() * scale) + offsetX
-            val finalY = (obj.y.toFloat() * scale) + offsetY
-            val finalW = obj.width.toFloat() * scale
-            val finalH = obj.height.toFloat() * scale
+    // Geschätzte Entfernungen pro Objektklasse berechnen und nach Entfernung sortieren
+    val candidates = validObjects.mapNotNull { obj ->
+        val estimated = app.estimateDistance(obj.width, obj.classId)
+        if (estimated >= 0f) obj to estimated else null
+    }.sortedBy { (_, estimated) -> estimated }
 
-            drawRect(
-                color = color,
-                topLeft = Offset(finalX, finalY),
-                size = Size(finalW, finalH),
-                style = Stroke(width = 3f)
-            )
+    val totalValid = candidates.size
+    val closest = candidates.minByOrNull { (_, estimated) ->
+        kotlin.math.abs(estimated - targetDistanceM)
+    }
+
+    val (obj, estimatedM) = closest ?: return
+    if (kotlin.math.abs(estimatedM - targetDistanceM) > 25f) return
+
+    val rank = candidates.indexOf(closest) + 1
+
+    val finalX = (obj.x.toFloat() * scale) + offsetX
+    val finalY = (obj.y.toFloat() * scale) + offsetY
+    val finalH = obj.height.toFloat() * scale
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .offset {
+                    IntOffset(finalX.toInt(), (finalY + finalH).toInt())
+                }
+                .background(
+                    color = Color(0xFF1A1A1A).copy(alpha = 0.85f),
+                    shape = MaterialTheme.shapes.small
+                )
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Column {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Image(
+                        painter = painterResource(id = R.mipmap.ic_launcher_foreground),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                    )
+                    Text(
+                        text = "${estimatedM.toInt()}m Entfernt",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1
+                    )
+                }
+                Text(
+                    text = "${rank}/${totalValid} Objekten",
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1
+                )
+            }
         }
     }
 }
 
 @Composable
-fun RecognizedTextBar(text: String, modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .background(Color.Black.copy(alpha = 0.7f))
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        contentAlignment = Alignment.CenterStart
-    ) {
-        Text(
-            text = if (text.isBlank()) "Kein Text erkannt" else "OCR: $text",
-            color = Color.Green,
-            style = MaterialTheme.typography.bodyMedium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            softWrap = false,
-            modifier = Modifier.fillMaxWidth()
-        )
+fun ObjectBadges(
+    objects: List<DetectedObject>,
+    previewWidth: Float,
+    previewHeight: Float,
+    imageWidth: Float,
+    imageHeight: Float,
+    app: MyAIApplication
+) {
+    val scaleX = previewWidth / imageWidth
+    val scaleY = previewHeight / imageHeight
+    val scale = max(scaleX, scaleY)
+
+    val scaledWidth = imageWidth * scale
+    val scaledHeight = imageHeight * scale
+    val offsetX = (previewWidth - scaledWidth) / 2
+    val offsetY = (previewHeight - scaledHeight) / 2
+
+    val activeClasses = app.activeDetectionClasses
+    val showCarBadge = activeClasses.contains(2)
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (!showCarBadge) return@Box
+        objects.filter { it.classId == 2 && it.colorName == "Rot" }.forEach { obj ->
+            val finalX = (obj.x.toFloat() * scale) + offsetX
+            val finalY = (obj.y.toFloat() * scale) + offsetY
+            val finalH = obj.height.toFloat() * scale
+
+            Box(
+                modifier = Modifier
+                    .offset {
+                        IntOffset(finalX.toInt(), (finalY + finalH).toInt())
+                    }
+                    .background(
+                        color = Color(0xFF1A1A1A).copy(alpha = 0.85f),
+                        shape = MaterialTheme.shapes.small
+                    )
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Image(
+                        painter = painterResource(id = R.mipmap.ic_launcher_foreground),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                    )
+                    Text(
+                        text = "Rotes Auto erkannt",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1
+                    )
+                }
+            }
+        }
     }
 }
 
 @Composable
-fun ThresholdSlider(
-    value: Float,
-    onValueChange: (Float) -> Unit,
+fun MainStatusBar(
+    result: DetectionResult,
+    targetClassIndex: Int,
+    targetClassSet: List<Int>,
+    setModeClassIndex: Int,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier) {
+    val countsByClass = result.objects.groupingBy { it.classId }.eachCount()
+    val isSetMode = targetClassIndex == setModeClassIndex
+    val displayClasses = if (isSetMode) targetClassSet else listOf(targetClassIndex)
+
+    Column(
+        modifier = modifier,
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.Top
         ) {
+            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                val label = if (isSetMode) {
+                    "Set: ${targetClassSet.joinToString(", ")}"
+                } else {
+                    CocoClassNames.getOrElse(targetClassIndex) { "Objekt" }.let { if (it == "Stoppschild") "Stop" else it }
+                }
+                Text(
+                    text = label,
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    modifier = Modifier
+                        .background(Color.Black.copy(alpha = 0.7f))
+                        .padding(horizontal = 4.dp, vertical = 4.dp)
+                )
+            }
+            Box(modifier = Modifier.wrapContentWidth(), contentAlignment = Alignment.CenterEnd) {
+                Text(
+                    text = "${result.processingTimeMs}ms@${result.imageWidth}x${result.imageHeight}",
+                    color = Color.Gray,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    modifier = Modifier
+                        .background(Color.Black.copy(alpha = 0.7f))
+                        .padding(horizontal = 4.dp, vertical = 4.dp)
+                )
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Start
+        ) {
+            val classLabels = displayClasses.map { idx ->
+                val name = CocoClassNames.getOrElse(idx) { "?" }.let { if (it == "Stoppschild") "Stop" else it }
+                val count = countsByClass[idx] ?: 0
+                "$name: $count"
+            }
             Text(
-                text = "Confidence",
-                color = Color.White,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(horizontal = 4.dp)
-            )
-            Text(
-                text = "%.2f".format(value),
+                text = classLabels.joinToString(", "),
                 color = Color.Yellow,
                 style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(horizontal = 4.dp)
+                maxLines = 1,
+                modifier = Modifier
+                    .background(Color.Black.copy(alpha = 0.7f))
+                    .padding(horizontal = 4.dp, vertical = 4.dp)
             )
         }
-        Slider(
-            value = value,
-            onValueChange = onValueChange,
-            valueRange = 0f..1f,
-            steps = 99,
-            modifier = Modifier.fillMaxWidth(),
-            colors = SliderDefaults.colors(
-                thumbColor = Color.Yellow,
-                activeTrackColor = Color.Yellow,
-                inactiveTrackColor = Color.DarkGray
-            )
-        )
-    }
-}
-
-@Composable
-fun EggIndicatorRow(objects: List<DetectedObject>, modifier: Modifier = Modifier) {
-    // Replaced by ThresholdSlider
-    Box(
-        modifier = modifier.fillMaxWidth(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "${objects.size} detected",
-            color = Color.Gray,
-            style = MaterialTheme.typography.bodySmall
-        )
     }
 }
