@@ -2,7 +2,9 @@
 
 Die `ChatActivity` beantwortet Fragen zum aktuell von der Kamera erfassten Bild.
 Der Chat betreibt eine eigene, an seinen Activity-Lebenszyklus gebundene Kameraanalyse.
-Oben rechts ist eine kleine Live-Vorschau des zuletzt analysierten Frames sichtbar.
+Oben rechts schwebt eine kleine Live-Vorschau des zuletzt analysierten Frames über dem Chat.
+Sie behält ihre Position und Größe auch bei geöffneter Bildschirmtastatur. Nur der
+Chatbereich samt Eingabe passt sich an den verfügbaren Platz über der Tastatur an.
 Beim Absenden (Senden-Button oder Tastatur) wartet die Anfrage auf einen neu analysierten
 Frame. Das alte Bild aus der Hauptansicht wird nicht verwendet. Währenddessen ist
 weiteres Senden gesperrt. Ohne neues Kamerabild gibt es nach spätestens acht Sekunden

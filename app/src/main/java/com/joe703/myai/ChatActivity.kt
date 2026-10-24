@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -248,29 +249,7 @@ fun ChatScreen() {
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.End) {
-                Column(horizontalAlignment = Alignment.End) {
-                    val preview = frozenPreview ?: detectionResult
-                    val bitmap = preview?.rawBitmap
-                    // Use the rotated frame's ratio, just like the result image; no cropping.
-                    val previewAspectRatio = bitmap?.let { it.width.toFloat() / it.height }
-                        ?: (3f / 4f)
-                    Box(Modifier.width(84.dp).aspectRatio(previewAspectRatio).background(Color.Black)
-                        .onGloballyPositioned {
-                            previewX = it.positionInWindow().x.toInt()
-                            previewY = it.positionInWindow().y.toInt()
-                            previewWidth = it.size.width
-                            previewHeight = it.size.height
-                        }, contentAlignment = Alignment.Center) {
-                        if (bitmap != null) Image(bitmap.asImageBitmap(), "Aktuelles Kamerabild",
-                            modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
-                        else Text("Kamera startet …", color = Color.White, fontSize = 11.sp)
-                    }
-                    Text(activity.cameraError ?: if (sending) "Bild wird ausgewertet …" else "Live-Kamera",
-                        color = Color.LightGray, fontSize = 11.sp)
-                }
-            }
+        Column(modifier = Modifier.fillMaxSize().imePadding()) {
             LazyColumn(
                 state = listState,
                 modifier = Modifier
@@ -304,6 +283,29 @@ fun ChatScreen() {
                 Button(onClick = { sendMessage() }, enabled = !sending) {
                     Text("Senden")
                 }
+            }
+        }
+        // Separate overlay: IME insets affect only the chat/input column, never this anchor.
+        Row(Modifier.align(Alignment.TopEnd).fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.End) {
+            Column(horizontalAlignment = Alignment.End) {
+                val preview = frozenPreview ?: detectionResult
+                val bitmap = preview?.rawBitmap
+                // Use the rotated frame's ratio, just like the result image; no cropping.
+                val previewAspectRatio = bitmap?.let { it.width.toFloat() / it.height }
+                    ?: (3f / 4f)
+                Box(Modifier.width(84.dp).aspectRatio(previewAspectRatio).background(Color.Black)
+                    .onGloballyPositioned {
+                        previewX = it.positionInWindow().x.toInt()
+                        previewY = it.positionInWindow().y.toInt()
+                        previewWidth = it.size.width
+                        previewHeight = it.size.height
+                    }, contentAlignment = Alignment.Center) {
+                    if (bitmap != null) Image(bitmap.asImageBitmap(), "Aktuelles Kamerabild",
+                        modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                    else Text("Kamera startet …", color = Color.White, fontSize = 11.sp)
+                }
+                Text(activity.cameraError ?: if (sending) "Bild wird ausgewertet …" else "Live-Kamera",
+                    color = Color.LightGray, fontSize = 11.sp)
             }
         }
     }

@@ -54,6 +54,7 @@
 
         <activity
             android:name=".ChatActivity"
+            android:windowSoftInputMode="adjustResize"
             android:exported="false"
             android:label="Chat"
             android:theme="@style/Theme.MyAI"
