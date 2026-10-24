@@ -21,7 +21,11 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.text.style.TextOverflow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,6 +41,8 @@ import androidx.compose.ui.unit.dp
 import com.joe703.myai.ui.theme.MyAITheme
 
 class ChatResultActivity : ComponentActivity() {
+    companion object { const val EXTRA_IMAGE_ID = "chat_image_id" }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -44,7 +50,7 @@ class ChatResultActivity : ComponentActivity() {
         setContent {
             MyAITheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
-                    ChatResultScreen(onFinish = { finish() })
+                    ChatResultScreen(imageId = intent.getStringExtra(EXTRA_IMAGE_ID), onFinish = { finish() })
                 }
             }
         }
@@ -52,10 +58,14 @@ class ChatResultActivity : ComponentActivity() {
 }
 
 @Composable
-fun ChatResultScreen(onFinish: () -> Unit) {
+fun ChatResultScreen(imageId: String?, onFinish: () -> Unit) {
     val context = LocalContext.current
     val app = context.applicationContext as MyAIApplication
-    val scene = remember { app.chatScene }
+    val loaded by produceState<Pair<Boolean, ChatScene?>>(false to null, imageId) {
+        val scene = withContext(Dispatchers.IO) { imageId?.let { app.chatHistoryStore.loadScene(it) } }
+        value = true to scene
+    }
+    val scene = loaded.second
     val result = scene?.frame
     val matchedObjects = scene?.matches.orEmpty()
 
@@ -144,11 +154,22 @@ fun ChatResultScreen(onFinish: () -> Unit) {
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Kein Bild verfügbar.",
+                        text = if (loaded.first) "Kein Bild verfügbar." else "Bild wird geladen …",
                         color = Color.White,
                         style = MaterialTheme.typography.bodyLarge
                     )
                 }
+            }
+
+            scene?.let {
+                Text(
+                    text = it.answer,
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth(0.9f).padding(vertical = 8.dp)
+                )
             }
 
             Button(

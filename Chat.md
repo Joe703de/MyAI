@@ -17,6 +17,22 @@ werden gemeinsam eingefroren. Die Ergebnisansicht bleibt absichtlich ein Standbi
 Darin werden passende Objekte mit einem **grünen** Rahmen hervorgehoben;
 alle anderen erkannten Objekte werden mit einem **gelben** Rahmen angezeigt.
 
+## Gespeicherte Ergebnisse
+
+Unter dem Ergebnisbild stehen die ersten drei sichtbaren Zeilen der zugehörigen
+Chatantwort. Längere Antworten werden mit „…“ gekürzt; im Chat bleibt der volle Text.
+
+Jede Antwort mit Ergebnisbild erhält einen kleinen **Bild**-Button. Er öffnet das
+ursprüngliche Bild mit den damaligen Markierungen und der dazugehörigen Antwort,
+auch wenn inzwischen weitere Fragen gestellt wurden. Bilder, Overlay-Koordinaten
+und Chatverlauf werden lokal im privaten App-Speicher abgelegt und bleiben über
+App-Neustarts erhalten. Bilder werden erst beim Öffnen geladen, nicht alle gleichzeitig.
+
+**Chat löschen** entfernt nach Bestätigung den Verlauf und alle zugehörigen Bilder.
+Dabei werden auch die gemerkten Farb-/Klassenfilter zurückgesetzt. Nicht bestätigtes
+Löschen verändert nichts. Ältere Antworten, die vor dieser Änderung entstanden sind,
+haben kein nachträglich rekonstruierbares Ergebnisbild.
+
 ## Wie das Regelmodell arbeitet
 
 1. **Text normalisieren** – Umlaute werden aufgelöst, Satzzeichen und das direkt auf eine Zahl folgende „m“ für Meter entfernt.
@@ -132,3 +148,9 @@ Beispiel: „Das rote Auto ist links und nah."
 4. Ergebnis schließen, erneut fragen; außerdem Hintergrund/Vordergrund und Drehung
    prüfen. Jede neue Frage braucht wieder einen neuen Frame.
 5. Kamera blockieren/entziehen: Keine Antwort mit einem alten Bild; stattdessen Hinweis.
+
+6. Zwei verschiedene Ergebnisse erzeugen und beide per „Bild“ wieder öffnen:
+   Bild, Rahmen und Antwort müssen jeweils zur ausgewählten Nachricht gehören.
+7. App neu starten und Ergebnisse erneut öffnen; lange Antwort auf drei sichtbare
+   Zeilen mit „…“ prüfen. „Chat löschen“ erst abbrechen, dann bestätigen und nach
+   erneutem App-Start prüfen, dass Verlauf und Bilder entfernt sind.

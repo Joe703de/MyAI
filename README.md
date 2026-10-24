@@ -36,7 +36,9 @@ Im Chat versteht das Regelmodell zusätzliche Farbbegriffe und deren Flektionsfo
 Die App enthält eine experimentelle `ChatActivity` mit einem regelbasierten Chatbot.
 Eine kleine Live-Kameravorschau steht oben rechts. Jede Anfrage wird mit einem neuen
 Frame verarbeitet; passende Treffer öffnen per Zoom die eingefrorene Ergebnisansicht
-mit exakt zu diesem Frame gehörenden Overlays.
+mit exakt zu diesem Frame gehörenden Overlays. Ergebnisbilder zeigen bis zu drei
+Antwortzeilen und sind über „Bild“ an der jeweiligen Chatantwort erneut abrufbar.
+Verlauf und Bilder bleiben lokal gespeichert, bis „Chat löschen“ bestätigt wird.
 Details zu den unterstützten Schlüsselwörtern, Nachfragen und Farbsynonymen findest du in [`Chat.md`](Chat.md).
 
 ## Technischer Stack

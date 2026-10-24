@@ -65,13 +65,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.joe703.myai.ui.theme.MyAITheme
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.AlertDialog
+import java.io.IOException
 
-data class ChatMessage(val sender: String, val text: String)
+data class ChatMessage(val sender: String, val text: String, val imageId: String? = null)
 
 data class ChatAnswer(val text: String, val matchedObjects: List<DetectedObject>)
 
 /** A single immutable publication keeps image, boxes and selected matches together. */
-data class ChatScene(val frame: DetectionResult, val matches: List<DetectedObject>) {
+data class ChatScene(val frame: DetectionResult, val matches: List<DetectedObject>, val answer: String) {
     init { require(matches.all { it in frame.objects }) }
 }
 
@@ -203,6 +208,42 @@ fun ChatScreen() {
     var frozenPreview by remember { mutableStateOf<DetectionResult?>(null) }
     val messages = remember { app.chatMessages }
     var inputText by remember { mutableStateOf("") }
+    var confirmDelete by remember { mutableStateOf(false) }
+    var storageError by remember { mutableStateOf<String?>(null) }
+
+    suspend fun appendMessage(message: ChatMessage) {
+        messages.add(message)
+        val saved = messages.toList()
+        withContext(Dispatchers.IO) { app.chatHistoryStore.saveMessages(saved) }
+    }
+
+    if (confirmDelete) AlertDialog(
+        onDismissRequest = { confirmDelete = false },
+        title = { Text("Chat löschen?") },
+        text = { Text("Alle Nachrichten und gespeicherten Ergebnisbilder werden gelöscht.") },
+        confirmButton = {
+            TextButton(onClick = {
+                confirmDelete = false
+                sending = true
+                scope.launch {
+                    try {
+                        withContext(Dispatchers.IO) { app.chatHistoryStore.clear() }
+                        messages.clear()
+                        app.chatRequestedClassId = null
+                        app.chatRequestedColor = null
+                    } catch (e: IOException) {
+                        storageError = "Der Chat konnte nicht vollständig gelöscht werden. Bitte erneut versuchen."
+                    } finally { sending = false }
+                }
+            }) { Text("Löschen") }
+        },
+        dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Abbrechen") } }
+    )
+    storageError?.let { error ->
+        AlertDialog(onDismissRequest = { storageError = null },
+            title = { Text("Speichern") }, text = { Text(error) },
+            confirmButton = { TextButton(onClick = { storageError = null }) { Text("OK") } })
+    }
 
     fun sendMessage() {
         if (sending || inputText.isBlank()) return
@@ -210,31 +251,38 @@ fun ChatScreen() {
         inputText = ""
         sending = true
         frozenPreview = null
-        messages.add(ChatMessage("Du", question))
         keyboardController?.hide()
         scope.launch {
             try {
+                appendMessage(ChatMessage("Du", question))
                 val snapshot = activity.captureFrame()
                 if (snapshot == null) {
-                    messages.add(ChatMessage("Assistant", activity.cameraError
+                    appendMessage(ChatMessage("Assistant", activity.cameraError
                         ?: "Kein aktuelles Kamerabild verfügbar. Bitte erneut versuchen."))
                 } else {
                     val (answer, matchedObjects) = interpretQuestion(question, snapshot, app)
-                    messages.add(ChatMessage("Assistant", answer))
-                    if (matchedObjects.isNotEmpty()) {
+                    val imageId = if (matchedObjects.isNotEmpty()) {
+                        withContext(Dispatchers.IO) {
+                            app.chatHistoryStore.saveScene(ChatScene(snapshot, matchedObjects.toList(), answer))
+                        }
+                    } else null
+                    appendMessage(ChatMessage("Assistant", answer, imageId))
+                    if (imageId != null) {
                         frozenPreview = snapshot
-                        app.chatScene = ChatScene(snapshot, matchedObjects.toList())
                         // Let Compose display the exact snapshot before the scale-up transition.
                         androidx.compose.runtime.withFrameNanos { }
                         androidx.compose.runtime.withFrameNanos { }
                         val options = ActivityOptions.makeScaleUpAnimation(
                             activity.window.decorView, previewX, previewY, previewWidth, previewHeight)
                         if (activity.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
-                            context.startActivity(Intent(context, ChatResultActivity::class.java), options.toBundle())
+                            context.startActivity(Intent(context, ChatResultActivity::class.java)
+                                .putExtra(ChatResultActivity.EXTRA_IMAGE_ID, imageId), options.toBundle())
                         }
                     }
                 }
                 listState.animateScrollToItem(messages.size - 1)
+            } catch (e: IOException) {
+                storageError = "Die Antwort oder das Bild konnte nicht dauerhaft gespeichert werden. Bitte Speicherplatz prüfen und erneut versuchen."
             } finally {
                 sending = false
                 frozenPreview = null
@@ -250,6 +298,9 @@ fun ChatScreen() {
             .navigationBarsPadding()
     ) {
         Column(modifier = Modifier.fillMaxSize().imePadding()) {
+            TextButton(onClick = { confirmDelete = true }, enabled = !sending) {
+                Text("Chat löschen")
+            }
             LazyColumn(
                 state = listState,
                 modifier = Modifier
@@ -259,7 +310,7 @@ fun ChatScreen() {
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 items(messages) { msg ->
-                    ChatBubble(msg)
+                    ChatBubble(msg, imageEnabled = !sending)
                 }
             }
 
@@ -312,13 +363,14 @@ fun ChatScreen() {
 }
 
 @Composable
-private fun ChatBubble(msg: ChatMessage) {
+private fun ChatBubble(msg: ChatMessage, imageEnabled: Boolean) {
     val isUser = msg.sender == "Du"
+    val context = LocalContext.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
     ) {
-        Box(
+        Column(
             modifier = Modifier
                 .background(
                     if (isUser) Color(0xFF1E88E5) else Color(0xFF424242),
@@ -331,6 +383,12 @@ private fun ChatBubble(msg: ChatMessage) {
                 color = Color.White,
                 style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 20.sp)
             )
+            msg.imageId?.let { imageId ->
+                TextButton(enabled = imageEnabled, onClick = {
+                    context.startActivity(Intent(context, ChatResultActivity::class.java)
+                        .putExtra(ChatResultActivity.EXTRA_IMAGE_ID, imageId))
+                }) { Text("Bild", color = Color.White) }
+            }
         }
     }
 }

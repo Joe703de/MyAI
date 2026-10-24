@@ -17,8 +17,8 @@ import androidx.compose.runtime.setValue
  */
 class MyAIApplication : Application() {
 
-    /** Atomic, frozen frame and matching overlays for ChatResultActivity. */
-    var chatScene: ChatScene? by mutableStateOf(null)
+    lateinit var chatHistoryStore: ChatHistoryStore
+        private set
 
     /** Only semantic filters survive a question; object coordinates never cross frames. */
     var chatRequestedClassId: Int? = null
@@ -110,6 +110,11 @@ class MyAIApplication : Application() {
         super.onCreate()
         prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         loadCalibration()
+        chatHistoryStore = ChatHistoryStore(this)
+        chatHistoryStore.loadMessages()?.let { saved ->
+            chatMessages.clear()
+            chatMessages.addAll(saved)
+        }
     }
 
     fun updateTargetClass(index: Int) {
