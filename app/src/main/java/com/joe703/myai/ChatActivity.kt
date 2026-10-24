@@ -359,7 +359,7 @@ private fun ChatBubble(msg: ChatMessage, imageEnabled: Boolean) {
         Column(
             modifier = Modifier
                 .background(
-                    if (isUser) MaterialTheme.colorScheme.primary else Color(0xFF424242),
+                    if (isUser) Color(0xFF006400) else Color(0xFF424242),
                     shape = MaterialTheme.shapes.medium
                 )
                 .padding(horizontal = 12.dp, vertical = 8.dp)
