@@ -177,3 +177,11 @@ Jeder Aufzählungspunkt beschreibt genau ein erkanntes Objekt: „rotes Auto“,
 mehrerer Objekte verwenden den Plural, etwa „3 rote Autos“. Nach „Ich sehe“
 steht der Akkusativ („einen weißen LKW“); als Satzsubjekt dagegen
 „Der weiße LKW“. `ChatGrammar` enthält explizite Formen für alle 80 COCO-Klassen.
+
+## Ausrichtung des Verlaufs
+
+Kurze Verläufe stehen unten direkt über dem Eingabefeld. Die neueste Nachricht
+ist am unteren Listenrand verankert. Neue Nachrichten und Änderungen der
+Listenhöhe (insbesondere beim Öffnen/Schließen der Tastatur) führen zum neuesten
+Eintrag zurück. Ältere Nachrichten bleiben durch manuelles Scrollen erreichbar.
+Die Kameravorschau bleibt unabhängig davon oben rechts positioniert.

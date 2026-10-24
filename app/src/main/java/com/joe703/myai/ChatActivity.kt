@@ -49,6 +49,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,6 +59,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
@@ -202,6 +205,13 @@ fun ChatScreen() {
     val detectionResult = activity.liveResult
     var sending by remember { mutableStateOf(false) }
     val messages = remember { app.chatMessages }
+    var chatViewportHeight by remember { mutableIntStateOf(0) }
+
+    // Index 0 is the newest message in the reversed layout. Follow new messages
+    // and viewport resizing (including every IME animation step), not manual scrolling.
+    LaunchedEffect(messages.size, chatViewportHeight) {
+        if (messages.isNotEmpty() && chatViewportHeight > 0) listState.scrollToItem(0)
+    }
     var inputText by remember { mutableStateOf("") }
     var confirmDelete by remember { mutableStateOf(false) }
     var storageError by remember { mutableStateOf<String?>(null) }
@@ -259,7 +269,6 @@ fun ChatScreen() {
             } finally {
                 sending = false
             }
-            if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex)
         }
     }
 
@@ -295,13 +304,15 @@ fun ChatScreen() {
             }
             LazyColumn(
                 state = listState,
+                reverseLayout = true,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .padding(8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                    .padding(8.dp)
+                    .onSizeChanged { chatViewportHeight = it.height },
+                verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.Bottom)
             ) {
-                items(messages) { msg ->
+                items(messages.asReversed()) { msg ->
                     ChatBubble(msg, imageEnabled = !sending)
                 }
             }
