@@ -247,9 +247,8 @@ fun ChatScreen() {
             confirmButton = { TextButton(onClick = { storageError = null }) { Text("OK") } })
     }
 
-    fun sendMessage() {
-        if (sending || inputText.isBlank()) return
-        val question = inputText
+    fun sendMessage(question: String = inputText) {
+        if (sending || question.isBlank()) return
         inputText = ""
         sending = true
         frozenPreview = null
@@ -300,8 +299,27 @@ fun ChatScreen() {
             .navigationBarsPadding()
     ) {
         Column(modifier = Modifier.fillMaxSize().imePadding()) {
-            TextButton(onClick = { confirmDelete = true }, enabled = !sending) {
-                Text("Chat löschen")
+            Row(
+                // Leave the floating camera preview in its existing top-right position.
+                modifier = Modifier.fillMaxWidth()
+                    .padding(start = 8.dp, end = 100.dp, top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Button(
+                    onClick = { confirmDelete = true },
+                    enabled = !sending,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Chat löschen")
+                }
+                Button(
+                    onClick = { sendMessage("Was siehst Du?") },
+                    enabled = !sending,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Was siehst Du?")
+                }
             }
             LazyColumn(
                 state = listState,
