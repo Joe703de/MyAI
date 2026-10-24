@@ -44,6 +44,9 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -384,10 +387,20 @@ private fun ChatBubble(msg: ChatMessage, imageEnabled: Boolean) {
                 style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 20.sp)
             )
             msg.imageId?.let { imageId ->
-                TextButton(enabled = imageEnabled, onClick = {
-                    context.startActivity(Intent(context, ChatResultActivity::class.java)
-                        .putExtra(ChatResultActivity.EXTRA_IMAGE_ID, imageId))
-                }) { Text("Bild", color = Color.White) }
+                val interactionSource = remember { MutableInteractionSource() }
+                val pressed by interactionSource.collectIsPressedAsState()
+                Button(
+                    enabled = imageEnabled,
+                    interactionSource = interactionSource,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (pressed) Color(0xFF0D47A1) else Color(0xFF1976D2),
+                        contentColor = Color.White
+                    ),
+                    onClick = {
+                        context.startActivity(Intent(context, ChatResultActivity::class.java)
+                            .putExtra(ChatResultActivity.EXTRA_IMAGE_ID, imageId))
+                    }
+                ) { Text("Bild") }
             }
         }
     }
